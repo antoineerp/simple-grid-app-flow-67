@@ -1,30 +1,31 @@
 
 import React from 'react';
-import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
-import { TableCell, TableRow } from "@/components/ui/table";
 import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { TableCell, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Pencil, Trash, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import { BibliothequeDocumentRow } from './BibliothequeDocumentRow';
 
 interface BibliothequeGroupProps {
   group: DocumentGroup;
+  groupIndex: number;
   documents: Document[];
-  groupIndex: number; // Add this prop
   onEdit: (document: Document | null, group?: DocumentGroup) => void;
   onDelete: (id: string, isGroup?: boolean) => void;
   onToggleGroup: (id: string) => void;
-  onDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
+  onDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string, index?: number) => void;
   onDragOver: (e: React.DragEvent<HTMLTableRowElement>) => void;
   onDragLeave: (e: React.DragEvent<HTMLTableRowElement>) => void;
   onDrop: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
   onDragEnd: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onGroupDragStart: (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => void;
-  onGroupDrop: (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => void;
+  onGroupDragStart: (e: React.DragEvent<HTMLTableRowElement>) => void;
+  onGroupDrop: (e: React.DragEvent<HTMLTableRowElement>) => void;
 }
 
-export const BibliothequeGroup: React.FC<BibliothequeGroupProps> = ({ 
+export const BibliothequeGroup: React.FC<BibliothequeGroupProps> = ({
   group,
+  groupIndex,
   documents,
-  groupIndex, // Make sure we use this prop
   onEdit,
   onDelete,
   onToggleGroup,
@@ -37,75 +38,65 @@ export const BibliothequeGroup: React.FC<BibliothequeGroupProps> = ({
   onGroupDrop
 }) => {
   return (
-    <React.Fragment>
+    <>
       <TableRow 
-        className="border-b hover:bg-gray-50 cursor-pointer" 
-        onClick={() => onToggleGroup(group.id)}
-        draggable
-        onDragStart={(e) => {
-          e.stopPropagation();
-          onGroupDragStart(e, group.id);
-        }}
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onDragOver(e);
-        }}
-        onDragLeave={(e) => {
-          e.stopPropagation();
-          onDragLeave(e);
-        }}
-        onDrop={(e) => {
-          e.stopPropagation();
-          onGroupDrop(e, group.id);
-        }}
-        onDragEnd={(e) => {
-          e.stopPropagation();
-          onDragEnd(e);
-        }}
-        data-sync-id={group.id}
-        data-sync-type="group"
-        data-sync-table="collaboration"
-        data-sync-owner={group.userId || "default"}
+        className="hover:bg-gray-100 border-b"
+        draggable={true}
+        onDragStart={onGroupDragStart}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={(e) => onGroupDrop(e)}
+        onDragEnd={onDragEnd}
       >
-        <TableCell className="py-3 px-2 w-10">
+        <TableCell className="w-10">
           <GripVertical className="h-5 w-5 text-gray-400 cursor-move" />
         </TableCell>
-        <TableCell className="py-3 px-4 w-full text-left" colSpan={2}>
-          <div className="flex items-center">
-            <ChevronDown 
-              className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} 
-            />
-            <span className="font-bold text-app-blue text-sm">{group.name}</span>
+        <TableCell className="py-2">
+          <div className="flex items-center gap-1">
+            <button 
+              className="p-1 hover:bg-gray-200 rounded-full"
+              onClick={() => onToggleGroup(group.id)}
+            >
+              {group.expanded ? 
+                <ChevronDown className="h-5 w-5 text-gray-700" /> : 
+                <ChevronRight className="h-5 w-5 text-gray-700" />
+              }
+            </button>
+            <span className="font-medium text-gray-900">{group.name}</span>
           </div>
         </TableCell>
-        <TableCell className="py-3 px-4 text-right">
-          <button 
-            className="text-gray-600 hover:text-app-blue mr-3"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(null, group);
-            }}
-          >
-            <Pencil className="h-5 w-5 inline-block" />
-          </button>
-          <button 
-            className="text-gray-600 hover:text-red-500"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(group.id, true);
-            }}
-          >
-            <Trash className="h-5 w-5 inline-block" />
-          </button>
+        <TableCell></TableCell>
+        <TableCell className="text-right">
+          <div className="flex justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-600 hover:text-app-blue"
+              onClick={() => onEdit(null, group)}
+              title="Modifier le groupe"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-600 hover:text-red-600"
+              onClick={() => onDelete(group.id, true)}
+              title="Supprimer le groupe"
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
+          </div>
         </TableCell>
       </TableRow>
       
-      {group.expanded && documents.map((doc, index) => (
+      {group.expanded && documents && documents.map((doc, index) => (
         <BibliothequeDocumentRow
           key={doc.id}
           document={doc}
           index={index}
+          groupId={group.id} 
+          indented={true}
           onEdit={onEdit}
           onDelete={onDelete}
           onDragStart={onDragStart}
@@ -113,9 +104,8 @@ export const BibliothequeGroup: React.FC<BibliothequeGroupProps> = ({
           onDragLeave={onDragLeave}
           onDrop={onDrop}
           onDragEnd={onDragEnd}
-          groupId={group.id}
         />
       ))}
-    </React.Fragment>
+    </>
   );
 };

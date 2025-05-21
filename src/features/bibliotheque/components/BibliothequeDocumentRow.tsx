@@ -1,81 +1,101 @@
 
 import React from 'react';
-import { Pencil, Trash, GripVertical } from 'lucide-react';
-import { TableCell, TableRow } from "@/components/ui/table";
 import { Document } from '@/types/bibliotheque';
+import { TableCell, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Pencil, Trash, ExternalLink, GripVertical } from "lucide-react";
 
 interface BibliothequeDocumentRowProps {
   document: Document;
+  index: number;
   groupId?: string;
-  onEdit: (document: Document | null, group?: any) => void;
-  onDelete: (id: string, isGroup?: boolean) => void;
-  onDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
+  indented?: boolean;
+  onEdit: (document: Document) => void;
+  onDelete: (id: string) => void;
+  onDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string, index?: number) => void;
   onDragOver: (e: React.DragEvent<HTMLTableRowElement>) => void;
   onDragLeave: (e: React.DragEvent<HTMLTableRowElement>) => void;
   onDrop: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
   onDragEnd: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  index: number;
 }
 
 export const BibliothequeDocumentRow: React.FC<BibliothequeDocumentRowProps> = ({
   document,
+  index,
   groupId,
+  indented = false,
   onEdit,
   onDelete,
   onDragStart,
   onDragOver,
   onDragLeave,
   onDrop,
-  onDragEnd,
-  index
+  onDragEnd
 }) => {
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, link: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Ajouter le protocole si nécessaire
+    let url = link;
+    if (link && !link.startsWith('http://') && !link.startsWith('https://')) {
+      url = `https://${link}`;
+    }
+    
+    window.open(url, '_blank');
+  };
+
   return (
-    <TableRow
-      className={`border-b hover:bg-gray-50 ${groupId ? 'bg-gray-50' : ''}`}
+    <TableRow 
+      className="hover:bg-gray-50 border-b"
       draggable
-      onDragStart={(e) => onDragStart(e, document.id, groupId)}
+      onDragStart={(e) => onDragStart(e, document.id, groupId, index)}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, document.id, groupId)}
       onDragEnd={onDragEnd}
-      data-sync-id={document.id}
-      data-sync-type="document"
-      data-group-id={groupId || ""}
-      data-sync-table="collaboration"
-      data-sync-owner={document.userId || "default"}
-      data-index={index}
     >
-      <TableCell className="py-3 px-2 w-10">
+      <TableCell className="w-10">
         <GripVertical className="h-5 w-5 text-gray-400 cursor-move" />
       </TableCell>
-      <TableCell className="py-3 px-4">
+      <TableCell className={`py-2 ${indented ? 'pl-10' : ''}`}>
         {document.name}
       </TableCell>
-      <TableCell className="py-3 px-4">
-        {document.link && (
-          <a
+      <TableCell className="py-2">
+        {document.link ? (
+          <a 
             href={document.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-app-blue hover:underline"
+            onClick={(e) => handleLinkClick(e, document.link!)}
+            className="text-app-blue hover:underline flex items-center gap-1"
           >
-            {document.link}
+            <ExternalLink className="h-4 w-4" />
+            <span>Voir le document</span>
           </a>
+        ) : (
+          <span className="text-gray-400">Aucun lien</span>
         )}
       </TableCell>
-      <TableCell className="py-3 px-4 text-right">
-        <button
-          className="text-gray-600 hover:text-app-blue mr-3"
-          onClick={() => onEdit(document)}
-        >
-          <Pencil className="h-5 w-5 inline-block" />
-        </button>
-        <button
-          className="text-gray-600 hover:text-red-500"
-          onClick={() => onDelete(document.id)}
-        >
-          <Trash className="h-5 w-5 inline-block" />
-        </button>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-gray-600 hover:text-app-blue"
+            onClick={() => onEdit(document)}
+            title="Modifier le document"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-gray-600 hover:text-red-600"
+            onClick={() => onDelete(document.id)}
+            title="Supprimer le document"
+          >
+            <Trash className="h-4 w-4" />
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
   );

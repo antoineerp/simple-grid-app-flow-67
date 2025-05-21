@@ -33,6 +33,14 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
 }) => {
   const ungroupedDocuments = documents.filter(doc => !doc.groupId);
   
+  // Collecter tous les éléments pour le glisser-déposer
+  const allItems = [...ungroupedDocuments];
+  groups.forEach(group => {
+    if (group.items && Array.isArray(group.items)) {
+      allItems.push(...group.items);
+    }
+  });
+  
   // Enhanced drag and drop using our custom hook
   const {
     handleDragStart,
@@ -42,13 +50,14 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
     handleDragEnd,
     handleGroupDrop
   } = useDragAndDropTable(
-    documents, 
+    allItems, 
     onReorder, 
     (doc) => doc.groupId
   );
   
-  const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
-    e.dataTransfer.setData('text/plain', JSON.stringify({ groupId, isGroup: true }));
+  // Gestion du glisser-déposer pour les groupes
+  const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string, index: number) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ id: groupId, isGroup: true, index }));
     e.currentTarget.classList.add('opacity-50');
   };
 
@@ -72,13 +81,13 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
               onEdit={onEdit}
               onDelete={onDelete}
               onToggleGroup={onToggleGroup}
-              onDragStart={(e, id, groupId) => handleDragStart(e, id, groupId)}
+              onDragStart={(e, id, groupId, index) => handleDragStart(e, id, groupId, index)}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={(e, id, groupId) => handleDrop(e, id, groupId)}
               onDragEnd={handleDragEnd}
-              onGroupDragStart={handleGroupDragStart}
-              onGroupDrop={handleGroupDrop}
+              onGroupDragStart={(e) => handleGroupDragStart(e, group.id, groupIndex)}
+              onGroupDrop={(e) => handleGroupDrop(e, group.id)}
               documents={documents.filter(doc => doc.groupId === group.id)}
             />
           ))}

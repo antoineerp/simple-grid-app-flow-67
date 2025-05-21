@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { v4 as uuidv4 } from 'uuid';
+import { useDragAndDropTable } from '@/hooks/useDragAndDropTable';
 
 const RessourcesHumaines = () => {
   const [membres, setMembres] = useState([]);
@@ -90,6 +91,23 @@ const RessourcesHumaines = () => {
       });
       setIsDialogOpen(true);
     }
+  };
+
+  // Fonction pour gérer le réordonnancement des membres
+  const handleReorder = (startIndex, endIndex) => {
+    // Créer une copie de la liste des membres
+    const updatedMembres = [...membres];
+    // Retirer l'élément de sa position d'origine
+    const [removed] = updatedMembres.splice(startIndex, 1);
+    // L'insérer à sa nouvelle position
+    updatedMembres.splice(endIndex, 0, removed);
+    // Mettre à jour la liste
+    setMembres(updatedMembres);
+    
+    toast({
+      title: "Ordre mis à jour",
+      description: "L'ordre des membres a été mis à jour avec succès"
+    });
   };
 
   const generateInitiales = (prenom, nom) => {
@@ -222,6 +240,7 @@ const RessourcesHumaines = () => {
               description: "Le membre a été supprimé avec succès."
             });
           }} 
+          onReorder={handleReorder}
         />
       ) : (
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">

@@ -3,6 +3,7 @@ import React from 'react';
 import { FileText } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { MembresProvider } from '@/contexts/MembresContext';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import SyncIndicator from '@/components/common/SyncIndicator';
 import { exportCollaborationDocsToPdf } from '@/services/collaborationExport';
@@ -12,6 +13,7 @@ import { BibliothequeActions } from '@/features/bibliotheque/components/Biblioth
 import { DocumentDialog } from '@/features/bibliotheque/components/DocumentDialog';
 import { GroupDialog } from '@/features/bibliotheque/components/GroupDialog';
 import { saveCollaborationToStorage } from '@/services/collaboration/collaborationService';
+import { useDragAndDropTable } from '@/hooks/useDragAndDropTable';
 
 const Collaboration = () => {
   const { 
@@ -115,7 +117,16 @@ const Collaboration = () => {
     }
   };
 
-  // Gestionnaire de réorganisation amélioré pour sauvegarder et synchroniser
+  // Utiliser le hook useDragAndDropTable pour une meilleure gestion du drag and drop
+  const allItems = [...documents];
+  
+  // Ajouter les éléments des groupes
+  groups.forEach(group => {
+    if (group.items && Array.isArray(group.items)) {
+      allItems.push(...group.items);
+    }
+  });
+  
   const handleReorder = (startIndex: number, endIndex: number, targetGroupId?: string) => {
     console.log(`Réorganisation de l'élément ${startIndex} à ${endIndex}${targetGroupId ? ` dans le groupe ${targetGroupId}` : ''}`);
     
@@ -135,7 +146,6 @@ const Collaboration = () => {
     } else {
       // Parcourir les groupes pour trouver le document
       let adjustedIndex = startIndex - updatedDocuments.length;
-      let currentIndex = 0;
       
       for (const group of updatedGroups) {
         if (adjustedIndex < group.items.length) {
@@ -145,7 +155,6 @@ const Collaboration = () => {
           break;
         }
         adjustedIndex -= group.items.length;
-        currentIndex += group.items.length;
       }
     }
     
@@ -155,7 +164,7 @@ const Collaboration = () => {
         if (targetGroupId === 'null') {
           // Ajouter à la liste principale
           sourceDoc.groupId = undefined;
-          updatedDocuments.splice(endIndex, 0, sourceDoc);
+          updatedDocuments.splice(Math.min(endIndex, updatedDocuments.length), 0, sourceDoc);
         } else {
           // Ajouter au groupe spécifié
           sourceDoc.groupId = targetGroupId;
@@ -184,12 +193,9 @@ const Collaboration = () => {
       } else {
         // Pas de groupe cible spécifié, ajouter à la liste principale
         sourceDoc.groupId = undefined;
-        updatedDocuments.splice(endIndex, 0, sourceDoc);
+        updatedDocuments.splice(Math.min(endIndex, updatedDocuments.length), 0, sourceDoc);
       }
     }
-    
-    // Mettre à jour les états
-    // Use the useCollaboration hooks to update the state - they will handle the sync
     
     // Sauvegarder et synchroniser avec le serveur
     saveCollaborationToStorage(updatedDocuments, updatedGroups);
@@ -228,74 +234,76 @@ const Collaboration = () => {
   };
 
   return (
-    <div className="container py-8">
-      <BibliothequeHeader 
-        onSync={handleSync}
-        isSyncing={isSyncing}
-        isOnline={isOnline}
-        syncFailed={syncFailed}
-        lastSynced={lastSynced}
-      />
+    <MembresProvider>
+      <div className="container py-8">
+        <BibliothequeHeader 
+          onSync={handleSync}
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          syncFailed={syncFailed}
+          lastSynced={lastSynced}
+        />
 
-      {syncFailed && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertTitle>Erreur de synchronisation</AlertTitle>
-          <AlertDescription className="flex items-center justify-between">
-            <span>Une erreur est survenue lors de la synchronisation des documents</span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleSync}
-            >
-              Réessayer
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
+        {syncFailed && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTitle>Erreur de synchronisation</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              <span>Une erreur est survenue lors de la synchronisation des documents</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSync}
+              >
+                Réessayer
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
-      {isSyncing ? (
-        <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
-          <p className="text-gray-500">Chargement des données de collaboration...</p>
-        </div>
-      ) : (
-        <>
-          <BibliothequeTable
-            documents={documents}
-            groups={groups}
-            onEdit={handleOpenDocumentDialog}
-            onDelete={(id, isGroup) => isGroup ? handleDeleteGroup(id) : handleDeleteDocument(id)}
-            onReorder={handleReorder}
-            onGroupReorder={handleGroupReorder}
-            onToggleGroup={handleToggleGroup}
-          />
-          
-          <BibliothequeActions
-            onAddGroup={() => handleOpenGroupDialog()}
-            onAddDocument={() => handleOpenDocumentDialog()}
-          />
-        </>
-      )}
+        {isSyncing ? (
+          <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
+            <p className="text-gray-500">Chargement des données de collaboration...</p>
+          </div>
+        ) : (
+          <>
+            <BibliothequeTable
+              documents={documents}
+              groups={groups}
+              onEdit={handleOpenDocumentDialog}
+              onDelete={(id, isGroup) => isGroup ? handleDeleteGroup(id) : handleDeleteDocument(id)}
+              onReorder={handleReorder}
+              onGroupReorder={handleGroupReorder}
+              onToggleGroup={handleToggleGroup}
+            />
+            
+            <BibliothequeActions
+              onAddGroup={() => handleOpenGroupDialog()}
+              onAddDocument={() => handleOpenDocumentDialog()}
+            />
+          </>
+        )}
 
-      <DocumentDialog
-        isOpen={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        document={currentDocument}
-        isEditing={isEditing}
-        onChange={handleDocumentInputChange}
-        onSave={handleSaveDocument}
-      />
+        <DocumentDialog
+          isOpen={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          onClose={() => setIsDialogOpen(false)}
+          document={currentDocument}
+          isEditing={isEditing}
+          onChange={handleDocumentInputChange}
+          onSave={handleSaveDocument}
+        />
 
-      <GroupDialog
-        isOpen={isGroupDialogOpen}
-        onOpenChange={setIsGroupDialogOpen}
-        onClose={() => setIsGroupDialogOpen(false)}
-        group={currentGroup}
-        isEditing={isEditing}
-        onChange={handleGroupInputChange}
-        onSave={handleSaveGroup}
-      />
-    </div>
+        <GroupDialog
+          isOpen={isGroupDialogOpen}
+          onOpenChange={setIsGroupDialogOpen}
+          onClose={() => setIsGroupDialogOpen(false)}
+          group={currentGroup}
+          isEditing={isEditing}
+          onChange={handleGroupInputChange}
+          onSave={handleSaveGroup}
+        />
+      </div>
+    </MembresProvider>
   );
 };
 
