@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
@@ -56,14 +57,19 @@ export const useBibliothequeSync = () => {
     // Si la connexion échoue, on renvoie un tableau vide plutôt que des données locales
     try {
       // Utiliser le service central pour charger les données
-      const documents = await syncService.loadDataFromServer<SystemDocument>('collaboration', currentUser);
+      const result = await syncService.loadDataFromServer<SystemDocument>('collaboration', currentUser);
       const lastSyncTime = syncService.getLastSynced('collaboration');
       if (lastSyncTime) {
         setLastSynced(lastSyncTime);
       } else {
         setLastSynced(new Date());
       }
-      return documents.map(convertSystemToBibliothequeDoc);
+      
+      // Maintenant, nous extrayons les données correctement et les convertissons
+      if (result && result.data && Array.isArray(result.data)) {
+        return result.data.map(convertSystemToBibliothequeDoc);
+      }
+      return [];
     } catch (error) {
       console.error('Erreur lors du chargement des documents depuis le serveur:', error);
       toast({
@@ -189,7 +195,41 @@ export const useBibliothequeSync = () => {
   
   return {
     syncWithServer,
-    debounceSyncWithServer,
+    debounceSyncWithServer: useCallback((
+      documents: BibliothequeDocument[], 
+      groups: DocumentGroup[], 
+      userId?: string
+    ) => {
+      // Utiliser l'utilisateur courant si non spécifié
+      const currentUser = getValidUserId(userId);
+      
+      // Mettre à jour les références pour la synchronisation automatique
+      documentsRef.current = documents;
+      groupsRef.current = groups;
+      lastChangedRef.current = new Date();
+      
+      // Marquer qu'une synchronisation est en attente
+      pendingSyncRef.current = true;
+      
+      // Si un timeout est déjà en cours, l'annuler
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+      
+      // Programmer une nouvelle synchronisation après 10 secondes
+      syncTimeoutRef.current = setTimeout(() => {
+        if (pendingSyncRef.current && isOnline) {
+          // Exécuter la synchronisation
+          syncWithServer(documents, groups, currentUser, "auto").catch(err => {
+            console.error("Erreur lors de la synchronisation différée:", err);
+          });
+          pendingSyncRef.current = false;
+        }
+        syncTimeoutRef.current = null;
+      }, 10000); // 10 secondes de délai
+      
+      return true;
+    }, [isOnline, syncWithServer]),
     loadFromServer,
     isSyncing,
     isOnline,

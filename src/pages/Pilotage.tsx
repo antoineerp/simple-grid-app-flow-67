@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { MembresProvider } from '@/contexts/MembresContext';
 import { exportPilotageToOdf } from "@/services/pdfExport";
@@ -13,7 +13,7 @@ import DocumentSummary from '@/components/pilotage/DocumentSummary';
 import ResponsabilityMatrix from '@/components/pilotage/ResponsabilityMatrix';
 
 // Type pour les documents de pilotage
-interface Document {
+interface PilotageDocument {
   id: string;
   nom: string;
   fichier_path: string | null;
@@ -28,13 +28,27 @@ interface Document {
   date_modification: Date;
   excluded: boolean;
   groupId?: string;
+  ordre?: number;
+}
+
+// Interface pour l'intégration avec le composant DocumentDialog existant
+interface DialogDocument {
+  id: number;
+  ordre: number;
+  nom: string;
+  lien: string | null;
 }
 
 const Pilotage = () => {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
+  const [currentDialogDocument, setCurrentDialogDocument] = useState<DialogDocument>({
+    id: 0,
+    ordre: 0,
+    nom: '',
+    lien: null
+  });
 
   // Utiliser notre hook personnalisé pour la synchronisation CRUD
   const {
@@ -47,7 +61,7 @@ const Pilotage = () => {
     updateItem,
     deleteItem,
     syncWithServer
-  } = useSyncTableCrud<Document>({
+  } = useSyncTableCrud<PilotageDocument>({
     tableName: 'pilotage_documents',
     autoSync: true,
     syncInterval: 30000,  // 30 secondes
@@ -60,48 +74,89 @@ const Pilotage = () => {
       date_creation: new Date(),
       date_modification: new Date(),
       excluded: data?.excluded || false,
-      groupId: data?.groupId || undefined
+      groupId: data?.groupId || undefined,
+      ordre: data?.ordre || 0
     })
   });
 
+  // Convertir les documents pour l'affichage dans le composant de table existant
+  const convertedDocuments = documents.map(doc => ({
+    id: parseInt(doc.id) || Math.floor(Math.random() * 1000),
+    ordre: doc.ordre || 0,
+    nom: doc.nom,
+    lien: doc.fichier_path
+  }));
+
   // Gestionnaires d'événements
   const handleAddDocument = () => {
-    const newDocument = createItem();
-    setCurrentDocument(newDocument);
+    const newOrderValue = documents.length > 0 
+      ? Math.max(...documents.map(doc => doc.ordre || 0)) + 1 
+      : 1;
+      
+    const newDocument = createItem({ 
+      ordre: newOrderValue,
+      nom: 'Nouveau document'
+    });
+    
+    // Convertir pour l'affichage dans le dialogue
+    setCurrentDialogDocument({
+      id: parseInt(newDocument.id) || Math.floor(Math.random() * 1000),
+      ordre: newDocument.ordre || 0,
+      nom: newDocument.nom,
+      lien: newDocument.fichier_path
+    });
+    
     setIsEditing(false);
     setIsDialogOpen(true);
   };
 
-  const handleEditDocument = (id: string) => {
-    const documentToEdit = documents.find(doc => doc.id === id);
-    if (documentToEdit) {
-      setCurrentDocument(documentToEdit);
-      setIsEditing(true);
-      setIsDialogOpen(true);
+  const handleEditDocument = (doc: DialogDocument) => {
+    setCurrentDialogDocument(doc);
+    setIsEditing(true);
+    setIsDialogOpen(true);
+  };
+
+  const handleDeleteDocument = (id: number) => {
+    // Trouver l'ID correspondant dans notre liste de documents
+    const docToDelete = documents.find(d => parseInt(d.id) === id);
+    if (docToDelete) {
+      deleteItem(docToDelete.id);
+      toast({
+        title: "Document supprimé",
+        description: "Le document a été supprimé avec succès"
+      });
     }
   };
 
-  const handleDeleteDocument = (id: string) => {
-    deleteItem(id);
-    toast({
-      title: "Document supprimé",
-      description: "Le document a été supprimé avec succès"
-    });
-  };
-
-  const handleInputChange = (field: keyof Document, value: any) => {
-    if (currentDocument) {
-      setCurrentDocument(prev => ({
-        ...prev!,
-        [field]: value,
-        date_modification: new Date()
-      }));
-    }
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCurrentDialogDocument(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleSaveDocument = () => {
-    if (currentDocument) {
-      updateItem(currentDocument.id, currentDocument);
+    if (currentDialogDocument) {
+      // Trouver le document correspondant dans notre liste
+      const docToUpdate = documents.find(d => parseInt(d.id) === currentDialogDocument.id);
+      
+      if (docToUpdate) {
+        // Mettre à jour le document existant
+        updateItem(docToUpdate.id, {
+          nom: currentDialogDocument.nom,
+          fichier_path: currentDialogDocument.lien,
+          ordre: currentDialogDocument.ordre
+        });
+      } else {
+        // Créer un nouveau document si non trouvé (fallback)
+        createItem({
+          nom: currentDialogDocument.nom,
+          fichier_path: currentDialogDocument.lien,
+          ordre: currentDialogDocument.ordre
+        });
+      }
+      
       setIsDialogOpen(false);
       toast({
         title: isEditing ? "Document mis à jour" : "Document créé",
@@ -112,12 +167,22 @@ const Pilotage = () => {
 
   const handleReorder = (startIndex: number, endIndex: number) => {
     // Créer une nouvelle liste réordonnée
-    const reorderedDocs = [...documents];
+    const reorderedDocs = [...convertedDocuments];
     const [removed] = reorderedDocs.splice(startIndex, 1);
     reorderedDocs.splice(endIndex, 0, removed);
     
     // Mettre à jour la liste complète
-    documents.forEach((doc, i) => updateItem(doc.id, { ordre: i }));
+    reorderedDocs.forEach((doc, index) => {
+      const originalDoc = documents.find(d => parseInt(d.id) === doc.id);
+      if (originalDoc) {
+        updateItem(originalDoc.id, { ordre: index + 1 });
+      }
+    });
+    
+    toast({
+      title: "Ordre mis à jour",
+      description: "L'ordre des documents a été mis à jour avec succès",
+    });
   };
 
   const handleExportPdf = () => {
@@ -168,7 +233,7 @@ const Pilotage = () => {
         />
 
         <PilotageDocumentsTable 
-          documents={documents}
+          documents={convertedDocuments}
           onEditDocument={handleEditDocument}
           onDeleteDocument={handleDeleteDocument}
           onReorder={handleReorder}
@@ -183,7 +248,7 @@ const Pilotage = () => {
         <DocumentDialog 
           isOpen={isDialogOpen}
           onOpenChange={setIsDialogOpen}
-          currentDocument={currentDocument}
+          currentDocument={currentDialogDocument}
           onInputChange={handleInputChange}
           onSave={handleSaveDocument}
           isEditing={isEditing}

@@ -38,16 +38,25 @@ export function useSyncTableCrud<T extends TableItem>(options: CrudOptions<T>) {
 
   // Fonction pour créer un nouvel élément
   const createItem = useCallback((itemData: Partial<T> = {}) => {
-    const newItem = {
+    // Créer un objet de base
+    const baseItem = {
       id: uuidv4(),
       date_creation: new Date(),
       date_modification: new Date(),
       ...itemData
-    } as T;
+    };
     
+    // Utiliser le factory si disponible
+    let newItem: T;
     if (options.itemFactory) {
-      const factoryItem = options.itemFactory(itemData);
-      Object.assign(newItem, factoryItem);
+      newItem = options.itemFactory(itemData);
+      // S'assurer que l'ID et les dates sont préservés
+      newItem.id = baseItem.id;
+      newItem.date_creation = baseItem.date_creation;
+      newItem.date_modification = baseItem.date_modification;
+    } else {
+      // Utiliser une conversion explicite pour satisfaire TypeScript
+      newItem = baseItem as unknown as T;
     }
     
     setData([...data, newItem]);
@@ -124,10 +133,61 @@ export function useSyncTableCrud<T extends TableItem>(options: CrudOptions<T>) {
     syncFailed,
     isOnline,
     createItem,
-    updateItem,
-    deleteItem,
-    updateItems,
-    importData,
+    updateItem: useCallback((id: string, updateData: Partial<T>) => {
+      const updatedData = data.map(item => 
+        item.id === id 
+          ? { 
+              ...item, 
+              ...updateData, 
+              date_modification: new Date() 
+            } 
+          : item
+      );
+      
+      setData(updatedData);
+      return updatedData.find(item => item.id === id);
+    }, [data, setData]),
+    deleteItem: useCallback((id: string) => {
+      const updatedData = data.filter(item => item.id !== id);
+      setData(updatedData);
+    }, [data, setData]),
+    updateItems: useCallback((items: T[]) => {
+      // Créer un index des items existants
+      const itemIndex = data.reduce((acc, item) => {
+        acc[item.id] = item;
+        return acc;
+      }, {} as Record<string, T>);
+      
+      // Mettre à jour les items existants et ajouter les nouveaux
+      const updatedItems = items.map(item => {
+        if (itemIndex[item.id]) {
+          return {
+            ...itemIndex[item.id],
+            ...item,
+            date_modification: new Date()
+          };
+        }
+        return {
+          ...item,
+          date_creation: item.date_creation || new Date(),
+          date_modification: new Date()
+        };
+      });
+      
+      // Fusionner avec les items non modifiés
+      const remainingItems = data.filter(item => !items.some(updatedItem => updatedItem.id === item.id));
+      
+      setData([...remainingItems, ...updatedItems]);
+    }, [data, setData]),
+    importData: useCallback((newData: T[]) => {
+      const processedData = newData.map(item => ({
+        ...item,
+        date_creation: item.date_creation || new Date(),
+        date_modification: new Date()
+      }));
+      
+      setData(processedData);
+    }, [setData]),
     syncWithServer
   };
 }
