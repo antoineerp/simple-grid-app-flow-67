@@ -60,6 +60,9 @@ jobs:
         cp dist/index.html deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         
+        # Copie des fichiers PHP de correction automatique
+        cp fix-assets-auto.php deploy/ || echo "Fichier fix-assets-auto.php non trouvé"
+        
         # Copie des fichiers de l'API
         if [ -d "api" ]; then
           echo "Copie des fichiers API..."
@@ -100,6 +103,21 @@ jobs:
           package-lock.json
         log-level: verbose
         timeout: 120000
+    
+    - name: Run Fix-Assets Script (if server supports it)
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./deploy/
+        server-dir: /sites/qualiopi.ch/
+        dangerous-clean-slate: false
+        exclude: |
+          **/*
+          !fix-assets-auto.php
+        log-level: verbose
+        timeout: 30000
 
     - name: Clean up
       run: |
