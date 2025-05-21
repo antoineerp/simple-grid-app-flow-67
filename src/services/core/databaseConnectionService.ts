@@ -1,7 +1,7 @@
+
 // Importation des dépendances nécessaires
-import { toast } from "@/hooks/use-toast";
-import { getApiUrl } from "@/config/apiConfig";
-import { getAuthHeaders } from "@/config/apiConfig";
+import { toast } from "@/components/ui/use-toast";
+import { getApiUrl, getAuthHeaders } from "@/config/apiConfig";
 
 // Fonction pour récupérer l'utilisateur actuel
 export const getCurrentUser = (): string => {
@@ -99,6 +99,46 @@ export const getLastConnectionError = (): string | null => {
 export const setLastConnectionError = (error: string): void => {
   lastConnectionError = error;
   console.error("Erreur de connexion enregistrée:", error);
+};
+
+// Ajout de la fonction testDatabaseConnection manquante
+export const testDatabaseConnection = async (): Promise<boolean> => {
+  try {
+    const userId = getCurrentUser();
+    console.log(`Test de connexion à la base de données pour: ${userId}`);
+    
+    // Appel à l'API pour tester la connexion à la base de données
+    const response = await fetch(`${getApiUrl()}/check-users.php?source=${userId}`, {
+      method: 'GET',
+      headers: {
+        ...getAuthHeaders(),
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage = errorData.message || `Erreur de connexion à la base de données: ${response.statusText}`;
+      setLastConnectionError(errorMessage);
+      return false;
+    }
+    
+    const data = await response.json();
+    
+    if (!data || !data.records) {
+      const errorMessage = "Échec de la récupération des données de la base de données";
+      setLastConnectionError(errorMessage);
+      return false;
+    }
+    
+    console.log("Test de connexion à la base de données réussi");
+    return true;
+  } catch (error) {
+    console.error('Erreur lors du test de connexion à la base de données:', error);
+    const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
+    setLastConnectionError(errorMessage);
+    return false;
+  }
 };
 
 // Fonction pour se connecter en tant qu'utilisateur spécifique

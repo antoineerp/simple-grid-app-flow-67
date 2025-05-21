@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -336,7 +335,7 @@ const ConnectionDiagnostic: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium">URL API:</p>
-                    <p className="text-sm font-mono">{getFullApiUrl()}</p>
+                    <p className="text-sm font-mono">{getApiUrl()}</p>
                   </div>
                 </div>
               </div>
