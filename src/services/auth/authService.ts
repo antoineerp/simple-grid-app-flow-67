@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { User, AuthResponse } from '@/types/auth';
 import { setCurrentUser as setDbUser } from '@/services/core/databaseConnectionService';
@@ -142,9 +141,11 @@ export const login = async (username: string, password: string): Promise<AuthRes
           
           // Sauvegarder l'identifiant utilisateur
           if (data.user && data.user.identifiant_technique) {
-            localStorage.setItem('userId', data.user.identifiant_technique);
-            sessionStorage.setItem('userId', data.user.identifiant_technique);
-            setDbUser(data.user.identifiant_technique);
+            const userTechId = data.user.identifiant_technique;
+            localStorage.setItem('userId', userTechId);
+            sessionStorage.setItem('userId', userTechId);
+            setDbUser(userTechId);
+            console.log(`ID technique de l'utilisateur sauvegardé: ${userTechId}`);
           }
           
           // Stocker explicitement le rôle utilisateur
@@ -199,3 +200,27 @@ export const logout = () => {
   // Rediriger vers la page de connexion
   window.location.href = '/';
 };
+
+/**
+ * Récupère l'identifiant technique de l'utilisateur connecté 
+ * à partir du token JWT et assure qu'il est synchronisé
+ */
+export const ensureUserIdFromToken = (): string | null => {
+  try {
+    const user = getCurrentUser();
+    if (!user || !user.identifiant_technique) {
+      console.warn("Aucun utilisateur connecté ou identifiant technique manquant");
+      return null;
+    }
+    
+    // Synchroniser l'identifiant avec le service de base de données
+    const userId = user.identifiant_technique;
+    setDbUser(userId);
+    console.log(`Identifiant utilisateur synchronisé depuis le token: ${userId}`);
+    
+    return userId;
+  } catch (error) {
+    console.error("Erreur lors de l'extraction de l'identifiant utilisateur:", error);
+    return null;
+  }
+}

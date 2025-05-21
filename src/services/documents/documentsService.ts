@@ -1,10 +1,11 @@
 
-import { Document, DocumentGroup } from '@/types/documents';
+import { Document } from '@/types/documents';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { toast } from '@/components/ui/use-toast';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
-import { loadData, saveData, loadLocalData, saveLocalData } from '@/services/core/dataStorageService';
+import { loadData, saveData } from '@/services/core/dataStorageService';
+import { getUserStorageKey } from '@/services/core/userIdValidator';
 
 // Nom du service pour le logging
 const SERVICE_NAME = 'documentsService';
@@ -35,14 +36,36 @@ export const syncDocumentsWithServer = async (documents: Document[]): Promise<bo
  * Charge les documents depuis le stockage local
  */
 export const loadDocumentsFromStorage = (): Document[] => {
-  const userId = getCurrentUser();
-  return loadLocalData<Document>(`documents_${userId}`);
+  const storageKey = getUserStorageKey('documents');
+  
+  try {
+    const storedData = localStorage.getItem(storageKey);
+    if (!storedData) {
+      return [];
+    }
+    
+    const parsedData = JSON.parse(storedData);
+    return Array.isArray(parsedData) ? parsedData : [];
+  } catch (error) {
+    console.error(`${SERVICE_NAME}: Erreur lors du chargement des données locales:`, error);
+    return [];
+  }
 };
 
 /**
  * Sauvegarde les documents dans le stockage local
  */
 export const saveDocumentsToStorage = (documents: Document[]): void => {
-  const userId = getCurrentUser();
-  saveLocalData(`documents_${userId}`, documents);
+  const storageKey = getUserStorageKey('documents');
+  
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(documents));
+  } catch (error) {
+    console.error(`${SERVICE_NAME}: Erreur lors de la sauvegarde des données locales:`, error);
+    toast({
+      variant: "destructive",
+      title: "Erreur de stockage",
+      description: "Impossible de sauvegarder les données localement. Vérifiez l'espace disponible."
+    });
+  }
 };

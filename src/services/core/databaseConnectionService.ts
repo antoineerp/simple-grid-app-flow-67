@@ -253,7 +253,7 @@ export const initializeCurrentUser = (): void => {
   // Vérifier si l'utilisateur est valide et afficher une notification si nécessaire
   if (currentUser === 'p71x6d_system') {
     toast({
-      variant: "warning",
+      variant: "destructive",
       title: "Utilisateur par défaut",
       description: "Vous utilisez l'utilisateur par défaut du système. Connectez-vous pour accéder à vos données."
     });

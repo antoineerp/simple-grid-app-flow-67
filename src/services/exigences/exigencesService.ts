@@ -4,7 +4,8 @@ import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { toast } from '@/components/ui/use-toast';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
-import { loadData, saveData, loadLocalData, saveLocalData } from '@/services/core/dataStorageService';
+import { loadData, saveData } from '@/services/core/dataStorageService';
+import { getUserStorageKey } from '@/services/core/userIdValidator';
 
 // Nom du service pour le logging
 const SERVICE_NAME = 'exigencesService';
@@ -35,14 +36,36 @@ export const syncExigencesWithServer = async (exigences: Exigence[]): Promise<bo
  * Charge les exigences depuis le stockage local
  */
 export const loadExigencesFromStorage = (): Exigence[] => {
-  const userId = getCurrentUser();
-  return loadLocalData<Exigence>(`exigences_${userId}`);
+  const storageKey = getUserStorageKey('exigences');
+  
+  try {
+    const storedData = localStorage.getItem(storageKey);
+    if (!storedData) {
+      return [];
+    }
+    
+    const parsedData = JSON.parse(storedData);
+    return Array.isArray(parsedData) ? parsedData : [];
+  } catch (error) {
+    console.error(`${SERVICE_NAME}: Erreur lors du chargement des données locales:`, error);
+    return [];
+  }
 };
 
 /**
  * Sauvegarde les exigences dans le stockage local
  */
 export const saveExigencesToStorage = (exigences: Exigence[]): void => {
-  const userId = getCurrentUser();
-  saveLocalData(`exigences_${userId}`, exigences);
+  const storageKey = getUserStorageKey('exigences');
+  
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(exigences));
+  } catch (error) {
+    console.error(`${SERVICE_NAME}: Erreur lors de la sauvegarde des données locales:`, error);
+    toast({
+      variant: "destructive",
+      title: "Erreur de stockage",
+      description: "Impossible de sauvegarder les données localement. Vérifiez l'espace disponible."
+    });
+  }
 };
