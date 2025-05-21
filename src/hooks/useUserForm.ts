@@ -82,10 +82,23 @@ export const useUserForm = ({ onClose, onSuccess, onUserConnect }: UseUserFormPr
       const result = await createUser(formData);
       console.log("Résultat de la création:", result);
       
+      if (!result.success) {
+        throw new Error(result.message || "Échec de la création de l'utilisateur");
+      }
+      
       toast({
         title: "Utilisateur créé",
-        description: "L'utilisateur a été créé avec succès. La page va se recharger.",
+        description: "L'utilisateur a été créé avec succès.",
       });
+      
+      // Stocker l'information de création réussie pour vérification après rechargement
+      localStorage.setItem('user_creation_success', JSON.stringify({
+        timestamp: Date.now(),
+        email: formData.email,
+        nom: formData.nom,
+        prenom: formData.prenom,
+        identifiant: result.identifiant_technique
+      }));
       
       if (connectAfterCreate && result.identifiant_technique) {
         try {
@@ -116,11 +129,6 @@ export const useUserForm = ({ onClose, onSuccess, onUserConnect }: UseUserFormPr
       if (onSuccess) {
         onSuccess();
       }
-      
-      // Forcer un rechargement complet de la page après un court délai
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
       
       onClose();
     } catch (error) {
