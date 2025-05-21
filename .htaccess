@@ -14,18 +14,20 @@ AddType application/javascript .js
 AddType application/javascript .mjs
 AddType text/css .css
 
-# Règles pour les assets statiques
-RewriteRule ^assets/(.*)$ /assets/$1 [L]
-
 # Permettre l'accès direct aux ressources statiques
 RewriteCond %{REQUEST_URI} \.(js|mjs|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?|json)$
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
-# Rediriger toutes les autres requêtes vers index.html pour React Router
+# IMPORTANT: Prévention des boucles de redirection
+# Pour les requêtes qui ne correspondent pas à des fichiers réels
 RewriteCond %{REQUEST_FILENAME} !-f
+# Pour les requêtes qui ne correspondent pas à des répertoires réels
 RewriteCond %{REQUEST_FILENAME} !-d
+# Et qui ne commencent pas par /api
 RewriteCond %{REQUEST_URI} !^/api/
+# Rediriger vers index.html UNIQUEMENT si nous n'avons pas déjà été redirigés
+RewriteCond %{ENV:REDIRECT_STATUS} ^$
 RewriteRule ^(.*)$ index.html [QSA,L]
 
 # Configuration CORS simplifiée
