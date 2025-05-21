@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { User, AuthResponse } from '@/types/auth';
 import { setCurrentUser as setDbUser } from '@/services/core/databaseConnectionService';
@@ -28,13 +29,13 @@ export const getCurrentUser = (): User | null => {
       const userData = JSON.parse(jsonPayload);
       
       // Synchroniser avec le service de base de données
-      if (userData.user && userData.user.identifiant_technique) {
-        setDbUser(userData.user.identifiant_technique);
+      if (userData.user && typeof userData.user === 'string') {
+        setDbUser(userData.user);
       }
       
       // Stocker le rôle dans le localStorage pour faciliter l'accès
-      if (userData.user && userData.user.role) {
-        localStorage.setItem('userRole', userData.user.role);
+      if (userData.role) {
+        localStorage.setItem('userRole', userData.role);
       }
       
       return userData.user || null;
@@ -140,8 +141,8 @@ export const login = async (username: string, password: string): Promise<AuthRes
           localStorage.setItem('authToken', data.token);
           
           // Sauvegarder l'identifiant utilisateur
-          if (data.user && data.user.identifiant_technique) {
-            const userTechId = data.user.identifiant_technique;
+          if (decodedPayload.user && typeof decodedPayload.user === 'string') {
+            const userTechId = decodedPayload.user;
             localStorage.setItem('userId', userTechId);
             sessionStorage.setItem('userId', userTechId);
             setDbUser(userTechId);
@@ -149,14 +150,14 @@ export const login = async (username: string, password: string): Promise<AuthRes
           }
           
           // Stocker explicitement le rôle utilisateur
-          if (data.user && data.user.role) {
-            localStorage.setItem('userRole', data.user.role);
+          if (decodedPayload.role) {
+            localStorage.setItem('userRole', decodedPayload.role);
           }
           
           return { 
             success: true, 
             token: data.token,
-            user: data.user || null,
+            user: decodedPayload.user || null,
             message: data.message || 'Connexion réussie'
           };
         } catch (decodeError) {
@@ -193,7 +194,6 @@ export const logout = () => {
   sessionStorage.removeItem('authToken');
   localStorage.removeItem('authToken');
   localStorage.removeItem('userRole');
-  localStorage.removeItem('currentUser');
   localStorage.removeItem('userId');
   sessionStorage.removeItem('userId');
   
@@ -207,14 +207,31 @@ export const logout = () => {
  */
 export const ensureUserIdFromToken = (): string | null => {
   try {
-    const user = getCurrentUser();
-    if (!user || !user.identifiant_technique) {
-      console.warn("Aucun utilisateur connecté ou identifiant technique manquant");
+    const token = getAuthToken();
+    if (!token) {
+      console.warn("Aucun token d'authentification trouvé");
+      return null;
+    }
+    
+    // Décodage du token JWT
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.error("Format de token invalide");
+      return null;
+    }
+    
+    const base64Payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const pad = base64Payload.length % 4;
+    const paddedBase64 = pad ? base64Payload + '='.repeat(4 - pad) : base64Payload;
+    
+    const payload = JSON.parse(atob(paddedBase64));
+    if (!payload || !payload.user || typeof payload.user !== 'string') {
+      console.warn("Aucun ID utilisateur dans le payload du token");
       return null;
     }
     
     // Synchroniser l'identifiant avec le service de base de données
-    const userId = user.identifiant_technique;
+    const userId = payload.user;
     setDbUser(userId);
     console.log(`Identifiant utilisateur synchronisé depuis le token: ${userId}`);
     

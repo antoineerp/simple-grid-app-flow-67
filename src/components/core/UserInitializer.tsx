@@ -15,19 +15,24 @@ export const UserInitializer: React.FC = () => {
   useEffect(() => {
     // Initialiser l'identifiant utilisateur
     if (isLoggedIn) {
+      // Forcer la récupération de l'ID utilisateur depuis le token JWT
       const userId = ensureUserIdFromToken();
       
       if (userId) {
         console.log(`UserInitializer: Utilisateur connecté avec l'ID: ${userId}`);
         
-        // Vérification supplémentaire
+        // Vérification supplémentaire pour s'assurer que l'ID est bien enregistré
         const currentUser = getCurrentUser();
         if (currentUser !== userId) {
           console.error(`UserInitializer: Incohérence d'identifiant utilisateur: JWT=${userId}, DB=${currentUser}`);
+          
+          // Mettre à jour le stockage local avec l'ID correct issu du token
+          localStorage.setItem('userId', userId);
+          sessionStorage.setItem('userId', userId);
+          
           toast({
-            variant: "destructive",
-            title: "Erreur d'identification",
-            description: "Incohérence détectée dans l'identifiant utilisateur, déconnexion recommandée."
+            title: "Correction d'identifiant",
+            description: `L'identifiant utilisateur a été corrigé: ${userId}`
           });
         } else {
           console.log("UserInitializer: Identifiant utilisateur cohérent");

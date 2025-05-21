@@ -21,20 +21,36 @@ export const validateUserId = (userId: string | undefined | null, serviceName: s
     const currentUser = getCurrentUser();
     console.warn(`${serviceName}: ID utilisateur vide, utilisation de l'ID courant: ${currentUser}`);
     
-    // Afficher un toast d'avertissement pour les développeurs
-    if (process.env.NODE_ENV === 'development') {
-      toast({
-        variant: "destructive",
-        title: "Attention",
-        description: `ID utilisateur vide détecté dans ${serviceName}, utilisation de l'ID courant: ${currentUser}`
-      });
-    }
+    // Afficher un toast d'avertissement
+    toast({
+      variant: "destructive",
+      title: "Attention",
+      description: `ID utilisateur vide détecté dans ${serviceName}, utilisation de l'ID courant: ${currentUser}`
+    });
+    
+    return currentUser;
+  }
+  
+  // Si l'ID est une chaîne mais qu'il est [object Object], c'est une erreur
+  if (typeof userId === 'string' && userId === '[object Object]') {
+    const currentUser = getCurrentUser();
+    console.error(`${serviceName}: ID utilisateur invalide [object Object], utilisation de l'ID courant: ${currentUser}`);
+    
+    toast({
+      variant: "destructive",
+      title: "Erreur",
+      description: `ID utilisateur invalide dans ${serviceName}, utilisation de l'ID courant: ${currentUser}`
+    });
     
     return currentUser;
   }
   
   // Si l'ID est une chaîne, la retourner (validation réussie)
   if (typeof userId === 'string') {
+    // Vérifier que l'ID a le bon format
+    if (!userId.startsWith('p71x6d_')) {
+      console.warn(`${serviceName}: ID utilisateur ${userId} n'a pas le préfixe p71x6d_`);
+    }
     return userId;
   }
   
@@ -42,14 +58,12 @@ export const validateUserId = (userId: string | undefined | null, serviceName: s
   const currentUser = getCurrentUser();
   console.error(`${serviceName}: Type d'ID utilisateur non supporté (${typeof userId}), utilisation de l'ID courant: ${currentUser}`);
   
-  // Afficher un toast d'erreur pour les développeurs
-  if (process.env.NODE_ENV === 'development') {
-    toast({
-      variant: "destructive",
-      title: "Erreur",
-      description: `Type d'ID utilisateur non supporté dans ${serviceName}, utilisation de l'ID courant: ${currentUser}`
-    });
-  }
+  // Afficher un toast d'erreur
+  toast({
+    variant: "destructive",
+    title: "Erreur",
+    description: `Type d'ID utilisateur non supporté dans ${serviceName}, utilisation de l'ID courant: ${currentUser}`
+  });
   
   return currentUser;
 };

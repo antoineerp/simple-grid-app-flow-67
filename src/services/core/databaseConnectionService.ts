@@ -5,13 +5,33 @@ import { toast } from '@/components/ui/use-toast';
 
 // Fonction pour récupérer l'utilisateur actuel
 export const getCurrentUser = (): string => {
-  // Récupérer l'ID utilisateur depuis le stockage
-  const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || localStorage.getItem('currentDatabaseUser');
+  // Récupérer l'ID utilisateur depuis le token JWT (le plus fiable)
+  const authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+  if (authToken) {
+    try {
+      // Décodage sécurisé du token JWT
+      const parts = authToken.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload && payload.user) {
+          console.log(`ID utilisateur récupéré depuis le token JWT: ${payload.user}`);
+          return payload.user;
+        }
+      }
+    } catch (error) {
+      console.error("Erreur lors du décodage du token:", error);
+    }
+  }
+  
+  // Fallback sur l'ID stocké (moins fiable)
+  const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
   if (userId && userId !== 'undefined' && userId !== 'null') {
+    console.log(`ID utilisateur récupéré depuis le storage local: ${userId}`);
     return userId;
   }
-  console.log("Aucun userId trouvé dans le stockage, retour de l'ID par défaut");
-  return 'p71x6d_system'; // ID par défaut uniquement si aucun ID n'est trouvé
+  
+  console.warn("Aucun userId trouvé, utilisation de p71x6d_richard comme identifiant par défaut");
+  return 'p71x6d_richard'; // ID par défaut corrigé pour utiliser p71x6d_richard
 };
 
 // Fonction pour définir l'utilisateur actuel
@@ -22,8 +42,18 @@ export const setCurrentUser = (userId: string): void => {
   }
   
   try {
+    // Vérification que l'ID utilisateur est au format valide
+    if (!userId.startsWith('p71x6d_')) {
+      console.error(`Format d'identifiant utilisateur invalide: ${userId}`);
+      toast({
+        variant: "destructive",
+        title: "Erreur d'identifiant",
+        description: `Format d'identifiant technique invalide: ${userId}`
+      });
+      return;
+    }
+    
     console.log(`Définition de l'utilisateur courant: ${userId}`);
-    localStorage.setItem('currentDatabaseUser', userId);
     localStorage.setItem('userId', userId);
     sessionStorage.setItem('userId', userId);
     
@@ -31,12 +61,6 @@ export const setCurrentUser = (userId: string): void => {
     window.dispatchEvent(new CustomEvent('userChanged', { 
       detail: { userId } 
     }));
-    
-    // Afficher une notification pour informer l'utilisateur
-    toast({
-      title: "Utilisateur modifié",
-      description: `L'utilisateur actif est maintenant: ${userId}`
-    });
     
   } catch (error) {
     console.error("Erreur lors de la définition de l'utilisateur:", error);
@@ -46,7 +70,6 @@ export const setCurrentUser = (userId: string): void => {
 // Fonction pour supprimer l'utilisateur actuel
 export const removeCurrentUser = (): void => {
   try {
-    localStorage.removeItem('currentDatabaseUser');
     localStorage.removeItem('userId');
     sessionStorage.removeItem('userId');
     
@@ -251,7 +274,7 @@ export const initializeCurrentUser = (): void => {
   console.log(`Utilisateur initialisé: ${currentUser}`);
   
   // Vérifier si l'utilisateur est valide et afficher une notification si nécessaire
-  if (currentUser === 'p71x6d_system') {
+  if (currentUser === 'p71x6d_richard') {
     toast({
       variant: "destructive",
       title: "Utilisateur par défaut",
@@ -268,5 +291,5 @@ export const initializeCurrentUser = (): void => {
 // Fonction pour vérifier si l'utilisateur actuel est l'utilisateur par défaut
 export const isDefaultUser = (): boolean => {
   const currentUser = getCurrentUser();
-  return currentUser === 'p71x6d_system';
+  return currentUser === 'p71x6d_richard';
 };

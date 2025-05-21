@@ -1,398 +1,131 @@
+
 /**
- * Utility for managing data storage during synchronization
+ * Gestionnaire de stockage local pour la synchronisation
  */
 
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
-// Fonction pour obtenir un identifiant utilisateur valide
-const getValidUserId = (user: any): string => {
-  // Si l'entrée est undefined ou null
-  if (user === undefined || user === null) {
-    console.log("userId invalide (null/undefined), utilisation de getCurrentUser()");
-    return getCurrentUser();
+// Génère une clé de stockage unique pour une table et un utilisateur
+export const getStorageKey = (tableName: string, userId?: string | null): string => {
+  // Si userId est un objet, récupérer l'ID de l'utilisateur courant
+  if (userId && typeof userId === 'object') {
+    console.error(`syncStorageManager: userId est un objet et non une chaîne de caractères pour ${tableName}`);
+    userId = getCurrentUser();
   }
   
-  // Si c'est déjà une chaîne, la retourner directement (mais vérifier si c'est [object Object])
-  if (typeof user === 'string') {
-    // Vérifier si la chaîne est [object Object]
-    if (user === '[object Object]' || user.includes('object')) {
-      console.log("userId est la chaîne '[object Object]', utilisation de getCurrentUser()");
-      return getCurrentUser();
-    }
-    return user;
+  // Si userId est undefined/null, récupérer l'ID de l'utilisateur courant
+  const userIdToUse = userId || getCurrentUser();
+  
+  // Vérifier que l'ID utilisateur est une chaîne de caractères valide
+  if (typeof userIdToUse !== 'string' || userIdToUse === '[object Object]') {
+    console.error(`syncStorageManager: ID utilisateur invalide pour ${tableName}: ${userIdToUse}`);
+    return `${tableName}_${getCurrentUser()}`;
   }
   
-  // Si c'est un objet, essayer d'extraire un identifiant
-  if (typeof user === 'object') {
-    // Journaliser l'identifiant reçu pour débogage
-    console.log("Identifiant objet reçu:", JSON.stringify(user));
-    
-    // Propriétés potentielles pour extraire un ID
-    const idProperties = ['identifiant_technique', 'email', 'id'];
-    
-    for (const prop of idProperties) {
-      if (user[prop] && typeof user[prop] === 'string' && user[prop].length > 0) {
-        console.log(`ID utilisateur extrait de l'objet: ${prop}=${user[prop]}`);
-        return user[prop];
-      }
-    }
-    
-    // Si toString() renvoie quelque chose d'autre que [object Object], l'utiliser
-    const userIdString = String(user);
-    if (userIdString !== '[object Object]' && userIdString !== 'null' && userIdString !== 'undefined') {
-      console.log(`Conversion de l'objet en chaîne: ${userIdString}`);
-      return userIdString;
-    }
-  }
-  
-  // Utiliser getCurrentUser() comme valeur par défaut
-  return getCurrentUser();
+  return `${tableName}_${userIdToUse}`;
 };
 
-// Generate a unique storage key for a table
-export const getStorageKey = (tableName: string, syncKey?: string): string => {
-  // Utiliser l'ID de l'utilisateur connecté
-  const userId = syncKey || getCurrentUser();
-  
-  // S'assurer que la clé est une chaîne valide
-  const safeTableName = typeof tableName === 'string' ? tableName : String(tableName);
-  const safeSyncKey = userId && typeof userId === 'string' ? userId : getCurrentUser();
-  
-  return `${safeTableName}_${safeSyncKey}`;
-};
-
-// Save data to local storage and session storage for redundancy
-export const saveLocalData = <T>(tableName: string, data: T[], syncKey?: string): void => {
+// Sauvegarde des données dans le localStorage
+export const saveLocalData = <T>(tableName: string, data: T[], userId?: string): void => {
   try {
-    // S'assurer que tableName est une chaîne valide
-    if (!tableName || typeof tableName !== 'string') {
-      console.error(`SyncStorageManager: Nom de table invalide: ${tableName}`);
+    const storageKey = getStorageKey(tableName, userId);
+    
+    // Vérifier que la clé ne contient pas [object Object]
+    if (storageKey.includes('[object Object]')) {
+      console.error(`syncStorageManager: Clé de stockage invalide: ${storageKey}`);
       return;
     }
     
-    const storageKey = getStorageKey(tableName, syncKey);
-    
-    // Vérifier si la clé est valide
-    if (!storageKey || typeof storageKey !== 'string') {
-      console.error(`SyncStorageManager: Clé de stockage invalide: ${storageKey}`);
-      return;
-    }
-    
-    // S'assurer que les données sont valides
-    if (data === undefined || data === null) {
-      console.error(`SyncStorageManager: Données invalides pour ${tableName}`);
-      return;
-    }
-    
-    try {
-      // Essayer de convertir en JSON
-      const jsonData = JSON.stringify(data);
-      
-      // Sauvegarder dans localStorage pour persistance entre sessions
-      localStorage.setItem(storageKey, jsonData);
-      
-      // Sauvegarder également dans sessionStorage pour persistance entre pages
-      sessionStorage.setItem(storageKey, jsonData);
-      
-      // Enregistrer l'horodatage de la dernière sauvegarde
-      const timestamp = new Date().toISOString();
-      localStorage.setItem(`${storageKey}_last_saved`, timestamp);
-      sessionStorage.setItem(`${storageKey}_last_saved`, timestamp);
-      
-      // Vérifier que les données ont bien été sauvegardées
-      const verifyLocalStorage = localStorage.getItem(storageKey);
-      const verifySessionStorage = sessionStorage.getItem(storageKey);
-      
-      if (!verifyLocalStorage || !verifySessionStorage) {
-        console.warn(`SyncStorageManager: Vérification de sauvegarde échouée pour ${tableName}. Nouvel essai...`);
-        
-        // Nouvelle tentative avec une taille réduite si les données sont trop volumineuses
-        if (jsonData.length > 1000000) { // ~1MB
-          console.warn(`SyncStorageManager: Les données pour ${tableName} sont très volumineuses (${jsonData.length} caractères). Tentative de compression...`);
-          
-          // Essayer de stocker sans les propriétés non essentielles si possible
-          try {
-            const simplifiedData = data.map((item: any) => {
-              // Créer une copie simplifiée de chaque élément
-              const copy: any = { ...item };
-              
-              // Supprimer les propriétés volumineuses non essentielles si elles existent
-              const nonEssentialProps = ['description', 'details', 'comments', 'history', 'fullContent'];
-              nonEssentialProps.forEach(prop => {
-                if (prop in copy && typeof copy[prop] === 'string' && copy[prop].length > 1000) {
-                  copy[prop] = `${copy[prop].substring(0, 500)}... [tronqué]`;
-                }
-              });
-              
-              return copy;
-            });
-            
-            const simplifiedJson = JSON.stringify(simplifiedData);
-            localStorage.setItem(`${storageKey}_simplified`, simplifiedJson);
-            sessionStorage.setItem(`${storageKey}_simplified`, simplifiedJson);
-            console.warn(`SyncStorageManager: Données simplifiées sauvegardées pour ${tableName}`);
-          } catch (simplifyError) {
-            console.error(`SyncStorageManager: Échec de simplification pour ${tableName}:`, simplifyError);
-          }
-        }
-      }
-      
-      console.log(`SyncStorageManager: ${data.length} éléments sauvegardés pour ${tableName} (${timestamp})`);
-    } catch (jsonError) {
-      console.error(`SyncStorageManager: Erreur de conversion JSON pour ${tableName}:`, jsonError);
-    }
-  } catch (error) {
-    console.error(`SyncStorageManager: Erreur lors de la sauvegarde des données pour ${tableName}:`, error);
+    localStorage.setItem(storageKey, JSON.stringify(data));
+    localStorage.setItem(`${storageKey}_last_modified`, Date.now().toString());
+    console.log(`syncStorageManager: Données ${tableName} sauvegardées avec succès (${data.length} éléments)`);
+  } catch (e) {
+    console.error(`syncStorageManager: Erreur lors de la sauvegarde ${tableName}:`, e);
   }
 };
 
-// Load data with priority order: sessionStorage > localStorage
-export const loadLocalData = <T>(tableName: string, syncKey?: string): T[] => {
+// Charge des données depuis le localStorage
+export const loadLocalData = <T>(tableName: string, userId?: string): T[] => {
   try {
-    // S'assurer que tableName est une chaîne valide
-    if (!tableName || typeof tableName !== 'string') {
-      console.error(`SyncStorageManager: Nom de table invalide pour chargement: ${tableName}`);
+    const storageKey = getStorageKey(tableName, userId);
+    
+    // Vérifier que la clé ne contient pas [object Object]
+    if (storageKey.includes('[object Object]')) {
+      console.error(`syncStorageManager: Clé de chargement invalide: ${storageKey}`);
       return [];
     }
     
-    const storageKey = getStorageKey(tableName, syncKey);
-    
-    // Vérifier si la clé est valide
-    if (!storageKey || typeof storageKey !== 'string') {
-      console.error(`SyncStorageManager: Clé de stockage invalide pour chargement: ${storageKey}`);
+    const data = localStorage.getItem(storageKey);
+    if (!data) {
+      console.log(`syncStorageManager: Pas de données locales pour ${tableName}`);
       return [];
     }
     
-    // D'abord essayer de charger depuis sessionStorage (plus récent)
-    let localData = sessionStorage.getItem(storageKey);
-    let source = "sessionStorage";
-    
-    // Si pas de données dans sessionStorage, essayer localStorage
-    if (!localData) {
-      localData = localStorage.getItem(storageKey);
-      source = "localStorage";
-      
-      // Si toujours rien, essayer la version simplifiée
-      if (!localData) {
-        localData = sessionStorage.getItem(`${storageKey}_simplified`);
-        if (localData) source = "sessionStorage (simplified)";
-        
-        if (!localData) {
-          localData = localStorage.getItem(`${storageKey}_simplified`);
-          if (localData) source = "localStorage (simplified)";
-        }
-      }
-    }
-    
-    if (localData) {
-      try {
-        const parsedData = JSON.parse(localData);
-        if (Array.isArray(parsedData)) {
-          console.log(`SyncStorageManager: ${parsedData.length} éléments chargés depuis ${source} pour ${tableName}`);
-          return parsedData;
-        } else {
-          console.warn(`SyncStorageManager: Les données pour ${tableName} ne sont pas un tableau`);
-          return [];
-        }
-      } catch (jsonError) {
-        console.error(`SyncStorageManager: Erreur de parsing JSON pour ${tableName}:`, jsonError);
-        return [];
-      }
-    } else {
-      console.log(`SyncStorageManager: Aucune donnée trouvée pour ${tableName}`);
-      return [];
-    }
-  } catch (error) {
-    console.error(`SyncStorageManager: Erreur lors du chargement des données pour ${tableName}:`, error);
+    const parsedData = JSON.parse(data) as T[];
+    console.log(`syncStorageManager: Données ${tableName} chargées avec succès (${parsedData.length} éléments)`);
+    return parsedData;
+  } catch (e) {
+    console.error(`syncStorageManager: Erreur lors du chargement ${tableName}:`, e);
     return [];
   }
 };
 
-// Marquer une table comme en attente de synchronisation
-export const markPendingSync = (tableName: string): void => {
+// Obtient la date de dernière modification d'une table
+export const getLastModified = (tableName: string, userId?: string): Date | null => {
   try {
-    localStorage.setItem(`sync_pending_${tableName}`, new Date().toISOString());
-    
-    // Émettre un événement pour notifier les autres parties de l'application
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('sync-pending', { 
-        detail: { tableName, timestamp: new Date().toISOString() }
-      }));
-    }
-  } catch (error) {
-    console.error(`SyncStorageManager: Erreur lors du marquage de sync en attente pour ${tableName}:`, error);
-  }
-};
-
-// Supprimer le marqueur de synchronisation en attente
-export const clearPendingSync = (tableName: string): void => {
-  try {
-    localStorage.removeItem(`sync_pending_${tableName}`);
-    
-    // Émettre un événement pour notifier les autres parties de l'application
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('sync-completed', { 
-        detail: { tableName, timestamp: new Date().toISOString() }
-      }));
-    }
-  } catch (error) {
-    console.error(`SyncStorageManager: Erreur lors de la suppression du marqueur de sync pour ${tableName}:`, error);
-  }
-};
-
-// Vérifier si une table a une synchronisation en attente
-export const hasPendingSync = (tableName: string): boolean => {
-  try {
-    return localStorage.getItem(`sync_pending_${tableName}`) !== null;
-  } catch (error) {
-    console.error(`SyncStorageManager: Erreur lors de la vérification du statut de sync pour ${tableName}:`, error);
-    return false;
-  }
-};
-
-// Vérifier si des données locales existent pour une table
-export const hasLocalData = (tableName: string, syncKey?: string): boolean => {
-  const storageKey = getStorageKey(tableName, syncKey);
-  return localStorage.getItem(storageKey) !== null || 
-         sessionStorage.getItem(storageKey) !== null ||
-         localStorage.getItem(`${storageKey}_simplified`) !== null ||
-         sessionStorage.getItem(`${storageKey}_simplified`) !== null;
-};
-
-// Obtenir la date de la dernière sauvegarde
-export const getLastSavedTimestamp = (tableName: string, syncKey?: string): Date | null => {
-  try {
-    const storageKey = getStorageKey(tableName, syncKey);
-    const timestamp = sessionStorage.getItem(`${storageKey}_last_saved`) || 
-                     localStorage.getItem(`${storageKey}_last_saved`);
-    
-    if (timestamp) {
-      return new Date(timestamp);
-    }
-    return null;
-  } catch (error) {
-    console.error(`SyncStorageManager: Erreur lors de la récupération de l'horodatage pour ${tableName}:`, error);
+    const storageKey = getStorageKey(tableName, userId);
+    const lastModified = localStorage.getItem(`${storageKey}_last_modified`);
+    return lastModified ? new Date(parseInt(lastModified, 10)) : null;
+  } catch (e) {
+    console.error(`syncStorageManager: Erreur lors de la récupération de last_modified ${tableName}:`, e);
     return null;
   }
 };
 
-// Fonctions pour nettoyer les données erronées ou corrompues dans localStorage
-export const cleanupLocalStorage = (): void => {
+// Obtient la date de dernière synchronisation d'une table
+export const getLastSynced = (tableName: string, userId?: string): Date | null => {
   try {
-    const keys = Object.keys(localStorage);
-    let cleanupCount = 0;
+    const storageKey = getStorageKey(tableName, userId);
+    const lastSynced = localStorage.getItem(`${storageKey}_last_synced`);
+    return lastSynced ? new Date(parseInt(lastSynced, 10)) : null;
+  } catch (e) {
+    console.error(`syncStorageManager: Erreur lors de la récupération de last_synced ${tableName}:`, e);
+    return null;
+  }
+};
+
+// Met à jour la date de dernière synchronisation d'une table
+export const updateLastSynced = (tableName: string, userId?: string): void => {
+  try {
+    const storageKey = getStorageKey(tableName, userId);
+    localStorage.setItem(`${storageKey}_last_synced`, Date.now().toString());
+  } catch (e) {
+    console.error(`syncStorageManager: Erreur lors de la mise à jour de last_synced ${tableName}:`, e);
+  }
+};
+
+// Nettoie le localStorage des entrées corrompues
+export const cleanupStorage = (): void => {
+  console.log("SyncStorageManager: Nettoyage de localStorage en cours");
+  
+  try {
+    let entriesRemoved = 0;
     
-    // Nettoyage des entrées potentiellement corrompues
-    keys.forEach(key => {
-      try {
-        // Vérifier si la clé contient [object Object]
-        if (key.includes('[object Object]')) {
-          console.log(`SyncStorageManager: Suppression de l'entrée malformée dans localStorage: ${key}`);
-          localStorage.removeItem(key);
-          cleanupCount++;
-          return;
-        }
-        
-        // Vérifier les clés de synchronisation pour des formats de date invalides
-        if (key.startsWith('last_synced_') || key.endsWith('_last_synced') || key.endsWith('_last_modified')) {
-          const value = localStorage.getItem(key);
-          if (value) {
-            // Essayer de parser comme une date
-            const date = new Date(value);
-            if (isNaN(date.getTime())) {
-              console.error(`SyncStorageManager: Date invalide détectée dans '${key}': '${value}'. Suppression.`);
-              localStorage.removeItem(key);
-              cleanupCount++;
-              return;
-            }
-          }
-        }
-        
-        // Essayer de lire la valeur pour détecter les erreurs JSON
-        const value = localStorage.getItem(key);
-        if (value) {
-          // Si la clé semble être une clé de données JSON, essayer de l'analyser
-          if (key.includes('_') && !key.startsWith('sync_') && !key.endsWith('_last_saved') && value.startsWith('{') || value.startsWith('[')) {
-            JSON.parse(value);
-          }
-        }
-      } catch (e) {
-        // Si une erreur se produit lors de l'analyse, supprimer l'entrée corrompue
-        console.error(`SyncStorageManager: Entrée corrompue détectée dans localStorage: ${key}. Suppression.`, e);
+    // Rechercher les clés contenant [object Object]
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.includes('[object Object]')) {
+        console.log(`SyncStorageManager: Suppression de l'entrée malformée dans localStorage: ${key}`);
         localStorage.removeItem(key);
-        cleanupCount++;
+        entriesRemoved++;
       }
-    });
-    
-    if (cleanupCount > 0) {
-      console.log(`SyncStorageManager: Nettoyage de localStorage terminé - ${cleanupCount} entrées supprimées`);
-    } else {
-      console.log(`SyncStorageManager: Nettoyage de localStorage terminé - aucune entrée corrompue trouvée`);
     }
-  } catch (error) {
-    console.error(`SyncStorageManager: Erreur lors du nettoyage de localStorage:`, error);
+    
+    console.log(`SyncStorageManager: Nettoyage de localStorage terminé - ${entriesRemoved} entrées supprimées`);
+  } catch (e) {
+    console.error("SyncStorageManager: Erreur lors du nettoyage du localStorage:", e);
   }
 };
 
-// Synchroniser les données entre localStorage et sessionStorage au chargement de la page
-export const syncStorages = (): void => {
-  try {
-    const localStorageKeys = Object.keys(localStorage);
-    const sessionStorageKeys = Object.keys(sessionStorage);
-    
-    // Synchroniser de localStorage vers sessionStorage (pour les nouvelles données)
-    localStorageKeys.forEach(key => {
-      // Ne synchroniser que les clés qui semblent être des données JSON (pas les marqueurs de sync)
-      if (!key.startsWith('sync_') && !key.includes('_last_saved')) {
-        const value = localStorage.getItem(key);
-        if (value && !sessionStorage.getItem(key)) {
-          sessionStorage.setItem(key, value);
-          console.log(`SyncStorageManager: Synchronisé localStorage → sessionStorage pour ${key}`);
-        }
-      }
-    });
-    
-    // Synchroniser de sessionStorage vers localStorage (pour les modifications récentes)
-    sessionStorageKeys.forEach(key => {
-      // Ne synchroniser que les clés qui semblent être des données JSON (pas les marqueurs de sync)
-      if (!key.startsWith('sync_') && !key.includes('_last_saved')) {
-        const value = sessionStorage.getItem(key);
-        const localValue = localStorage.getItem(key);
-        
-        // Si la valeur existe dans sessionStorage mais pas dans localStorage, ou si elle est différente
-        if (value && (!localValue || localValue !== value)) {
-          localStorage.setItem(key, value);
-          console.log(`SyncStorageManager: Synchronisé sessionStorage → localStorage pour ${key}`);
-        }
-      }
-    });
-    
-    console.log(`SyncStorageManager: Synchronisation des storages terminée`);
-  } catch (error) {
-    console.error(`SyncStorageManager: Erreur lors de la synchronisation des storages:`, error);
-  }
-};
-
-// Initialiser le nettoyage et la synchronisation
-export const initializeStorageManager = (): void => {
-  // Nettoyer localStorage au démarrage
-  cleanupLocalStorage();
-  
-  // Synchroniser localStorage et sessionStorage au démarrage
-  syncStorages();
-  
-  // Écouter les événements de focus pour synchroniser à nouveau
-  if (typeof window !== 'undefined') {
-    window.addEventListener('focus', syncStorages);
-    
-    // Synchroniser avant de quitter la page
-    window.addEventListener('beforeunload', syncStorages);
-    
-    console.log('SyncStorageManager: Écouteurs d\'événements configurés');
-  }
-};
-
-// Appeler l'initialisation immédiatement
-if (typeof window !== 'undefined') {
-  initializeStorageManager();
-}
+// Initialisation: Nettoyer le localStorage au démarrage de l'application
+cleanupStorage();
