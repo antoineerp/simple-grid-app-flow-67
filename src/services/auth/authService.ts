@@ -2,18 +2,21 @@ import { getApiUrl } from '@/config/apiConfig';
 import { User, AuthResponse } from '@/types/auth';
 import { setCurrentUser as setDbUser } from '@/services/core/databaseConnectionService';
 
+/**
+ * Récupère l'utilisateur actuel à partir du token d'authentification
+ */
 export const getCurrentUser = (): string | null => {
   const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
   if (!token) return null;
 
   try {
-    // Vérification plus robuste du format du token
+    // Vérification du format du token
     if (!token.includes('.') || token.split('.').length !== 3) {
       console.error("Format de token invalide:", token);
       return null;
     }
     
-    // Extraire la partie payload (deuxième partie du token)
+    // Extraire la partie payload du token
     const parts = token.split('.');
     const payloadBase64 = parts[1];
     
@@ -22,10 +25,11 @@ export const getCurrentUser = (): string | null => {
     const pad = base64.length % 4;
     const paddedBase64 = pad ? base64 + '='.repeat(4 - pad) : base64;
     
-    // Décodage plus sûr avec try/catch
     try {
       const jsonPayload = atob(paddedBase64);
       const userData = JSON.parse(jsonPayload);
+      
+      console.log("Données utilisateur extraites du token:", userData);
       
       // Synchroniser avec le service de base de données
       if (userData.user) {
@@ -35,13 +39,19 @@ export const getCurrentUser = (): string | null => {
           : (typeof userData.user === 'string' ? userData.user : null);
           
         if (userId) {
+          // Synchroniser l'ID utilisateur avec le service de base de données
           setDbUser(userId);
+          
+          // Stocker l'ID utilisateur dans le localStorage pour un accès plus facile
+          localStorage.setItem('userId', userId);
+          sessionStorage.setItem('userId', userId);
           
           // Stocker le rôle dans le localStorage pour faciliter l'accès
           if (userData.role) {
             localStorage.setItem('userRole', userData.role);
           }
           
+          console.log(`ID utilisateur extrait et synchronisé: ${userId}`);
           return userId;
         }
       }
@@ -76,6 +86,9 @@ export const getAuthHeaders = () => {
   };
 };
 
+/**
+ * Fonction d'authentification
+ */
 export const login = async (username: string, password: string): Promise<AuthResponse> => {
   try {
     const API_URL = getApiUrl();
@@ -125,7 +138,7 @@ export const login = async (username: string, password: string): Promise<AuthRes
     console.log('Réponse de l\'authentification:', data);
     
     if (data.token) {
-      // Vérifier que le token a bien le format d'un JWT (contient exactement deux points)
+      // Vérifier que le token a bien le format d'un JWT
       if (data.token.split('.').length === 3) {
         // Test de décodage pour vérifier que le token est valide
         try {
@@ -135,6 +148,7 @@ export const login = async (username: string, password: string): Promise<AuthRes
           const paddedBase64 = pad ? base64Payload + '='.repeat(4 - pad) : base64Payload;
           
           const decodedPayload = JSON.parse(atob(paddedBase64));
+          console.log("Token décodé:", decodedPayload);
           
           if (!decodedPayload) {
             console.error("Décodage du token réussi mais structure invalide:", decodedPayload);
@@ -187,6 +201,11 @@ export const login = async (username: string, password: string): Promise<AuthRes
             ...data.user
           } : { id: userId };
           
+          // Déclencher un événement pour informer l'application du changement d'utilisateur
+          window.dispatchEvent(new CustomEvent('userChanged', { 
+            detail: { userId } 
+          }));
+          
           return { 
             success: true, 
             token: data.token,
@@ -230,6 +249,21 @@ export const logout = () => {
   localStorage.removeItem('userId');
   sessionStorage.removeItem('userId');
   
+  // Nettoyer les données spécifiques à l'utilisateur dans le localStorage
+  const keysToRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && (key.includes('_p71x6d_'))) {
+      keysToRemove.push(key);
+    }
+  }
+  
+  keysToRemove.forEach(key => {
+    localStorage.removeItem(key);
+  });
+  
+  console.log(`Déconnexion effectuée, ${keysToRemove.length} clés de stockage nettoyées`);
+  
   // Rediriger vers la page de connexion
   window.location.href = '/';
 };
@@ -258,6 +292,7 @@ export const ensureUserIdFromToken = (): string | null => {
     const paddedBase64 = pad ? base64Payload + '='.repeat(4 - pad) : base64Payload;
     
     const payload = JSON.parse(atob(paddedBase64));
+    console.log("Payload du token lors de l'extraction de l'ID:", payload);
     
     // Extraction selon différents formats possibles
     let userId = null;
@@ -265,8 +300,10 @@ export const ensureUserIdFromToken = (): string | null => {
     if (payload && payload.user) {
       if (typeof payload.user === 'object' && payload.user.identifiant_technique) {
         userId = payload.user.identifiant_technique;
+        console.log(`ID utilisateur extrait du token (format objet): ${userId}`);
       } else if (typeof payload.user === 'string') {
         userId = payload.user;
+        console.log(`ID utilisateur extrait du token (format string): ${userId}`);
       }
     }
     
@@ -277,6 +314,11 @@ export const ensureUserIdFromToken = (): string | null => {
     
     // Synchroniser l'identifiant avec le service de base de données
     setDbUser(userId);
+    
+    // Mettre à jour le stockage local
+    localStorage.setItem('userId', userId);
+    sessionStorage.setItem('userId', userId);
+    
     console.log(`Identifiant utilisateur synchronisé depuis le token: ${userId}`);
     
     return userId;

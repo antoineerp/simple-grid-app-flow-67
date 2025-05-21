@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { ensureUserIdFromToken } from '@/services/auth/authService';
-import { getCurrentUser, isDefaultUser } from '@/services/core/databaseConnectionService';
+import { getCurrentUser, setCurrentUser } from '@/services/core/databaseConnectionService';
 import { toast } from '@/components/ui/use-toast';
 
 /**
@@ -15,6 +15,8 @@ export const UserInitializer: React.FC = () => {
   useEffect(() => {
     // Initialiser l'identifiant utilisateur
     if (isLoggedIn) {
+      console.log("UserInitializer: Démarrage de l'initialisation de l'utilisateur");
+      
       // Forcer la récupération de l'ID utilisateur depuis le token JWT
       const userId = ensureUserIdFromToken();
       
@@ -23,27 +25,47 @@ export const UserInitializer: React.FC = () => {
         
         // Vérification supplémentaire pour s'assurer que l'ID est bien enregistré
         const currentUser = getCurrentUser();
+        
         if (currentUser !== userId) {
-          console.error(`UserInitializer: Incohérence d'identifiant utilisateur: JWT=${userId}, DB=${currentUser}`);
+          console.warn(`UserInitializer: Incohérence d'identifiant utilisateur: JWT=${userId}, DB=${currentUser}`);
           
           // Mettre à jour le stockage local avec l'ID correct issu du token
           localStorage.setItem('userId', userId);
           sessionStorage.setItem('userId', userId);
+          setCurrentUser(userId);
           
           toast({
             title: "Correction d'identifiant",
             description: `L'identifiant utilisateur a été corrigé: ${userId}`
           });
+          
+          // Déclencher un événement pour informer l'application du changement d'utilisateur
+          window.dispatchEvent(new CustomEvent('userChanged', { 
+            detail: { userId } 
+          }));
+          
+          console.log(`UserInitializer: ID utilisateur corrigé et synchronisé: ${userId}`);
+          
+          // Force un rechargement des données avec le bon utilisateur
+          window.dispatchEvent(new CustomEvent('force-sync-required', {
+            detail: { reason: 'userId_changed', timestamp: new Date().toISOString() }
+          }));
         } else {
           console.log("UserInitializer: Identifiant utilisateur cohérent");
         }
-      } else if (isDefaultUser()) {
-        console.warn("UserInitializer: Utilisateur connecté mais utilisant l'ID par défaut");
-        toast({
-          variant: "destructive",
-          title: "ID utilisateur par défaut",
-          description: "Vous utilisez l'utilisateur par défaut. Déconnectez-vous et reconnectez-vous."
-        });
+      } else {
+        const currentUser = getCurrentUser();
+        
+        if (currentUser === 'p71x6d_richard') {
+          console.warn("UserInitializer: Utilisateur connecté mais utilisant l'ID par défaut");
+          toast({
+            variant: "destructive",
+            title: "ID utilisateur par défaut",
+            description: "Vous utilisez l'utilisateur par défaut. Déconnectez-vous et reconnectez-vous."
+          });
+        } else {
+          console.log(`UserInitializer: Utilisateur initialisé: ${currentUser}`);
+        }
       }
     } else {
       console.log("UserInitializer: Aucun utilisateur connecté");

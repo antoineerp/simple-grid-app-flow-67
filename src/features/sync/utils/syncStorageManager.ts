@@ -7,38 +7,30 @@ import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 // Génère une clé de stockage unique pour une table et un utilisateur
 export const getStorageKey = (tableName: string, userId?: string | null): string => {
-  // Si userId est un objet, récupérer l'ID de l'utilisateur courant
-  if (userId && typeof userId === 'object') {
-    console.error(`syncStorageManager: userId est un objet et non une chaîne de caractères pour ${tableName}`);
-    userId = getCurrentUser();
+  // Si aucun ID n'est fourni, utiliser l'ID de l'utilisateur connecté
+  const currentUserId = userId || getCurrentUser();
+  
+  // Vérifier que l'ID utilisateur est valide
+  if (!currentUserId || typeof currentUserId !== 'string') {
+    console.error(`syncStorageManager: ID utilisateur invalide pour ${tableName}`, currentUserId);
+    return `${tableName}_error`;
   }
   
-  // Si userId est undefined/null, récupérer l'ID de l'utilisateur courant
-  const userIdToUse = userId || getCurrentUser();
+  // Remplacer les caractères problématiques dans l'identifiant utilisateur
+  const safeUserId = currentUserId.replace(/[^a-zA-Z0-9_]/g, '_');
   
-  // Vérifier que l'ID utilisateur est une chaîne de caractères valide
-  if (typeof userIdToUse !== 'string' || userIdToUse === '[object Object]') {
-    console.error(`syncStorageManager: ID utilisateur invalide pour ${tableName}: ${userIdToUse}`);
-    return `${tableName}_${getCurrentUser()}`;
-  }
-  
-  return `${tableName}_${userIdToUse}`;
+  return `${tableName}_${safeUserId}`;
 };
 
 // Sauvegarde des données dans le localStorage
 export const saveLocalData = <T>(tableName: string, data: T[], userId?: string): void => {
   try {
     const storageKey = getStorageKey(tableName, userId);
-    
-    // Vérifier que la clé ne contient pas [object Object]
-    if (storageKey.includes('[object Object]')) {
-      console.error(`syncStorageManager: Clé de stockage invalide: ${storageKey}`);
-      return;
-    }
+    console.log(`syncStorageManager: Sauvegarde des données pour ${tableName} avec utilisateur ${userId || getCurrentUser()}`);
     
     localStorage.setItem(storageKey, JSON.stringify(data));
     localStorage.setItem(`${storageKey}_last_modified`, Date.now().toString());
-    console.log(`syncStorageManager: Données ${tableName} sauvegardées avec succès (${data.length} éléments)`);
+    console.log(`syncStorageManager: Données ${tableName} sauvegardées avec succès (${data.length} éléments) avec clé ${storageKey}`);
   } catch (e) {
     console.error(`syncStorageManager: Erreur lors de la sauvegarde ${tableName}:`, e);
   }
@@ -48,21 +40,16 @@ export const saveLocalData = <T>(tableName: string, data: T[], userId?: string):
 export const loadLocalData = <T>(tableName: string, userId?: string): T[] => {
   try {
     const storageKey = getStorageKey(tableName, userId);
-    
-    // Vérifier que la clé ne contient pas [object Object]
-    if (storageKey.includes('[object Object]')) {
-      console.error(`syncStorageManager: Clé de chargement invalide: ${storageKey}`);
-      return [];
-    }
+    console.log(`syncStorageManager: Chargement des données pour ${tableName} avec utilisateur ${userId || getCurrentUser()}`);
     
     const data = localStorage.getItem(storageKey);
     if (!data) {
-      console.log(`syncStorageManager: Pas de données locales pour ${tableName}`);
+      console.log(`syncStorageManager: Pas de données locales pour ${tableName} (clé: ${storageKey})`);
       return [];
     }
     
     const parsedData = JSON.parse(data) as T[];
-    console.log(`syncStorageManager: Données ${tableName} chargées avec succès (${parsedData.length} éléments)`);
+    console.log(`syncStorageManager: Données ${tableName} chargées avec succès (${parsedData.length} éléments) depuis clé ${storageKey}`);
     return parsedData;
   } catch (e) {
     console.error(`syncStorageManager: Erreur lors du chargement ${tableName}:`, e);
@@ -99,6 +86,7 @@ export const updateLastSynced = (tableName: string, userId?: string): void => {
   try {
     const storageKey = getStorageKey(tableName, userId);
     localStorage.setItem(`${storageKey}_last_synced`, Date.now().toString());
+    console.log(`syncStorageManager: Last synced mis à jour pour ${tableName} (utilisateur: ${userId || getCurrentUser()})`);
   } catch (e) {
     console.error(`syncStorageManager: Erreur lors de la mise à jour de last_synced ${tableName}:`, e);
   }
@@ -111,10 +99,14 @@ export const cleanupStorage = (): void => {
   try {
     let entriesRemoved = 0;
     
-    // Rechercher les clés contenant [object Object]
+    // Rechercher les clés contenant [object Object] ou autres problèmes
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.includes('[object Object]')) {
+      if (key && (
+        key.includes('[object Object]') || 
+        key.includes('undefined') ||
+        key.includes('null')
+      )) {
         console.log(`SyncStorageManager: Suppression de l'entrée malformée dans localStorage: ${key}`);
         localStorage.removeItem(key);
         entriesRemoved++;

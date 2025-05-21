@@ -1,10 +1,11 @@
-
 // Importation des dépendances nécessaires
 import { toast } from "@/components/ui/use-toast";
 import { getApiUrl, getAuthHeaders } from "@/config/apiConfig";
 
 // Fonction pour récupérer l'utilisateur actuel
 export const getCurrentUser = (): string => {
+  console.log("Récupération de l'utilisateur actuel");
+  
   // Récupérer l'ID utilisateur depuis le token JWT (le plus fiable)
   const authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
   if (authToken) {
@@ -13,6 +14,7 @@ export const getCurrentUser = (): string => {
       const parts = authToken.split('.');
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1]));
+        console.log("Payload du token:", payload);
         
         // Extraction selon différents formats possibles
         if (payload && payload.user) {
@@ -37,8 +39,8 @@ export const getCurrentUser = (): string => {
     return userId;
   }
   
-  console.warn("Aucun userId trouvé, utilisation de p71x6d_richard comme identifiant par défaut");
-  return 'p71x6d_richard'; // ID par défaut corrigé pour utiliser p71x6d_richard
+  console.warn("Aucun userId valide trouvé, utilisation de p71x6d_richard comme identifiant par défaut");
+  return 'p71x6d_richard'; // ID par défaut comme solution de secours
 };
 
 // Fonction pour définir l'utilisateur actuel
@@ -105,7 +107,7 @@ export const setLastConnectionError = (error: string): void => {
 export const testDatabaseConnection = async (): Promise<boolean> => {
   try {
     const userId = getCurrentUser();
-    console.log(`Test de connexion à la base de données pour: ${userId}`);
+    console.log(`Test de connexion à la base de données pour utilisateur: ${userId}`);
     
     // Appel à l'API pour tester la connexion à la base de données
     const response = await fetch(`${getApiUrl()}/check-users.php?source=${userId}`, {
@@ -131,7 +133,7 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
       return false;
     }
     
-    console.log("Test de connexion à la base de données réussi");
+    console.log("Test de connexion à la base de données réussi pour utilisateur:", userId);
     return true;
   } catch (error) {
     console.error('Erreur lors du test de connexion à la base de données:', error);

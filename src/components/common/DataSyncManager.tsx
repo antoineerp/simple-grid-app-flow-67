@@ -1,9 +1,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface DataSyncManagerProps<T> {
   data: T[];
@@ -32,19 +33,24 @@ export function DataSyncManager<T>({
   const { isOnline } = useNetworkStatus();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
+  const currentUser = getCurrentUser();
 
   // Charger les données au démarrage
   useEffect(() => {
     const initialLoad = async () => {
       setIsSyncing(true);
       try {
+        console.log(`DataSyncManager: Chargement initial des données pour l'utilisateur ${currentUser}`);
+        
         // Essayer de charger depuis le serveur
         const loadedData = await loadFromServer(true);
         setData(loadedData);
         setLastSynced(new Date());
         setSyncFailed(false);
+        
+        console.log(`DataSyncManager: Chargement initial réussi (${loadedData.length} éléments) pour l'utilisateur ${currentUser}`);
       } catch (error) {
-        console.error("Erreur lors du chargement initial:", error);
+        console.error(`DataSyncManager: Erreur lors du chargement initial pour l'utilisateur ${currentUser}:`, error);
         setSyncFailed(true);
       } finally {
         setIsSyncing(false);
@@ -52,7 +58,7 @@ export function DataSyncManager<T>({
     };
 
     initialLoad();
-  }, []);
+  }, [currentUser]); // Ajout de currentUser comme dépendance pour recharger si l'utilisateur change
 
   // Fonction pour forcer une synchronisation manuelle
   const handleSync = async () => {
@@ -67,6 +73,8 @@ export function DataSyncManager<T>({
 
     setIsSyncing(true);
     try {
+      console.log(`DataSyncManager: Synchronisation manuelle pour l'utilisateur ${currentUser}`);
+      
       // D'abord synchroniser les données actuelles avec le serveur
       const syncSuccess = await syncWithServer(data);
       
@@ -79,13 +87,16 @@ export function DataSyncManager<T>({
         
         toast({
           title: "Synchronisation réussie",
-          description: `${freshData.length} éléments synchronisés`
+          description: `${freshData.length} éléments synchronisés pour ${currentUser}`
         });
+        
+        console.log(`DataSyncManager: Synchronisation manuelle réussie (${freshData.length} éléments) pour l'utilisateur ${currentUser}`);
       } else {
         setSyncFailed(true);
+        console.error(`DataSyncManager: Échec de la synchronisation avec le serveur pour l'utilisateur ${currentUser}`);
       }
     } catch (error) {
-      console.error("Erreur lors de la synchronisation manuelle:", error);
+      console.error(`DataSyncManager: Erreur lors de la synchronisation manuelle pour l'utilisateur ${currentUser}:`, error);
       setSyncFailed(true);
       
       toast({
@@ -103,7 +114,7 @@ export function DataSyncManager<T>({
       <div className="flex items-center justify-end mb-4 gap-2">
         <div className="text-sm text-muted-foreground">
           {lastSynced ? (
-            <span>Dernière synchronisation: {lastSynced.toLocaleTimeString()}</span>
+            <span>Dernière synchronisation: {lastSynced.toLocaleTimeString()} (Utilisateur: {currentUser.split('_')[1] || currentUser})</span>
           ) : (
             <span>Jamais synchronisé</span>
           )}
