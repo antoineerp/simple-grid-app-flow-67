@@ -4,20 +4,20 @@
 
 console.log("Fallback main.js loaded from assets directory");
 
-// Define async function to load React from CDN
-const loadReactFromCDN = async () => {
+// Attempt to load React from a CDN
+const loadReactFromCDN = () => {
   return new Promise((resolve) => {
-    // Create script elements for React
+    // Load React
     const reactScript = document.createElement('script');
     reactScript.src = 'https://unpkg.com/react@18/umd/react.production.min.js';
     reactScript.crossOrigin = '';
     
-    // Create script elements for ReactDOM
+    // Load ReactDOM
     const reactDOMScript = document.createElement('script');
     reactDOMScript.src = 'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js';
     reactDOMScript.crossOrigin = '';
     
-    // Handle successful load
+    // Load when complete
     reactDOMScript.onload = () => {
       console.log("React loaded from CDN");
       resolve();
@@ -30,7 +30,6 @@ const loadReactFromCDN = async () => {
       resolve();
     };
     
-    // Add scripts to body
     document.body.appendChild(reactScript);
     document.body.appendChild(reactDOMScript);
   });
@@ -105,7 +104,7 @@ const renderApp = () => {
     // Render the app
     renderApp();
     
-    // Try to load the main app bundle (as a module now)
+    // Try to load the main app bundle
     const appScript = document.createElement('script');
     appScript.src = '/src/main.tsx';
     appScript.type = 'module';
