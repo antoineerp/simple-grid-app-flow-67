@@ -1,215 +1,227 @@
 
-import { Exigence } from '@/types/exigences';
-import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '@/services/auth/authService';
-import { getCurrentUser } from '@/services/core/databaseConnectionService';
-import { 
-  saveLocalData, 
-  loadLocalData, 
-  syncWithServer,
-  getLastSynced
-} from '@/services/sync/AutoSyncService';
 import { toast } from '@/components/ui/use-toast';
+import { Exigence } from '@/types/exigence';
+import { validateUserId } from '@/services/core/apiInterceptor';
+import { getApiUrl } from '@/config/apiConfig';
 
-// Nom du service pour le logging
-const SERVICE_NAME = 'exigencesService';
-const TABLE_NAME = 'exigences';
-
-/**
- * Charge les exigences depuis le serveur et met à jour le stockage local
- */
-export const loadExigencesFromServer = async (forceRefresh: boolean = false): Promise<Exigence[]> => {
+// Sauvegarde locale des exigences
+export const saveLocalExigences = (exigences: Exigence[], userId: string): void => {
+  if (!userId) {
+    console.error('ID utilisateur manquant pour sauvegarder les exigences');
+    return;
+  }
+  
   try {
-    const API_URL = getApiUrl();
-    const userId = getCurrentUser();
+    const storageKey = `exigences_${userId}`;
+    localStorage.setItem(storageKey, JSON.stringify(exigences));
+    localStorage.setItem(`${storageKey}_last_modified`, Date.now().toString());
+    console.log(`${exigences.length} exigences sauvegardées localement (utilisateur: ${userId})`);
+  } catch (e) {
+    console.error('Erreur lors de la sauvegarde locale des exigences:', e);
+  }
+};
+
+// Récupération locale des exigences
+export const getLocalExigences = (userId: string): Exigence[] => {
+  if (!userId) {
+    console.error('ID utilisateur manquant pour récupérer les exigences');
+    return [];
+  }
+  
+  try {
+    const storageKey = `exigences_${userId}`;
+    const exigencesJson = localStorage.getItem(storageKey);
+    if (!exigencesJson) {
+      return [];
+    }
+    const exigences = JSON.parse(exigencesJson) as Exigence[];
+    console.log(`${exigences.length} exigences récupérées localement (utilisateur: ${userId})`);
+    return exigences;
+  } catch (e) {
+    console.error('Erreur lors de la récupération locale des exigences:', e);
+    return [];
+  }
+};
+
+// Synchronisation des exigences avec le serveur
+export const syncExigencesWithServer = async (exigences: Exigence[], userId: string): Promise<boolean> => {
+  if (!exigences || exigences.length === 0) {
+    console.log('Aucune exigence à synchroniser');
+    return true;
+  }
+  
+  // Vérifier l'ID utilisateur
+  if (!userId) {
+    const error = new Error('ID utilisateur requis pour la synchronisation');
+    console.error(error);
+    toast({
+      variant: 'destructive',
+      title: 'Erreur de synchronisation',
+      description: error.message
+    });
+    return false;
+  }
+  
+  console.log(`Synchronisation de ${exigences.length} exigences pour l'utilisateur ${userId}...`);
+  
+  try {
+    // Normaliser les données des exigences pour la synchronisation
+    const normalizedExigences = exigences.map(exigence => ({
+      id: exigence.id,
+      nom: exigence.nom || '',
+      responsabilites: exigence.responsabilites || null,
+      exclusion: exigence.exclusion || false,
+      atteinte: exigence.atteinte || null,
+      groupId: exigence.groupId || null
+    }));
     
-    console.log(`${SERVICE_NAME}: Chargement des exigences depuis le serveur pour ${userId}`);
+    // Préparer les données pour la synchronisation
+    const syncData = {
+      userId,
+      exigences: normalizedExigences,
+      timestamp: new Date().toISOString()
+    };
     
-    const response = await fetch(`${API_URL}/exigences-sync.php?userId=${userId}`, {
+    const apiUrl = getApiUrl();
+    const syncUrl = `${apiUrl}/exigences-sync.php`;
+    
+    console.log(`Envoi de la requête de synchronisation à ${syncUrl}`);
+    
+    // Appliquer un délai court pour éviter les problèmes de synchronisation rapide
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const response = await fetch(syncUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      },
+      body: JSON.stringify(syncData),
+      cache: 'no-store',
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Erreur HTTP ${response.status}: ${errorText}`);
+      throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.message || 'Échec de la synchronisation');
+    }
+    
+    console.log(`Synchronisation réussie de ${result.count} exigences`);
+    
+    // Mettre à jour la date de dernière synchronisation
+    const storageKey = `exigences_${userId}`;
+    localStorage.setItem(`${storageKey}_last_synced`, Date.now().toString());
+    
+    return true;
+  } catch (error) {
+    console.error('Erreur lors de la synchronisation des exigences:', error);
+    
+    toast({
+      variant: 'destructive',
+      title: 'Erreur de synchronisation',
+      description: error instanceof Error ? error.message : 'Erreur inconnue'
+    });
+    
+    return false;
+  }
+};
+
+// Chargement des exigences depuis le serveur
+export const loadExigencesFromServer = async (userId: string): Promise<Exigence[]> => {
+  if (!userId) {
+    console.error('ID utilisateur manquant pour charger les exigences du serveur');
+    return [];
+  }
+  
+  console.log(`Chargement des exigences pour l'utilisateur ${userId} depuis le serveur...`);
+  
+  try {
+    const apiUrl = getApiUrl();
+    const loadUrl = `${apiUrl}/exigences-sync.php?userId=${encodeURIComponent(userId)}`;
+    
+    console.log(`Envoi de la requête GET à ${loadUrl}`);
+    
+    const response = await fetch(loadUrl, {
       method: 'GET',
       headers: {
-        ...getAuthHeaders(),
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'User-Agent': 'FormaCert-App/1.0 (Chargement; QualiAPI)'
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
       },
       cache: 'no-store'
     });
-
+    
     if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`);
+      throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
     }
-
+    
     const data = await response.json();
     
     if (!data.success) {
       throw new Error(data.message || 'Échec du chargement des exigences');
     }
     
+    // Sauvegarder les exigences en local
     const exigences = data.exigences || [];
+    saveLocalExigences(exigences, userId);
     
-    // Mise à jour du stockage local avec AutoSyncService
-    saveLocalData(TABLE_NAME, exigences, userId);
+    // Mettre à jour la date de dernière synchronisation
+    const storageKey = `exigences_${userId}`;
+    localStorage.setItem(`${storageKey}_last_synced`, Date.now().toString());
     
     console.log(`${exigences.length} exigences récupérées du serveur`);
     return exigences;
   } catch (error) {
-    console.error(`${SERVICE_NAME}: Erreur lors du chargement depuis le serveur:`, error);
-    if (!forceRefresh) {
-      // En cas d'erreur, essayer de charger depuis le stockage local
-      return loadExigencesFromStorage();
-    }
-    return [];
+    console.error('Erreur lors du chargement des exigences depuis le serveur:', error);
+    
+    toast({
+      variant: 'warning',
+      title: 'Erreur de chargement',
+      description: 'Utilisation des données locales suite à une erreur réseau'
+    });
+    
+    // En cas d'erreur, récupérer les données locales
+    return getLocalExigences(userId);
   }
 };
 
-/**
- * Synchronise les exigences avec le serveur en utilisant AutoSyncService
- */
-export const syncExigencesWithServer = async (exigences: Exigence[]): Promise<boolean> => {
-  if (!exigences || exigences.length === 0) {
-    console.log('Aucune exigence à synchroniser');
-    return true; // Considéré comme un succès car il n'y a rien à faire
-  }
-  
-  console.log(`Début de la synchronisation de ${exigences.length} exigences...`);
-  const userId = getCurrentUser();
+// Obtenir la date de dernière synchronisation des exigences
+export const getLastSyncedExigences = (userId: string): Date | null => {
+  if (!userId) return null;
   
   try {
-    // Normaliser les exigences pour la synchronisation
-    const normalizedExigences = exigences.map(exig => ({
-      id: exig.id,
-      nom: exig.nom || 'Sans titre',
-      responsabilites: exig.responsabilites || { r: [], a: [], c: [], i: [] },
-      exclusion: exig.exclusion || false,
-      atteinte: exig.atteinte || null,
-      groupId: exig.groupId || null,
-      date_creation: exig.date_creation || new Date()
-    }));
+    const storageKey = `exigences_${userId}`;
+    const lastSyncedStr = localStorage.getItem(`${storageKey}_last_synced`);
+    return lastSyncedStr ? new Date(parseInt(lastSyncedStr, 10)) : null;
+  } catch (e) {
+    console.error('Erreur lors de la récupération de la date de dernière synchronisation:', e);
+    return null;
+  }
+};
+
+// Vérifier si des modifications sont en attente de synchronisation
+export const hasPendingExigencesChanges = (userId: string): boolean => {
+  if (!userId) return false;
+  
+  try {
+    const storageKey = `exigences_${userId}`;
+    const lastModifiedStr = localStorage.getItem(`${storageKey}_last_modified`);
+    const lastSyncedStr = localStorage.getItem(`${storageKey}_last_synced`);
     
-    // Utiliser AutoSyncService pour synchroniser
-    const success = await syncWithServer(TABLE_NAME, normalizedExigences, userId);
+    if (!lastModifiedStr) return false;
+    if (!lastSyncedStr) return true;
     
-    if (success) {
-      console.log(`Synchronisation réussie de ${normalizedExigences.length} exigences`);
-    } else {
-      console.error(`Échec de la synchronisation des exigences`);
-    }
+    const lastModified = parseInt(lastModifiedStr, 10);
+    const lastSynced = parseInt(lastSyncedStr, 10);
     
-    return success;
-  } catch (error) {
-    console.error(`${SERVICE_NAME}: Erreur lors de la synchronisation:`, error);
-    toast({
-      variant: "destructive",
-      title: "Erreur de synchronisation",
-      description: "Impossible de synchroniser les exigences avec le serveur.",
-    });
+    return lastModified > lastSynced;
+  } catch (e) {
+    console.error('Erreur lors de la vérification des modifications en attente:', e);
     return false;
   }
-};
-
-/**
- * Charge les exigences depuis le stockage local en utilisant AutoSyncService
- */
-export const loadExigencesFromStorage = (): Exigence[] => {
-  try {
-    const userId = getCurrentUser();
-    const storedExigences = loadLocalData<Exigence>(TABLE_NAME, userId);
-    console.log(`${storedExigences.length} exigences récupérées depuis le stockage local`);
-    return storedExigences;
-  } catch (error) {
-    console.error(`${SERVICE_NAME}: Erreur lors du chargement des données locales:`, error);
-    return [];
-  }
-};
-
-/**
- * Sauvegarde les exigences dans le stockage local en utilisant AutoSyncService
- */
-export const saveExigencesToStorage = (exigences: Exigence[]): void => {
-  try {
-    const userId = getCurrentUser();
-    saveLocalData(TABLE_NAME, exigences, userId);
-    console.log(`${exigences.length} exigences sauvegardées en local`);
-  } catch (error) {
-    console.error(`${SERVICE_NAME}: Erreur lors de la sauvegarde des données locales:`, error);
-    toast({
-      variant: "destructive",
-      title: "Erreur de stockage",
-      description: "Impossible de sauvegarder les données localement. Vérifiez l'espace disponible."
-    });
-  }
-};
-
-/**
- * Force une synchronisation complète de toutes les exigences
- * en utilisant le service AutoSyncService
- */
-export const forceFullSyncExigences = async (): Promise<boolean> => {
-  console.log('Forçage de la synchronisation complète des exigences...');
-  
-  try {
-    // Récupérer toutes les exigences locales
-    const exigences = loadExigencesFromStorage();
-    
-    if (!exigences || exigences.length === 0) {
-      console.log('Aucune exigence à synchroniser');
-      toast({
-        title: 'Aucune donnée à synchroniser',
-        description: 'Aucune exigence trouvée localement pour la synchronisation.'
-      });
-      return true;
-    }
-    
-    // Synchroniser les exigences avec le serveur
-    const success = await syncExigencesWithServer(exigences);
-    
-    if (success) {
-      toast({
-        title: 'Synchronisation réussie',
-        description: `${exigences.length} exigences ont été synchronisées avec le serveur.`
-      });
-      return true;
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Échec de la synchronisation',
-        description: 'Impossible de synchroniser les exigences avec le serveur.'
-      });
-      return false;
-    }
-  } catch (error) {
-    console.error('Erreur lors du forçage de la synchronisation:', error);
-    toast({
-      variant: 'destructive',
-      title: 'Erreur de synchronisation',
-      description: error instanceof Error ? error.message : 'Erreur inconnue'
-    });
-    return false;
-  }
-};
-
-/**
- * Charge les exigences (en priorité depuis le serveur, sinon depuis le stockage local)
- */
-export const loadExigences = async (forceRefresh: boolean = false): Promise<Exigence[]> => {
-  try {
-    // Essayer de charger depuis le serveur d'abord
-    return await loadExigencesFromServer(forceRefresh);
-  } catch (error) {
-    console.error(`${SERVICE_NAME}: Erreur lors du chargement depuis le serveur:`, error);
-    
-    // Fallback sur les données locales
-    const localExigences = loadExigencesFromStorage();
-    console.log(`${localExigences.length} exigences récupérées depuis le stockage local (fallback)`);
-    
-    return localExigences;
-  }
-};
-
-/**
- * Obtient la date de dernière synchronisation des exigences
- */
-export const getLastSyncedExigences = (): Date | null => {
-  return getLastSynced(TABLE_NAME);
 };

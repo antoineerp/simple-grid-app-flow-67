@@ -1,6 +1,6 @@
-
 import { toast } from '@/components/ui/use-toast';
 import { validateUserId, securePost, secureGet } from '../core/apiInterceptor';
+import { useState, useEffect, useCallback } from 'react';
 
 // Types pour le gestionnaire de synchronisation
 interface SyncResult {
@@ -90,8 +90,8 @@ export const syncWithServer = async <T>(tableName: string, data: T[], userId: st
     const endpoint = `${tableName}-sync.php`;
     
     // Utiliser notre service d'API sécurisé
-    const response = await securePost(endpoint, { 
-      [tableName]: data, 
+    const response = await securePost<{success: boolean; message?: string}>(endpoint, { 
+      [tableName]: data,
       userId 
     });
     
@@ -152,7 +152,7 @@ export const loadDataFromServer = async <T>(tableName: string, userId: string): 
     const endpoint = `${tableName}-load.php`;
     
     // Utiliser notre service d'API sécurisé
-    const response = await secureGet(endpoint);
+    const response = await secureGet<{[key: string]: T[]}>(endpoint);
     
     if (response && response[tableName]) {
       // Sauvegarder localement les données récupérées
@@ -275,12 +275,12 @@ export const useAutoSync = <T>(tableName: string, userId: string) => {
     userId = validateUserId();
   }
 
-  const [data, setDataState] = React.useState<T[]>(() => loadLocalData<T>(tableName, userId || ''));
-  const [isSyncing, setIsSyncing] = React.useState<boolean>(false);
-  const [isOnline, setIsOnline] = React.useState<boolean>(navigator.onLine);
-  const [lastSynced, setLastSynced] = React.useState<Date | null>(null);
+  const [data, setDataState] = useState<T[]>(() => loadLocalData<T>(tableName, userId || ''));
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Observer le statut en ligne
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -321,13 +321,13 @@ export const useAutoSync = <T>(tableName: string, userId: string) => {
   }, [tableName, userId]);
 
   // Fonction pour sauvegarder des données
-  const setData = React.useCallback((newData: T[]) => {
+  const setData = useCallback((newData: T[]) => {
     setDataState(newData);
     saveData<T>(tableName, newData, userId || '');
   }, [tableName, userId]);
 
   // Fonction pour forcer une synchronisation
-  const syncWithServerWrapper = React.useCallback(async () => {
+  const syncWithServerWrapper = useCallback(async () => {
     if (!isOnline) return false;
     setIsSyncing(true);
     try {
@@ -365,10 +365,10 @@ export const initAutoSync = (): void => {
   // Vérifier périodiquement les synchronisations en attente
   setInterval(() => {
     if (navigator.onLine && syncEnabled) {
-      const userId = getCurrentUser();
-      if (userId && document.visibilityState === 'visible') {
+      const currentUserId = validateUserId();
+      if (currentUserId && document.visibilityState === 'visible') {
         console.log("AutoSync: Onglet actif, vérification des synchronisations en attente");
-        forceSync(userId).catch(console.error);
+        forceSync(currentUserId).catch(console.error);
       }
     }
   }, SYNC_INTERVAL);
@@ -377,9 +377,9 @@ export const initAutoSync = (): void => {
   window.addEventListener('online', () => {
     if (syncEnabled) {
       console.log("AutoSync: Connexion rétablie, tentative de synchronisation");
-      const userId = getCurrentUser();
-      if (userId) {
-        forceSync(userId).catch(console.error);
+      const currentUserId = validateUserId();
+      if (currentUserId) {
+        forceSync(currentUserId).catch(console.error);
       }
     }
   });

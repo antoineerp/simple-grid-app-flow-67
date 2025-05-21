@@ -1,163 +1,165 @@
 
-import React, { useState, useEffect } from 'react';
-import { hasPendingChanges, getLastSynced } from '@/services/sync/AutoSyncService';
-import { getCurrentUser } from '@/services/core/databaseConnectionService';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { AlertCircle, CheckCircle, ChevronDown, Database, Wifi, WifiOff } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { TableCell, TableHeader, TableRow, TableHead, TableBody, Table } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, CloudUpload, Check, XCircle, RefreshCw } from "lucide-react";
+import { toast } from '@/components/ui/use-toast';
+import { validateUserId } from '@/services/core/apiInterceptor';
+import { forceSync, getLastSynced, hasPendingChanges } from '@/services/sync/AutoSyncService';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
-// Tables à surveiller pour la synchronisation
-const MONITORED_TABLES = [
-  'membres',
-  'exigences',
-  'documents',
-  'collaboration',
-  'test_table',
-  'diagnostics'
-];
-
-interface SyncTableStatus {
+export interface SyncTableStatus {
   tableName: string;
   hasPending: boolean;
   lastSynced: Date | null;
 }
 
-const SyncDebugger: React.FC = () => {
-  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [userId, setUserId] = useState<string>(getCurrentUser());
-  const [open, setOpen] = useState<boolean>(false);
-  const [status, setStatus] = useState<SyncTableStatus[]>([]);
-
-  // Surveiller l'état de la connexion
+export const SyncDebugger = () => {
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [tables, setTables] = useState<SyncTableStatus[]>([]);
+  
+  // Liste des tables à surveiller
+  const tablesToMonitor = ['documents', 'exigences', 'membres', 'pilotage', 'bibliotheque'];
+  
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  // Surveiller l'utilisateur courant
-  useEffect(() => {
-    const handleUserChange = (event: CustomEvent) => {
-      if (event.detail?.userId) {
-        setUserId(event.detail.userId);
+    // Actualiser la liste des tables à intervalles réguliers
+    const refreshTables = () => {
+      try {
+        const userId = validateUserId();
+        const currentTables: SyncTableStatus[] = [];
+        
+        tablesToMonitor.forEach(table => {
+          const lastSyncedTimestamp = getLastSynced(table);
+          currentTables.push({
+            tableName: table,
+            hasPending: hasPendingChanges(table, userId),
+            lastSynced: lastSyncedTimestamp ? new Date(lastSyncedTimestamp) : null
+          });
+        });
+        
+        setTables(currentTables);
+      } catch (error) {
+        console.error("Erreur lors de la récupération du statut des tables:", error);
       }
     };
-
-    window.addEventListener('userChanged', handleUserChange as EventListener);
-    window.addEventListener('database-user-changed', handleUserChange as EventListener);
-
-    return () => {
-      window.removeEventListener('userChanged', handleUserChange as EventListener);
-      window.removeEventListener('database-user-changed', handleUserChange as EventListener);
-    };
+    
+    refreshTables();
+    const interval = setInterval(refreshTables, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
-
-  // Mettre à jour les statuts de synchronisation
-  useEffect(() => {
-    const updateStatus = () => {
-      const newStatus = MONITORED_TABLES.map(tableName => ({
-        tableName,
-        hasPending: hasPendingChanges(tableName, userId),
-        lastSynced: getLastSynced(tableName, userId)
+  
+  const handleSyncAll = async () => {
+    if (isSyncing) return;
+    
+    try {
+      setIsSyncing(true);
+      const userId = validateUserId();
+      const results = await forceSync(userId);
+      
+      const success = Object.values(results).every(result => result === true);
+      const syncedCount = Object.values(results).filter(Boolean).length;
+      
+      if (success) {
+        toast({
+          title: "Synchronisation réussie",
+          description: `Toutes les tables ont été synchronisées avec succès.`,
+        });
+      } else {
+        toast({
+          variant: "warning",
+          title: "Synchronisation partielle",
+          description: `${syncedCount} tables sur ${Object.keys(results).length} ont été synchronisées.`,
+        });
+      }
+      
+      // Actualiser la liste des tables après la synchronisation
+      const updatedTables = tables.map(table => ({
+        ...table,
+        hasPending: hasPendingChanges(table.tableName, userId),
+        lastSynced: getLastSynced(table.tableName) ? new Date(getLastSynced(table.tableName)!) : null
       }));
-      setStatus(newStatus);
-    };
-
-    updateStatus();
-    const intervalId = setInterval(updateStatus, 5000);
-
-    // Écouter les événements de synchronisation
-    const handleSyncEvent = () => {
-      updateStatus();
-    };
-
-    window.addEventListener('sync-start', handleSyncEvent);
-    window.addEventListener('sync-completed', handleSyncEvent);
-    window.addEventListener('sync-success', handleSyncEvent);
-    window.addEventListener('sync-error', handleSyncEvent);
-    window.addEventListener('data-changed', handleSyncEvent);
-
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener('sync-start', handleSyncEvent);
-      window.removeEventListener('sync-completed', handleSyncEvent);
-      window.removeEventListener('sync-success', handleSyncEvent);
-      window.removeEventListener('sync-error', handleSyncEvent);
-      window.removeEventListener('data-changed', handleSyncEvent);
-    };
-  }, [userId]);
-
-  // Forcer une mise à jour
-  const handleRefresh = () => {
-    window.dispatchEvent(new CustomEvent('force-sync-required'));
+      
+      setTables(updatedTables);
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation:", error);
+      toast({
+        variant: "destructive",
+        title: "Échec de la synchronisation",
+        description: error instanceof Error ? error.message : "Une erreur s'est produite",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
   };
-
+  
+  const formatDate = (date: Date | null) => {
+    if (!date) return "Jamais";
+    return formatDistanceToNow(date, { addSuffix: true, locale: fr });
+  };
+  
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="w-full">
-      <div className="flex items-center justify-between p-2">
-        <div className="flex items-center gap-2">
-          <Badge variant={isOnline ? "outline" : "destructive"}>
-            {isOnline ? <Wifi className="h-3 w-3 mr-1" /> : <WifiOff className="h-3 w-3 mr-1" />}
-            {isOnline ? 'En ligne' : 'Hors ligne'}
-          </Badge>
-          <Badge variant="outline">
-            <Database className="h-3 w-3 mr-1" />
-            ID: {userId}
-          </Badge>
-        </div>
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm">
-            <span className="mr-2">État synchronisation</span>
-            <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'transform rotate-180' : ''}`} />
-          </Button>
-        </CollapsibleTrigger>
-      </div>
-
-      <CollapsibleContent>
-        <Card className="mt-2">
-          <CardHeader className="py-2">
-            <CardTitle className="text-sm flex justify-between">
-              <span>Statut de synchronisation par table</span>
-              <Button variant="outline" size="sm" onClick={handleRefresh}>
-                Forcer la synchronisation
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-              {status.map((item) => (
-                <div key={item.tableName} className="border rounded p-2">
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium">{item.tableName}</div>
-                    <Badge variant={item.hasPending ? "destructive" : "default"}>
-                      {item.hasPending ? (
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                      ) : (
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                      )}
-                      {item.hasPending ? 'En attente' : 'Synchronisé'}
+    <Card className="w-full overflow-hidden">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg font-medium flex items-center gap-2">
+          <CloudUpload className="h-5 w-5" />
+          Moniteur de synchronisation
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Table</TableHead>
+              <TableHead>Modifications en attente</TableHead>
+              <TableHead>Dernière synchronisation</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tables.map((table) => (
+              <TableRow key={table.tableName}>
+                <TableCell className="font-medium">{table.tableName}</TableCell>
+                <TableCell>
+                  {table.hasPending ? (
+                    <Badge variant="warning" className="flex items-center gap-1">
+                      <XCircle className="h-3 w-3" />
+                      En attente
                     </Badge>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Dernière synchro: {item.lastSynced ? new Date(item.lastSynced).toLocaleString() : 'Jamais'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </CollapsibleContent>
-    </Collapsible>
+                  ) : (
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <Check className="h-3 w-3" />
+                      Synchronisé
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell>{formatDate(table.lastSynced)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+      <CardFooter>
+        <Button 
+          onClick={handleSyncAll} 
+          disabled={isSyncing} 
+          className="w-full flex items-center justify-center gap-2"
+        >
+          {isSyncing ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Synchronisation en cours...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-4 w-4" />
+              Synchroniser toutes les tables
+            </>
+          )}
+        </Button>
+      </CardFooter>
+    </Card>
   );
 };
-
-export default SyncDebugger;

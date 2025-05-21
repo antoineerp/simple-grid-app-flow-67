@@ -1,230 +1,130 @@
 
-import React, { useState, useEffect } from 'react';
-import { hasPendingChanges, forceSync, setSyncEnabled } from '@/services/sync/AutoSyncService';
-import { Badge } from '@/components/ui/badge';
+import React, { useEffect, useState } from 'react';
+import { validateUserId } from '@/services/core/apiInterceptor';
+import { verifyUserTables, setupTableVerificationInterval } from '@/utils/userTableVerification';
+import { toast } from '@/components/ui/use-toast';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ArrowUpDown, Check, CloudOff, CloudUpload } from 'lucide-react';
-import { getCurrentUser } from '@/services/core/databaseConnectionService';
-import SyncDebugger from '@/components/sync/SyncDebugger';
-
-interface AppSyncManagerProps {
-  showControls?: boolean;
-  className?: string;
-  enableDebugger?: boolean;
-}
+import { CloudUpload, AlertCircle, RefreshCw } from 'lucide-react';
+import { SyncDebugger } from '@/components/sync/SyncDebugger';
 
 /**
- * Composant de gestion de la synchronisation pour l'application
+ * Composant qui gère la synchronisation et la vérification des tables utilisateur
  */
-const AppSyncManager: React.FC<AppSyncManagerProps> = ({ 
-  showControls = true, 
-  className = '',
-  enableDebugger = true
-}) => {
-  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [hasPending, setHasPending] = useState<boolean>(false);
-  const [syncEnabled, setSyncEnabledState] = useState<boolean>(true);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
-  const [userId, setUserId] = useState<string>(getCurrentUser());
-
-  // Surveiller l'état de la connexion
+export const AppSyncManager: React.FC = () => {
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [showDebugger, setShowDebugger] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'warning' | 'error'>('idle');
+  
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
+    let cleanup: (() => void) | undefined;
+    
+    try {
+      const userId = validateUserId();
+      if (userId) {
+        // Configurer la vérification périodique des tables
+        cleanup = setupTableVerificationInterval(userId, 60); // Toutes les 60 minutes
+        
+        // Effectuer une vérification initiale
+        handleVerifyTables();
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'initialisation du gestionnaire de synchronisation:", error);
+    }
+    
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      if (cleanup) cleanup();
     };
   }, []);
-
-  // Surveiller l'utilisateur courant
-  useEffect(() => {
-    const checkUserId = () => {
-      const currentUserId = getCurrentUser();
-      if (currentUserId !== userId) {
-        console.log(`AppSyncManager: Changement d'utilisateur détecté ${userId} -> ${currentUserId}`);
-        setUserId(currentUserId);
-      }
-    };
-
-    checkUserId();
-
-    const handleUserChange = (event: CustomEvent) => {
-      if (event.detail?.userId) {
-        setUserId(event.detail.userId);
-      }
-    };
-
-    window.addEventListener('userChanged', handleUserChange as EventListener);
-    window.addEventListener('database-user-changed', handleUserChange as EventListener);
-
-    const intervalId = setInterval(checkUserId, 10000);
-
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener('userChanged', handleUserChange as EventListener);
-      window.removeEventListener('database-user-changed', handleUserChange as EventListener);
-    };
-  }, [userId]);
-
-  // Surveiller l'état de la synchronisation
-  useEffect(() => {
-    const updateSyncStatus = () => {
-      // Vérifier s'il y a des modifications en attente
-      const pending = hasPendingChanges(undefined, userId);
-      setHasPending(pending);
-    };
-
-    // Vérifier immédiatement
-    updateSyncStatus();
-
-    // Puis vérifier périodiquement
-    const intervalId = setInterval(updateSyncStatus, 5000);
-
-    // Écouter les événements de synchronisation
-    const handleSyncStart = () => setIsSyncing(true);
-    const handleSyncEnd = () => {
-      setIsSyncing(false);
-      setLastSyncTime(new Date());
-      updateSyncStatus();
-    };
-
-    window.addEventListener('sync-start', handleSyncStart);
-    window.addEventListener('sync-completed', handleSyncEnd);
-    window.addEventListener('sync-success', handleSyncEnd);
-    window.addEventListener('data-changed', updateSyncStatus);
-
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener('sync-start', handleSyncStart);
-      window.removeEventListener('sync-completed', handleSyncEnd);
-      window.removeEventListener('sync-success', handleSyncEnd);
-      window.removeEventListener('data-changed', updateSyncStatus);
-    };
-  }, [userId]);
-
-  // Gérer le changement d'état de la synchronisation
-  const handleSyncToggle = (enabled: boolean) => {
-    setSyncEnabledState(enabled);
-    setSyncEnabled(enabled);
-  };
-
-  // Forcer une synchronisation
-  const handleForceSyncNow = async () => {
-    if (!isOnline) return;
-    
-    setIsSyncing(true);
+  
+  const handleVerifyTables = async () => {
     try {
-      const results = await forceSync(userId);
-      console.log('AppSyncManager: Résultats de synchronisation forcée:', results);
-      setLastSyncTime(new Date());
-    } catch (error) {
-      console.error('AppSyncManager: Erreur lors de la synchronisation forcée:', error);
-    } finally {
-      setIsSyncing(false);
+      setIsVerifying(true);
+      setVerificationStatus('idle');
       
-      // Vérifier à nouveau l'état des modifications en attente
-      const stillHasPending = hasPendingChanges(undefined, userId);
-      setHasPending(stillHasPending);
+      const userId = validateUserId();
+      const result = await verifyUserTables(userId);
+      
+      setVerificationStatus(result ? 'success' : 'warning');
+      
+      if (result) {
+        toast({
+          title: "Vérification des tables réussie",
+          description: "Toutes les tables utilisateur sont correctement configurées.",
+        });
+      }
+    } catch (error) {
+      console.error("Erreur lors de la vérification des tables:", error);
+      setVerificationStatus('error');
+      toast({
+        variant: "destructive",
+        title: "Erreur de vérification",
+        description: error instanceof Error ? error.message : "Une erreur s'est produite",
+      });
+    } finally {
+      setIsVerifying(false);
     }
   };
-
-  if (enableDebugger) {
-    return <SyncDebugger />;
-  }
-
-  // Si les contrôles sont désactivés, afficher seulement un badge d'état
-  if (!showControls) {
-    return (
-      <div className={`flex items-center justify-end gap-2 ${className}`}>
-        <Badge variant={hasPending ? "outline" : "default"} className="text-xs">
-          {hasPending ? (
+  
+  const toggleDebugger = () => {
+    setShowDebugger(prev => !prev);
+  };
+  
+  return (
+    <div className="space-y-4">
+      {verificationStatus === 'warning' && (
+        <Alert variant="warning">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Attention</AlertTitle>
+          <AlertDescription>
+            Certaines tables utilisateur ont dû être créées. Veuillez vérifier que la synchronisation fonctionne correctement.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {verificationStatus === 'error' && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Erreur</AlertTitle>
+          <AlertDescription>
+            Impossible de vérifier ou de créer les tables utilisateur. Veuillez contacter l'administrateur.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      <div className="flex justify-between items-center">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={handleVerifyTables} 
+          disabled={isVerifying}
+          className="flex items-center gap-2"
+        >
+          {isVerifying ? (
             <>
-              <ArrowUpDown className="h-3 w-3 mr-1" />
-              Modifications en attente
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              Vérification...
             </>
           ) : (
             <>
-              <Check className="h-3 w-3 mr-1" />
-              Synchronisé
+              <RefreshCw className="h-4 w-4" />
+              Vérifier les tables
             </>
           )}
-        </Badge>
-        {lastSyncTime && (
-          <span className="text-xs text-muted-foreground">
-            Dernière synchronisation: {lastSyncTime.toLocaleTimeString()}
-          </span>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className={`flex items-center justify-between ${className}`}>
-      <div className="flex items-center gap-2">
-        <Badge variant={isOnline ? "default" : "destructive"}>
-          {isOnline ? "En ligne" : "Hors ligne"}
-        </Badge>
-        <Badge variant={hasPending ? "outline" : "default"}>
-          {hasPending ? "Modifications en attente" : "Synchronisé"}
-        </Badge>
-      </div>
-
-      <div className="flex items-center gap-4">
-        {lastSyncTime && (
-          <span className="text-xs text-muted-foreground">
-            Dernière synchronisation: {lastSyncTime.toLocaleTimeString()}
-          </span>
-        )}
+        </Button>
         
-        <div className="flex items-center gap-2">
-          <Switch 
-            id="sync-toggle"
-            checked={syncEnabled}
-            onCheckedChange={handleSyncToggle}
-          />
-          <Label htmlFor="sync-toggle" className="cursor-pointer">
-            Synchronisation auto
-          </Label>
-        </div>
-        
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleForceSyncNow}
-                disabled={!isOnline || isSyncing}
-              >
-                {isSyncing ? (
-                  <CloudUpload className="h-4 w-4 mr-2 animate-spin" />
-                ) : isOnline ? (
-                  <CloudUpload className="h-4 w-4 mr-2" />
-                ) : (
-                  <CloudOff className="h-4 w-4 mr-2" />
-                )}
-                {isSyncing ? "Synchronisation..." : "Synchroniser maintenant"}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {isOnline 
-                ? "Forcer la synchronisation immédiate avec le serveur" 
-                : "Impossible de synchroniser en mode hors ligne"}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={toggleDebugger}
+          className="flex items-center gap-2"
+        >
+          <CloudUpload className="h-4 w-4" />
+          {showDebugger ? "Masquer le moniteur" : "Afficher le moniteur"}
+        </Button>
       </div>
+      
+      {showDebugger && <SyncDebugger />}
     </div>
   );
 };
-
-export default AppSyncManager;
