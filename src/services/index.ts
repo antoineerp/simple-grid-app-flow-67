@@ -9,7 +9,8 @@ export {
   verifyToken,
   getIsLoggedIn,
   ensureUserIdFromToken,
-  getCurrentUser as getAuthCurrentUser
+  getCurrentUser as getAuthCurrentUser,
+  getCurrentUser
 } from './auth/authService';
 
 // userService
@@ -18,7 +19,8 @@ export {
   updateUser,
   deleteUser,
   getAllUsers,
-  createUser
+  createUser,
+  clearUsersCache
 } from './users/userService';
 
 // documentService
@@ -76,7 +78,7 @@ export {
 
 // databaseConnectionService
 export {
-  getCurrentUser,
+  getCurrentUser as getDatabaseCurrentUser,
   setCurrentUser,
   connectAsUser,
   isSystemUser,
@@ -85,11 +87,13 @@ export {
   disconnectUser,
   testDatabaseConnection,
   getDatabaseInfo,
-  getDatabaseConnectionCurrentUser,
-  Utilisateur
+  getCurrentUser as getDatabaseConnectionCurrentUser
 } from './core/databaseConnectionService';
 
 // userInitializationService
 export {
   adminImportFromManager
 } from './core/userInitializationService';
+
+// Types
+export type { Utilisateur } from '@/types/auth';

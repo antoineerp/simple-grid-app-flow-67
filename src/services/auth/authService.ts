@@ -1,6 +1,7 @@
 
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/components/ui/use-toast';
+import { LoginResponse } from '@/types/auth';
 
 // Variable pour stocker l'utilisateur connecté
 let currentUser: string | null = null;
@@ -25,9 +26,29 @@ export const getToken = (): string | null => {
 };
 
 /**
+ * Récupère l'ID utilisateur actuellement connecté
+ */
+export const getCurrentUser = (): string => {
+  // Si déjà mis en cache, le retourner
+  if (currentUser) {
+    return currentUser;
+  }
+  
+  // Sinon, essayer de le récupérer du localStorage
+  const storedUser = localStorage.getItem('user_id');
+  if (storedUser) {
+    currentUser = storedUser;
+    return storedUser;
+  }
+  
+  // Valeur par défaut sécurisée
+  return 'anonymous';
+};
+
+/**
  * Connecte un utilisateur
  */
-export const login = async (username: string, password: string): Promise<boolean> => {
+export const login = async (username: string, password: string): Promise<LoginResponse> => {
   try {
     const API_URL = getApiUrl();
     
@@ -48,14 +69,17 @@ export const login = async (username: string, password: string): Promise<boolean
       currentToken = data.token;
       isLoggedIn = true;
       
-      return true;
+      return data;
     } else {
       toast({
         variant: "destructive",
         title: "Erreur de connexion",
         description: data.message || "Nom d'utilisateur ou mot de passe incorrect"
       });
-      return false;
+      return {
+        success: false,
+        message: data.message || "Échec de la connexion"
+      };
     }
   } catch (error) {
     console.error("Erreur lors de la connexion:", error);
@@ -64,7 +88,10 @@ export const login = async (username: string, password: string): Promise<boolean
       title: "Erreur de connexion",
       description: "Impossible de se connecter au serveur"
     });
-    return false;
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Impossible de se connecter au serveur"
+    };
   }
 };
 

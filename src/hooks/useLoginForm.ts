@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { login } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
+import { LoginResponse } from '@/types/auth';
 
 export interface LoginFormValues {
   username: string;
@@ -36,7 +37,7 @@ export const useLoginForm = () => {
     console.log('Tentative de connexion pour:', values.username);
     
     try {
-      const result = await login(values.username, values.password);
+      const result: LoginResponse = await login(values.username, values.password);
       
       if (result.success && result.token) {
         console.log("Connexion réussie, token reçu:", result.token.substring(0, 20) + "...");

@@ -2,7 +2,7 @@
 import { Exigence } from '@/types/exigences';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
-import { getCurrentUser } from '../core/databaseConnectionService';
+import { getCurrentUser } from '../auth/authService';
 
 // Récupère toutes les exigences
 export const getExigences = async (): Promise<Exigence[]> => {
@@ -44,8 +44,7 @@ export const createExigence = async (exigence: Exigence): Promise<Exigence | nul
       },
       body: JSON.stringify({
         userId,
-        exigences: [exigence],
-        groups: []
+        exigences: [exigence]
       })
     });
 
@@ -75,8 +74,7 @@ export const updateExigence = async (exigence: Exigence): Promise<Exigence | nul
       },
       body: JSON.stringify({
         userId,
-        exigences: [exigence],
-        groups: []
+        exigences: [exigence]
       })
     });
 
@@ -95,8 +93,7 @@ export const updateExigence = async (exigence: Exigence): Promise<Exigence | nul
 // Supprime une exigence
 export const deleteExigence = async (exigenceId: string): Promise<boolean> => {
   try {
-    // Pour la suppression, nous n'avons pas d'API dédiée, 
-    // donc nous récupérons toutes les exigences, supprimons celle qui correspond
+    // Pour la suppression, nous récupérons toutes les exigences, supprimons celle qui correspond
     // et synchronisons le tout
     const exigences = await getExigences();
     const updatedExigences = exigences.filter(e => e.id !== exigenceId);
@@ -112,8 +109,7 @@ export const deleteExigence = async (exigenceId: string): Promise<boolean> => {
       },
       body: JSON.stringify({
         userId,
-        exigences: updatedExigences,
-        groups: [] // On ne modifie pas les groupes ici
+        exigences: updatedExigences
       })
     });
 

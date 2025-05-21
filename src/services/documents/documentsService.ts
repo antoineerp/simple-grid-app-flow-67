@@ -1,71 +1,125 @@
 
-import { Document } from '@/types/documents';
 import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '@/services/auth/authService';
-import { toast } from '@/components/ui/use-toast';
-import { getCurrentUser } from '@/services/core/databaseConnectionService';
-import { loadData, saveData } from '@/services/core/dataStorageService';
-import { getUserStorageKey } from '@/services/core/userIdValidator';
+import { getAuthHeaders } from '../auth/authService';
+import { getCurrentUser } from '../auth/authService';
 
-// Nom du service pour le logging
-const SERVICE_NAME = 'documentsService';
-
-/**
- * Charge les documents depuis le serveur et met à jour le stockage local
- */
-export const loadDocumentsFromServer = async (forceRefresh: boolean = false): Promise<Document[]> => {
-  return loadData<Document>('documents-load.php', 'documents', {
-    forceRefresh,
-    showToasts: true,
-    serviceName: SERVICE_NAME
-  });
-};
-
-/**
- * Synchronise les documents avec le serveur
- */
-export const syncDocumentsWithServer = async (documents: Document[]): Promise<boolean> => {
-  return saveData<Document>('documents-sync.php', 'documents', documents, {
-    syncWithServer: true,
-    showToasts: true,
-    serviceName: SERVICE_NAME
-  });
-};
-
-/**
- * Charge les documents depuis le stockage local
- */
-export const loadDocumentsFromStorage = (): Document[] => {
-  const storageKey = getUserStorageKey('documents');
-  
+// Récupère tous les documents
+export const getDocuments = async () => {
   try {
-    const storedData = localStorage.getItem(storageKey);
-    if (!storedData) {
-      return [];
-    }
+    const API_URL = getApiUrl();
+    const userId = getCurrentUser();
     
-    const parsedData = JSON.parse(storedData);
-    return Array.isArray(parsedData) ? parsedData : [];
+    const response = await fetch(`${API_URL}/documents-load.php?userId=${userId}`, {
+      method: 'GET',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.documents || [];
   } catch (error) {
-    console.error(`${SERVICE_NAME}: Erreur lors du chargement des données locales:`, error);
+    console.error("Erreur lors de la récupération des documents:", error);
     return [];
   }
 };
 
-/**
- * Sauvegarde les documents dans le stockage local
- */
-export const saveDocumentsToStorage = (documents: Document[]): void => {
-  const storageKey = getUserStorageKey('documents');
-  
+// Crée un nouveau document
+export const createDocument = async (document: any) => {
   try {
-    localStorage.setItem(storageKey, JSON.stringify(documents));
-  } catch (error) {
-    console.error(`${SERVICE_NAME}: Erreur lors de la sauvegarde des données locales:`, error);
-    toast({
-      variant: "destructive",
-      title: "Erreur de stockage",
-      description: "Impossible de sauvegarder les données localement. Vérifiez l'espace disponible."
+    const API_URL = getApiUrl();
+    const userId = getCurrentUser();
+    
+    const response = await fetch(`${API_URL}/documents-sync.php`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        documents: [document]
+      })
     });
+
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result.success ? document : null;
+  } catch (error) {
+    console.error("Erreur lors de la création d'un document:", error);
+    throw error;
+  }
+};
+
+// Met à jour un document existant
+export const updateDocument = async (document: any) => {
+  try {
+    const API_URL = getApiUrl();
+    const userId = getCurrentUser();
+    
+    const response = await fetch(`${API_URL}/documents-sync.php`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        documents: [document]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result.success ? document : null;
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour d'un document:", error);
+    throw error;
+  }
+};
+
+// Supprime un document
+export const deleteDocument = async (documentId: string) => {
+  try {
+    // Pour la suppression, nous récupérons tous les documents, supprimons celui qui correspond
+    // et synchronisons le tout
+    const documents = await getDocuments();
+    const updatedDocuments = documents.filter(doc => doc.id !== documentId);
+    
+    const API_URL = getApiUrl();
+    const userId = getCurrentUser();
+    
+    const response = await fetch(`${API_URL}/documents-sync.php`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        documents: updatedDocuments
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result.success;
+  } catch (error) {
+    console.error("Erreur lors de la suppression d'un document:", error);
+    return false;
   }
 };

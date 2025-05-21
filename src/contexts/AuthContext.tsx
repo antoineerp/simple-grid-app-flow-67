@@ -1,14 +1,14 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
-import { User } from '@/types/auth';
+import { Utilisateur } from '@/types/auth';
 
 interface AuthContextType {
   isLoggedIn: boolean;
-  user: User | null;
+  user: Utilisateur | null;
   userId: string | null;
   setIsLoggedIn: (value: boolean) => void;
-  setUser: (user: User | null) => void;
+  setUser: (user: Utilisateur | null) => void;
 }
 
 const defaultAuthContext: AuthContextType = {
@@ -31,7 +31,7 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(getIsLoggedIn());
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<Utilisateur | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,7 +47,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Construire un objet utilisateur minimal avec l'ID
         if (currentUserId) {
           setUser({ 
-            id: currentUserId 
+            id: currentUserId,
+            username: currentUserId
           });
         } else {
           setUser(null);

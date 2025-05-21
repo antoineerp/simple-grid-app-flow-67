@@ -2,7 +2,6 @@
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { getCurrentUser } from './databaseConnectionService';
-import { Utilisateur } from '../core/databaseConnectionService';
 
 export const adminImportFromManager = async (): Promise<boolean> => {
   try {
@@ -14,7 +13,7 @@ export const adminImportFromManager = async (): Promise<boolean> => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        source: getCurrentUser()  // Utiliser directement getCurrentUser() au lieu de getDatabaseConnectionCurrentUser
+        source: getCurrentUser()
       })
     });
 

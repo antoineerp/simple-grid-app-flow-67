@@ -2,21 +2,11 @@
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { toast } from '@/components/ui/use-toast';
+import { Utilisateur } from '@/types/auth';
 
 // Variables pour stocker l'utilisateur connecté et l'état de la connexion
 let currentUser: string | null = null;
 let lastConnectionError: string | null = null;
-
-// Type utilisateur pour exporter
-export interface Utilisateur {
-  id: string;
-  username: string;
-  email?: string;
-  role?: string;
-  status?: 'active' | 'inactive';
-  last_login?: string;
-  created_at?: string;
-}
 
 /**
  * Récupère l'identifiant de l'utilisateur actuellement connecté

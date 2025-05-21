@@ -1,26 +1,15 @@
 
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
-import { getCurrentUser } from '../core/databaseConnectionService';
-
-// Définition du type Tache
-interface Tache {
-  id: string;
-  titre: string;
-  description?: string;
-  date_echeance?: string;
-  priorite?: 'faible' | 'moyenne' | 'haute';
-  statut: 'a_faire' | 'en_cours' | 'terminee';
-  responsable_id?: string;
-}
+import { getCurrentUser } from '../auth/authService';
 
 // Récupère toutes les tâches
-export const getTaches = async (): Promise<Tache[]> => {
+export const getTaches = async () => {
   try {
     const API_URL = getApiUrl();
     const userId = getCurrentUser();
     
-    const response = await fetch(`${API_URL}/test_table-load.php?table=taches&userId=${userId}`, {
+    const response = await fetch(`${API_URL}/taches-load.php?userId=${userId}`, {
       method: 'GET',
       headers: {
         ...getAuthHeaders(),
@@ -41,12 +30,12 @@ export const getTaches = async (): Promise<Tache[]> => {
 };
 
 // Crée une nouvelle tâche
-export const createTache = async (tache: Tache): Promise<Tache | null> => {
+export const createTache = async (tache: any) => {
   try {
     const API_URL = getApiUrl();
     const userId = getCurrentUser();
     
-    const response = await fetch(`${API_URL}/test_table-sync.php`, {
+    const response = await fetch(`${API_URL}/taches-sync.php`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
@@ -54,8 +43,7 @@ export const createTache = async (tache: Tache): Promise<Tache | null> => {
       },
       body: JSON.stringify({
         userId,
-        table: 'taches',
-        data: [tache]
+        taches: [tache]
       })
     });
 
@@ -72,12 +60,12 @@ export const createTache = async (tache: Tache): Promise<Tache | null> => {
 };
 
 // Met à jour une tâche existante
-export const updateTache = async (tache: Tache): Promise<Tache | null> => {
+export const updateTache = async (tache: any) => {
   try {
     const API_URL = getApiUrl();
     const userId = getCurrentUser();
     
-    const response = await fetch(`${API_URL}/test_table-sync.php`, {
+    const response = await fetch(`${API_URL}/taches-sync.php`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
@@ -85,8 +73,7 @@ export const updateTache = async (tache: Tache): Promise<Tache | null> => {
       },
       body: JSON.stringify({
         userId,
-        table: 'taches',
-        data: [tache]
+        taches: [tache]
       })
     });
 
@@ -103,15 +90,17 @@ export const updateTache = async (tache: Tache): Promise<Tache | null> => {
 };
 
 // Supprime une tâche
-export const deleteTache = async (tacheId: string): Promise<boolean> => {
+export const deleteTache = async (tacheId: string) => {
   try {
+    // Pour la suppression, nous récupérons toutes les tâches, supprimons celle qui correspond
+    // et synchronisons le tout
     const taches = await getTaches();
     const updatedTaches = taches.filter(t => t.id !== tacheId);
     
     const API_URL = getApiUrl();
     const userId = getCurrentUser();
     
-    const response = await fetch(`${API_URL}/test_table-sync.php`, {
+    const response = await fetch(`${API_URL}/taches-sync.php`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
@@ -119,8 +108,7 @@ export const deleteTache = async (tacheId: string): Promise<boolean> => {
       },
       body: JSON.stringify({
         userId,
-        table: 'taches',
-        data: updatedTaches
+        taches: updatedTaches
       })
     });
 
