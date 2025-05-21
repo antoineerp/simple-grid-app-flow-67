@@ -54,14 +54,13 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   });
   
   const {
-    draggedItem,
     handleDragStart,
     handleDragOver,
     handleDragLeave,
     handleDrop,
     handleDragEnd,
     handleGroupDrop
-  } = useDragAndDropTable(documents, onReorder);
+  } = useDragAndDropTable(documents, onReorder, (doc) => doc.groupId);
 
   const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
     e.dataTransfer.setData('text/plain', JSON.stringify({ groupId }));

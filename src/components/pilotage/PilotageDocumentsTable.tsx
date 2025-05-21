@@ -68,10 +68,10 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
               key={doc.id} 
               className="border-b hover:bg-gray-50"
               draggable
-              onDragStart={(e) => handleDragStart(e, doc.id, index)}
+              onDragStart={(e) => handleDragStart(e, String(doc.id), undefined, index)}
               onDragOver={(e) => handleDragOver(e)}
               onDragLeave={(e) => handleDragLeave(e)}
-              onDrop={(e) => handleDrop(e, doc.id, index)}
+              onDrop={(e) => handleDrop(e, String(doc.id))}
               onDragEnd={(e) => handleDragEnd(e)}
             >
               <TableCell className="flex items-center text-sm">

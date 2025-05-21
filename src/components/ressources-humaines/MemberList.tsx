@@ -39,10 +39,10 @@ const MemberList = ({ membres, onEdit, onDelete, onExport, onReorder = () => {} 
             key={membre.id} 
             className="border-b hover:bg-gray-50"
             draggable
-            onDragStart={(e) => handleDragStart(e, membre.id, index)}
+            onDragStart={(e) => handleDragStart(e, membre.id, undefined, index)}
             onDragOver={(e) => handleDragOver(e)}
             onDragLeave={(e) => handleDragLeave(e)}
-            onDrop={(e) => handleDrop(e, membre.id, index)}
+            onDrop={(e) => handleDrop(e, membre.id)}
             onDragEnd={(e) => handleDragEnd(e)}
           >
             <td className="py-3 px-4 text-sm">

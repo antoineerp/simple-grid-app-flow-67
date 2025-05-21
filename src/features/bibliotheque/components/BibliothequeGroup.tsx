@@ -8,6 +8,7 @@ import { BibliothequeDocumentRow } from './BibliothequeDocumentRow';
 interface BibliothequeGroupProps {
   group: DocumentGroup;
   documents: Document[];
+  groupIndex: number; // Add this prop
   onEdit: (document: Document | null, group?: DocumentGroup) => void;
   onDelete: (id: string, isGroup?: boolean) => void;
   onToggleGroup: (id: string) => void;
@@ -23,6 +24,7 @@ interface BibliothequeGroupProps {
 export const BibliothequeGroup: React.FC<BibliothequeGroupProps> = ({ 
   group,
   documents,
+  groupIndex, // Make sure we use this prop
   onEdit,
   onDelete,
   onToggleGroup,

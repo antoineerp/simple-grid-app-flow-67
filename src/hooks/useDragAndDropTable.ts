@@ -92,7 +92,7 @@ export function useDragAndDropTable<T extends { id: string | number }>(
   };
 
   return {
-    dragState,
+    draggedItem: dragState.draggedItem,
     handleDragStart,
     handleDragOver,
     handleDragLeave,
