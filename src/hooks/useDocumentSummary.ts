@@ -13,14 +13,14 @@ export const useDocumentSummary = () => {
     total: 0
   });
   
-  const currentUser = getCurrentUser() || 'p71x6d_system';
+  const currentUser = getCurrentUser() || 'p71x6d_richard';
 
   useEffect(() => {
     // Function to load documents and calculate stats
     const loadDocuments = async () => {
       try {
         // Retrieve documents from server for the current user
-        const documents = await loadDocumentsFromServer(currentUser);
+        const documents = await loadDocumentsFromServer();
         
         // Calculate stats
         const documentStats = calculateDocumentStats(documents);
