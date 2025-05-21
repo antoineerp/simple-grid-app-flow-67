@@ -1,4 +1,3 @@
-
 <?php
 // Force output buffering to prevent output before headers
 ob_start();
@@ -235,19 +234,25 @@ function verifyAndCreateDocumentTable($pdo, $tableName) {
             `responsabilites` TEXT NULL,
             `etat` VARCHAR(50) NULL,
             `groupId` VARCHAR(36) NULL,
+            `excluded` BOOLEAN DEFAULT 0,
             `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )");
         error_log("Table {$tableName} créée");
     } else {
-        // La table existe, vérifier que la colonne 'nom' existe
+        // La table existe, vérifier et ajouter les colonnes manquantes
+        // Vérifier la colonne 'nom'
         $stmt = $pdo->query("SHOW COLUMNS FROM `{$tableName}` LIKE 'nom'");
-        $columnExists = $stmt->rowCount() > 0;
-        
-        if (!$columnExists) {
-            // Ajouter la colonne manquante
+        if ($stmt->rowCount() == 0) {
             $pdo->exec("ALTER TABLE `{$tableName}` ADD COLUMN `nom` VARCHAR(255) NOT NULL AFTER `id`");
             error_log("Colonne 'nom' ajoutée à la table {$tableName}");
+        }
+        
+        // Vérifier la colonne 'excluded'
+        $stmt = $pdo->query("SHOW COLUMNS FROM `{$tableName}` LIKE 'excluded'");
+        if ($stmt->rowCount() == 0) {
+            $pdo->exec("ALTER TABLE `{$tableName}` ADD COLUMN `excluded` BOOLEAN DEFAULT 0");
+            error_log("Colonne 'excluded' ajoutée à la table {$tableName}");
         }
     }
 }
