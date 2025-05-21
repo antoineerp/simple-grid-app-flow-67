@@ -38,8 +38,8 @@ export const getCurrentUser = (): User | null => {
         localStorage.setItem('userRole', userData.role);
       }
       
-      // Retourne l'identifiant technique, pas l'objet user complet
-      return { id: userData.user } || null;
+      // Retourne l'identifiant technique comme une propriété id
+      return userData.user ? { id: userData.user } : null;
     } catch (decodeError) {
       console.error("Erreur lors du décodage du payload:", decodeError);
       return null;
