@@ -48,10 +48,10 @@ $password = $data['password'];
 error_log("Tentative de connexion pour: " . $username);
 
 try {
-    // Configuration de la base de données
+    // Configuration de la base de données - MODIFIÉ pour utiliser p71x6d_richard
     $host = "p71x6d.myd.infomaniak.com";
-    $dbname = "p71x6d_system";
-    $db_username = "p71x6d_system";
+    $dbname = "p71x6d_richard"; // Changé de p71x6d_system à p71x6d_richard
+    $db_username = "p71x6d_richard"; // Changé pour utiliser le même utilisateur
     $db_password = "Trottinette43!";
     
     // Connexion à la base de données
@@ -102,7 +102,7 @@ try {
         $stmt = $pdo->prepare($insertUserQuery);
         $stmt->execute(['Cirier', 'Antoine', 'antcirier@gmail.com', $userPassword, 'p71x6d_cirier', 'admin']);
         
-        error_log("Table 'utilisateurs' et utilisateurs par défaut créés");
+        error_log("Table 'utilisateurs' et utilisateurs par défaut créés dans la base p71x6d_richard");
     }
     
     // Recherche par email

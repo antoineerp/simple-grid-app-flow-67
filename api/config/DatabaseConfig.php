@@ -16,7 +16,7 @@ class DatabaseConfig {
     private function loadDefaultConfig() {
         // Toujours utiliser p71x6d_richard comme base de données par défaut
         $this->host = "p71x6d.myd.infomaniak.com";
-        $this->db_name = "p71x6d_richard";
+        $this->db_name = "p71x6d_richard"; // Changé de p71x6d_system à p71x6d_richard
         $this->username = "p71x6d_richard";
         $this->password = "Trottinette43!";
         
