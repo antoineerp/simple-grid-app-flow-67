@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceMutations } from './useExigenceMutations';
 import { useExigenceGroups } from './useExigenceGroups';
-import { getCurrentUser } from '@/services/auth/authService';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { useToast } from '@/hooks/use-toast';
 import { useSync } from './useSync';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
@@ -15,8 +15,8 @@ export const useExigences = () => {
   const { toast } = useToast();
   const { syncTable, syncStates, isOnline } = useGlobalSync();
   
-  // Toujours utiliser cet ID utilisateur fixe pour toute l'application
-  const currentUser = 'p71x6d_richard';
+  // Utiliser l'utilisateur actuellement connecté
+  const currentUser = getCurrentUser();
   
   const [exigences, setExigences] = useState<Exigence[]>([]);
   const [groups, setGroups] = useState<ExigenceGroup[]>([]);
@@ -219,8 +219,9 @@ export const useExigences = () => {
         items: [] // On n'envoie pas les items car ils sont déjà dans les exigences
       }));
 
+      // Utiliser l'utilisateur actuellement connecté
       const syncData = {
-        userId: currentUser,
+        userId: currentUser,  // Utiliser l'utilisateur connecté, pas un ID en dur
         exigences: cleanedExigences,
         groups: cleanedGroups
       };

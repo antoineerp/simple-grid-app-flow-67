@@ -48,8 +48,8 @@ export const useGlobalData = () => {
 
 // Provider du contexte
 export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Toujours utiliser p71x6d_richard comme identifiant utilisateur
-  const currentUser = 'p71x6d_richard';
+  // Utiliser l'identifiant de l'utilisateur connecté (et non un ID en dur)
+  const currentUser = getCurrentUser();
   const storagePrefix = `global_data_${currentUser}`;
   
   console.log("GlobalDataProvider - Utilisateur actuel:", currentUser);

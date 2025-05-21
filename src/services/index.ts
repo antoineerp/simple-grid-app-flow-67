@@ -1,36 +1,93 @@
-
-// Re-export functions from other service files
-export * from './core/userInitializationService';
-export * from './documents';
-export * from './users/createUserService';
-export * from './users/userManager';
-
-// Export du type Utilisateur
-export interface Utilisateur {
-  id: number;
-  nom: string;
-  prenom: string;
-  email: string;
-  mot_de_passe: string;
-  identifiant_technique: string;
-  role: string;
-  date_creation: string;
-}
-
-// Explicitement renommer les exports de getCurrentUser pour éviter l'ambiguïté
-export { 
-  getCurrentUser as getDatabaseConnectionCurrentUser 
-} from './core/databaseConnectionService';
-
-export { 
-  getCurrentUser as getAuthCurrentUser 
+// authService
+export {
+  getAuthHeaders,
+  getToken,
+  login,
+  logout,
+  register,
+  verifyToken,
+  getIsLoggedIn,
+  ensureUserIdFromToken,
+  getCurrentUser as getAuthCurrentUser
 } from './auth/authService';
 
-// Re-export other functions from databaseConnectionService
+// userService
 export {
+  getUser,
+  updateUser,
+  deleteUser,
+  getAllUsers,
+  createUser
+} from './users/userService';
+
+// documentService
+export {
+  getDocuments,
+  createDocument,
+  updateDocument,
+  deleteDocument
+} from './documents/documentsService';
+
+// exigenceService
+export {
+  getExigences,
+  createExigence,
+  updateExigence,
+  deleteExigence
+} from './exigences/exigenceService';
+
+// membreService
+export {
+  getMembres,
+  createMembre,
+  updateMembre,
+  deleteMembre
+} from './membres/membreService';
+
+// tacheService
+export {
+  getTaches,
+  createTache,
+  updateTache,
+  deleteTache
+} from './taches/tacheService';
+
+// syncService
+export {
+  syncData,
+  loadData,
+  saveData
+} from './sync/syncService';
+
+// dataStorageService
+export {
+  loadDataFromStorage,
+  saveDataToStorage
+} from './core/dataStorageService';
+
+// userIdValidator
+export {
+  validateUserId,
+  withValidUserId,
+  getUserStorageKey,
+  getUserApiEndpoint
+} from './core/userIdValidator';
+
+// databaseConnectionService
+export {
+  getCurrentUser,
+  setCurrentUser,
   connectAsUser,
+  isSystemUser,
+  forceSafeUser,
   getLastConnectionError,
   disconnectUser,
   testDatabaseConnection,
-  getDatabaseInfo
+  getDatabaseInfo,
+  getDatabaseConnectionCurrentUser
 } from './core/databaseConnectionService';
+
+// userInitializationService
+export {
+  adminImportFromManager
+} from './core/userInitializationService';
