@@ -162,7 +162,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                 Nouvel utilisateur
               </Button>
             </DialogTrigger>
-            <UserForm onSuccess={handleSuccessfulUserCreation} onCancel={() => setNewUserOpen(false)} />
+            <UserForm onSuccess={handleSuccessfulUserCreation} onClose={() => setNewUserOpen(false)} />
           </Dialog>
           
           <Button variant="outline" onClick={loadUtilisateurs} disabled={loading}>
