@@ -95,17 +95,8 @@ function handleGetRequest($pdo) {
     $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
     $tableName = "documents_{$safeUserId}";
     
-    // Créer la table si elle n'existe pas
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `{$tableName}` (
-        `id` VARCHAR(36) PRIMARY KEY,
-        `nom` VARCHAR(255) NOT NULL,
-        `fichier_path` VARCHAR(255) NULL,
-        `responsabilites` TEXT NULL,
-        `etat` VARCHAR(50) NULL,
-        `groupId` VARCHAR(36) NULL,
-        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    )");
+    // Vérifier et créer la table avec la bonne structure si nécessaire
+    verifyAndCreateDocumentTable($pdo, $tableName);
     
     // Récupérer tous les documents de la table
     $stmt = $pdo->query("SELECT * FROM `{$tableName}`");
@@ -174,20 +165,10 @@ function handlePostRequest($pdo) {
     $userId = "p71x6d_richard";
     error_log("ID forcé à: {$userId} pour la base de données");
     
-    // Créer la table si elle n'existe pas
+    // Vérifier et créer la table avec la bonne structure si nécessaire
     $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
     $tableName = "documents_{$safeUserId}";
-    
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `{$tableName}` (
-        `id` VARCHAR(36) PRIMARY KEY,
-        `nom` VARCHAR(255) NOT NULL,
-        `fichier_path` VARCHAR(255) NULL,
-        `responsabilites` TEXT NULL,
-        `etat` VARCHAR(50) NULL,
-        `groupId` VARCHAR(36) NULL,
-        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    )");
+    verifyAndCreateDocumentTable($pdo, $tableName);
     
     // Vider la table pour une synchronisation complète
     $pdo->exec("TRUNCATE TABLE `{$tableName}`");
@@ -237,5 +218,37 @@ function handlePostRequest($pdo) {
     http_response_code(200);
     echo json_encode($response);
     error_log("Réponse de documents-sync.php : " . json_encode($response));
+}
+
+// Fonction utilitaire pour vérifier et créer la table documents avec la bonne structure
+function verifyAndCreateDocumentTable($pdo, $tableName) {
+    // Vérifier si la table existe
+    $stmt = $pdo->query("SHOW TABLES LIKE '{$tableName}'");
+    $tableExists = $stmt->rowCount() > 0;
+    
+    if (!$tableExists) {
+        // Créer la table avec toutes les colonnes nécessaires
+        $pdo->exec("CREATE TABLE `{$tableName}` (
+            `id` VARCHAR(36) PRIMARY KEY,
+            `nom` VARCHAR(255) NOT NULL,
+            `fichier_path` VARCHAR(255) NULL,
+            `responsabilites` TEXT NULL,
+            `etat` VARCHAR(50) NULL,
+            `groupId` VARCHAR(36) NULL,
+            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )");
+        error_log("Table {$tableName} créée");
+    } else {
+        // La table existe, vérifier que la colonne 'nom' existe
+        $stmt = $pdo->query("SHOW COLUMNS FROM `{$tableName}` LIKE 'nom'");
+        $columnExists = $stmt->rowCount() > 0;
+        
+        if (!$columnExists) {
+            // Ajouter la colonne manquante
+            $pdo->exec("ALTER TABLE `{$tableName}` ADD COLUMN `nom` VARCHAR(255) NOT NULL AFTER `id`");
+            error_log("Colonne 'nom' ajoutée à la table {$tableName}");
+        }
+    }
 }
 ?>

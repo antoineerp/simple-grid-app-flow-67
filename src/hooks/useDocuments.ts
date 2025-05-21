@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/documents';
 import { v4 as uuidv4 } from 'uuid';
@@ -48,11 +49,12 @@ export function useDocuments() {
           const groupIds = new Set(serverDocs.filter(d => d.groupId).map(d => d.groupId));
           const extractedGroups = Array.from(groupIds).map(groupId => {
             const docsInGroup = serverDocs.filter(d => d.groupId === groupId);
-            const groupName = docsInGroup[0]?.groupNom || 'Groupe sans nom';
+            const groupName = docsInGroup[0]?.nom || 'Groupe sans nom';
             return {
               id: groupId!,
-              nom: groupName,
+              name: groupName, // Utiliser 'name' au lieu de 'nom' pour correspondre au type DocumentGroup
               expanded: true,
+              items: [] // Initialiser le tableau items vide, sera rempli plus tard
             };
           });
           
@@ -71,11 +73,12 @@ export function useDocuments() {
       const groupIds = new Set(localDocs.filter(d => d.groupId).map(d => d.groupId));
       const extractedGroups = Array.from(groupIds).map(groupId => {
         const docsInGroup = localDocs.filter(d => d.groupId === groupId);
-        const groupName = docsInGroup[0]?.groupNom || 'Groupe sans nom';
+        const groupName = docsInGroup[0]?.nom || 'Groupe sans nom';
         return {
           id: groupId!,
-          nom: groupName,
+          name: groupName, // Utiliser 'name' au lieu de 'nom' pour correspondre au type DocumentGroup
           expanded: true,
+          items: [] // Initialiser le tableau items vide, sera rempli plus tard
         };
       });
       

@@ -6,7 +6,7 @@
 
 import { Document } from '@/types/documents';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
-import { toast } from '@/components/ui/use-toast'; 
+import { toast } from '@/hooks/use-toast'; 
 import { getApiUrl } from '@/config/apiConfig';
 import { validateJsonResponse, extractValidJson } from '@/utils/jsonValidator';
 import { saveLocalData, loadLocalData, syncWithServer } from '@/services/sync/AutoSyncService';
@@ -53,7 +53,7 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
     // Normaliser les documents pour la synchronisation
     const normalizedDocs = docs.map(doc => ({
       id: doc.id,
-      nom: doc.nom || '',
+      nom: doc.nom || doc.name || '', // Utiliser 'nom' ou 'name' si disponible
       fichier_path: doc.fichier_path || null,
       responsabilites: doc.responsabilites || null,
       etat: doc.etat || null,
@@ -94,7 +94,7 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Erreur HTTP ${response.status}: ${errorText}`);
-      throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
     }
     
     // Lire et valider la réponse
@@ -143,51 +143,6 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
   }
 };
 
-// Force une synchronisation complète de tous les documents
-export const forceFullSync = async (): Promise<boolean> => {
-  console.log('Forçage de la synchronisation complète des documents...');
-  
-  try {
-    // Récupérer tous les documents locaux
-    const documents = getLocalDocuments();
-    
-    if (!documents || documents.length === 0) {
-      console.log('Aucun document à synchroniser');
-      toast({
-        title: 'Aucune donnée à synchroniser',
-        description: 'Aucun document trouvé localement pour la synchronisation.'
-      });
-      return true;
-    }
-    
-    // Synchroniser les documents avec le serveur
-    const success = await syncDocumentsWithServer(documents);
-    
-    if (success) {
-      toast({
-        title: 'Synchronisation réussie',
-        description: `${documents.length} documents ont été synchronisés avec le serveur.`
-      });
-      return true;
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Échec de la synchronisation',
-        description: 'Impossible de synchroniser les documents avec le serveur.'
-      });
-      return false;
-    }
-  } catch (error) {
-    console.error('Erreur lors du forçage de la synchronisation:', error);
-    toast({
-      variant: 'destructive',
-      title: 'Erreur de synchronisation',
-      description: error instanceof Error ? error.message : 'Erreur inconnue'
-    });
-    return false;
-  }
-};
-
 // Chargement des documents depuis le serveur
 export const loadDocumentsFromServer = async (userId?: string): Promise<Document[]> => {
   const currentUser = ensureCorrectUserId(userId || getCurrentUser()) || 'default';
@@ -232,5 +187,50 @@ export const loadDocumentsFromServer = async (userId?: string): Promise<Document
     // En cas d'erreur, récupérer les données locales
     console.log('Utilisation des données locales suite à une erreur réseau');
     return loadLocalData<Document>('documents', currentUser);
+  }
+};
+
+// Force une synchronisation complète de tous les documents
+export const forceFullSync = async (): Promise<boolean> => {
+  console.log('Forçage de la synchronisation complète des documents...');
+  
+  try {
+    // Récupérer tous les documents locaux
+    const documents = getLocalDocuments();
+    
+    if (!documents || documents.length === 0) {
+      console.log('Aucun document à synchroniser');
+      toast({
+        title: 'Aucune donnée à synchroniser',
+        description: 'Aucun document trouvé localement pour la synchronisation.'
+      });
+      return true;
+    }
+    
+    // Synchroniser les documents avec le serveur
+    const success = await syncDocumentsWithServer(documents);
+    
+    if (success) {
+      toast({
+        title: 'Synchronisation réussie',
+        description: `${documents.length} documents ont été synchronisés avec le serveur.`
+      });
+      return true;
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Échec de la synchronisation',
+        description: 'Impossible de synchroniser les documents avec le serveur.'
+      });
+      return false;
+    }
+  } catch (error) {
+    console.error('Erreur lors du forçage de la synchronisation:', error);
+    toast({
+      variant: 'destructive',
+      title: 'Erreur de synchronisation',
+      description: error instanceof Error ? error.message : 'Erreur inconnue'
+    });
+    return false;
   }
 };
