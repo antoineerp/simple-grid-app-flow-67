@@ -1,7 +1,8 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
-import { Utilisateur } from '@/services';
-import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { Utilisateur } from '@/types/auth';
+import { getCurrentUser } from '../core/databaseConnectionService';
 
 // Un cache pour les utilisateurs
 let usersCache: Utilisateur[] | null = null;
@@ -33,10 +34,10 @@ export const UserManager = {
       const userId = getCurrentUser();
       const currentApiUrl = getApiUrl();
       
-      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/check-users?source=${userId}`);
+      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/test.php?action=users`);
       
-      // Utiliser uniquement le endpoint check-users qui est le plus fiable
-      const response = await fetch(`${currentApiUrl}/check-users?source=${userId}`, {
+      // Utiliser le nouveau endpoint qui fonctionne
+      const response = await fetch(`${currentApiUrl}/test.php?action=users`, {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),
@@ -115,6 +116,41 @@ export const UserManager = {
   },
   
   /**
+   * Récupère les tables d'un utilisateur spécifique
+   */
+  async getUserTables(userId: string): Promise<string[]> {
+    try {
+      const currentApiUrl = getApiUrl();
+      
+      console.log(`Récupération des tables pour l'utilisateur ${userId}`);
+      
+      const response = await fetch(`${currentApiUrl}/test.php?action=tables&userId=${encodeURIComponent(userId)}`, {
+        method: 'GET',
+        headers: {
+          ...getAuthHeaders(),
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.tables || !Array.isArray(data.tables)) {
+        return [];
+      }
+      
+      return data.tables;
+    } catch (error) {
+      console.error(`Erreur lors de la récupération des tables pour l'utilisateur ${userId}:`, error);
+      return [];
+    }
+  },
+  
+  /**
    * Effacer le cache d'utilisateurs
    */
   clearCache() {
@@ -140,6 +176,10 @@ export const UserManager = {
 // Export des fonctions simplifiées
 export const getUtilisateurs = (forceRefresh: boolean = false): Promise<Utilisateur[]> => {
   return UserManager.getUtilisateurs(forceRefresh);
+};
+
+export const getUserTables = (userId: string): Promise<string[]> => {
+  return UserManager.getUserTables(userId);
 };
 
 export const clearUsersCache = (): void => {

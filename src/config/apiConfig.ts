@@ -46,7 +46,20 @@ export const testApiConnection = async (): Promise<{
       throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
     }
     
-    const data = await response.json();
+    const responseText = await response.text();
+    
+    // Vérifier si la réponse contient du PHP non exécuté
+    if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+      throw new Error("La réponse contient du PHP/HTML au lieu de JSON - problème de configuration serveur");
+    }
+    
+    // Essayer de parser le JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      throw new Error(`Erreur de parsing JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+    }
     
     return {
       success: true,
@@ -87,7 +100,21 @@ export const fetchWithErrorHandling = async (
       throw new Error(errorMessage);
     }
     
-    return await response.json();
+    // Vérifier le type de contenu
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.indexOf('application/json') !== -1) {
+      return await response.json();
+    } else {
+      // Si ce n'est pas du JSON, retourner le texte brut
+      const text = await response.text();
+      try {
+        // Tenter de parser en JSON même si le header ne l'indique pas
+        return JSON.parse(text);
+      } catch {
+        // Sinon retourner le texte tel quel
+        return text;
+      }
+    }
   } catch (error) {
     console.error("Fetch error:", error);
     throw error;
