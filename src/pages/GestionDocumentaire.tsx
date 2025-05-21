@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { DataSyncManager } from '@/components/common/DataSyncManager';
 import { exportDocumentsToPdf } from '@/services/documentsExport';
 import { ensureCorrectUserId } from '@/services/core/userIdConverter';
+import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
+import { calculateDocumentStats } from '@/services/documents/documentStatsService';
 
 const GestionDocumentaire = () => {
   const {
@@ -50,6 +52,9 @@ const GestionDocumentaire = () => {
   
   const { toast } = useToast();
 
+  // Calculate document stats
+  const documentStats = calculateDocumentStats(documents);
+
   const handleExportPdf = () => {
     if (documents && documents.length > 0) {
       exportDocumentsToPdf(documents, groups, "Liste des documents");
@@ -65,11 +70,18 @@ const GestionDocumentaire = () => {
     }
   };
 
+  // New handler to add document directly in the table
+  const handleAddDirectDocument = () => {
+    const newDocument = handleAddDocument();
+    // No need to open the dialog form
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Gestion Documentaire</h1>
+          <DocumentStatusDisplay stats={documentStats} />
         </div>
         <div className="flex space-x-2">
           <button 

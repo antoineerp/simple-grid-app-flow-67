@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Document, DocumentGroup } from '@/types/documents';
+import { Document, DocumentGroup, DocumentStats } from '@/types/documents';
 import { v4 as uuidv4 } from 'uuid';
 import { useNetworkStatus } from './useNetworkStatus';
 import { toast } from '@/hooks/use-toast';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { saveLocalDocuments, getLocalDocuments, syncDocumentsWithServer, loadDocumentsFromServer } from '@/services/documents/documentSyncService';
+import { calculateDocumentStats } from '@/services/documents/documentStatsService';
 
 export function useDocuments() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -18,14 +19,8 @@ export function useDocuments() {
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const { isOnline } = useNetworkStatus();
   
-  // Statistiques
-  const stats = {
-    totalDocuments: documents.length,
-    totalGroups: groups.length,
-    completeDocuments: documents.filter(d => d.etat === 'C').length,
-    partialDocuments: documents.filter(d => d.etat === 'PC').length,
-    nonCompleteDocuments: documents.filter(d => d.etat === 'NC').length,
-  };
+  // Calculate statistics
+  const stats = calculateDocumentStats(documents);
 
   // Charger les documents au démarrage
   useEffect(() => {
@@ -220,11 +215,17 @@ export function useDocuments() {
       responsabilites: { r: [], a: [], c: [], i: [] },
       etat: null,
       date_creation: new Date(),
-      date_modification: new Date()
+      date_modification: new Date(),
+      excluded: false
     };
     setDocuments(prev => [...prev, newDocument]);
+    
+    // For direct adding in table, don't open dialog
+    // but still set the editing document for reference
     setEditingDocument(newDocument);
     setDialogOpen(true);
+    
+    return newDocument;
   };
 
   const handleReorder = (startIndex: number, endIndex: number) => {

@@ -1,3 +1,4 @@
+
 /**
  * Service de synchronisation des documents
  * Utilise le nouveau système de synchronisation automatique centralisée
@@ -56,8 +57,10 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
       nom: doc.nom || doc.name || '', 
       fichier_path: doc.fichier_path || null,
       responsabilites: doc.responsabilites || null,
+      // Handle both 'etat' and 'statut' for compatibility
       etat: doc.etat || doc.statut || null,
-      groupId: doc.groupId || null
+      groupId: doc.groupId || null,
+      excluded: doc.excluded || false
     }));
     
     // Obtenir l'ID utilisateur correctement formaté
