@@ -24,6 +24,8 @@ header('Content-Type: text/html; charset=utf-8');
         .status-ok { background-color: #4CAF50; }
         .status-warning { background-color: #FF9800; }
         .status-error { background-color: #F44336; }
+        .urgent-card { border: 2px solid #f44336; }
+        .priority { font-size: 0.8em; padding: 3px 8px; border-radius: 12px; background-color: #f44336; color: white; margin-left: 5px; position: relative; top: -1px; }
     </style>
 </head>
 <body>
@@ -34,6 +36,28 @@ header('Content-Type: text/html; charset=utf-8');
         </header>
         
         <div class="card-container">
+            <!-- Réparation d'urgence de index.html -->
+            <div class="card urgent-card">
+                <div class="card-icon">🚑</div>
+                <h2>
+                    Réparation d'Urgence <span class="priority">URGENT</span>
+                    <?php 
+                        $index_ok = false;
+                        if (file_exists('../index.html')) {
+                            $index_content = file_get_contents('../index.html');
+                            // Vérifie que index.html a des références correctes et pas de références à /src/
+                            $index_ok = strpos($index_content, 'gptengineer.js') !== false && 
+                                      (strpos($index_content, '/assets/main-') !== false || strpos($index_content, '/assets/index') !== false) &&
+                                       strpos($index_content, '/src/main') === false;
+                        }
+                        $status_class = $index_ok ? 'status-ok' : 'status-error';
+                        echo "<span class='status-indicator $status_class'></span>";
+                    ?>
+                </h2>
+                <p>Résout l'erreur "Failed to resolve module specifier". Répare les références aux modules ES6 dans index.html.</p>
+                <a href="fix-main-references.php" class="button" style="background-color: #f44336;">Accéder</a>
+            </div>
+            
             <!-- Diagnostic des Assets -->
             <div class="card">
                 <div class="card-icon">📦</div>
@@ -89,30 +113,29 @@ header('Content-Type: text/html; charset=utf-8');
                 <a href="../copy-assets.php" class="button">Accéder</a>
             </div>
             
-            <!-- Réparation d'urgence de index.html -->
-            <div class="card">
-                <div class="card-icon">🚑</div>
-                <h2>
-                    Réparation d'Urgence
-                    <?php 
-                        $index_ok = false;
-                        if (file_exists('../index.html')) {
-                            $index_content = file_get_contents('../index.html');
-                            $index_ok = strpos($index_content, 'gptengineer.js') !== false && 
-                                       (strpos($index_content, 'main-') !== false || strpos($index_content, 'index-') !== false);
-                        }
-                        $status_class = $index_ok ? 'status-ok' : 'status-error';
-                        echo "<span class='status-indicator $status_class'></span>";
-                    ?>
-                </h2>
-                <p>Réparation d'urgence pour le fichier index.html avec références correctes aux modules ES.</p>
-                <a href="../fix-index-references.php" class="button">Accéder</a>
-            </div>
-            
             <!-- Diagnostic des utilisateurs -->
             <div class="card">
                 <div class="card-icon">👥</div>
-                <h2>Utilisateurs et Rôles</h2>
+                <h2>
+                    Utilisateurs et Rôles
+                    <?php 
+                        $users_ok = false;
+                        try {
+                            // Simple test pour vérifier si la table users existe et contient des données
+                            if (file_exists(__DIR__ . '/config/DatabaseConfig.php')) {
+                                include_once 'config/DatabaseConfig.php';
+                                $db = new DatabaseConfig();
+                                $pdo = $db->getConnection();
+                                if ($pdo) {
+                                    $stmt = $pdo->query("SHOW TABLES LIKE 'users'");
+                                    $users_ok = $stmt && $stmt->rowCount() > 0;
+                                }
+                            }
+                        } catch (Exception $e) {}
+                        $status_class = $users_ok ? 'status-ok' : 'status-warning';
+                        echo "<span class='status-indicator $status_class'></span>";
+                    ?>
+                </h2>
                 <p>Vérifie la configuration des utilisateurs et des permissions dans la base de données.</p>
                 <a href="check-users.php" class="button">Accéder</a>
             </div>
@@ -148,3 +171,4 @@ header('Content-Type: text/html; charset=utf-8');
     </div>
 </body>
 </html>
+

@@ -95,7 +95,8 @@ function analyze_index_html($file_path) {
         'has_css' => preg_match('/<link[^>]*href=[\'"]([^\'"]*\.css)[\'"]/', $content, $css_matches),
         'js_path' => isset($js_matches[1]) ? $js_matches[1] : null,
         'css_path' => isset($css_matches[1]) ? $css_matches[1] : null,
-        'has_src_ref' => strpos($content, '/src/main.tsx') !== false || strpos($content, '/src/main.js') !== false
+        'has_src_ref' => strpos($content, '/src/main.tsx') !== false || strpos($content, '/src/main.js') !== false,
+        'has_gpteng' => strpos($content, 'gptengineer.js') !== false
     ];
 }
 
@@ -166,8 +167,8 @@ function update_index_html($file_path, $js_path = null, $css_path = null) {
     // Vérifier la présence du script GPT Engineer
     if (strpos($content, 'cdn.gpteng.co/gptengineer.js') === false) {
         $content = preg_replace(
-            '/<\/body>/',
-            '  <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>' . "\n  " . '</body>',
+            '/<\/head>/',
+            '  <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>' . "\n  " . '</head>',
             $content
         );
         $changes[] = "Ajouté script GPT Engineer";
@@ -183,6 +184,56 @@ function update_index_html($file_path, $js_path = null, $css_path = null) {
     }
     
     return ['success' => false, 'message' => 'Aucune modification nécessaire', 'changes' => []];
+}
+
+// Création d'un index.html de secours avec des références correctes aux modules ES6
+function create_emergency_index_html($index_file, $main_js = null, $main_css = null) {
+    $backup_path = backup_index_file($index_file);
+    
+    // Construire le contenu HTML de base
+    $emergency_html = <<<HTML
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Qualite.cloud - Système de Management de la Qualité</title>
+    <meta name="description" content="Application web pour la gestion de la qualité et la conformité ISO 27001" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+
+HTML;
+    
+    // Ajouter la référence CSS si disponible
+    if ($main_css) {
+        $css_path = '/assets/' . basename($main_css);
+        $emergency_html .= '    <link rel="stylesheet" href="' . $css_path . '">' . "\n";
+    }
+    
+    // Compléter le HTML
+    $emergency_html .= "  </head>\n  <body>\n    <div id=\"root\"></div>\n";
+    
+    // Ajouter la référence JS si disponible
+    if ($main_js) {
+        $js_path = '/assets/' . basename($main_js);
+        $emergency_html .= '    <script type="module" src="' . $js_path . '"></script>' . "\n";
+    } else {
+        // Fallback sur index.js si main.js n'est pas trouvé
+        $emergency_html .= '    <script type="module" src="/assets/index.js"></script>' . "\n";
+    }
+    
+    $emergency_html .= "  </body>\n</html>";
+    
+    if (file_put_contents($index_file, $emergency_html)) {
+        return [
+            'success' => true, 
+            'message' => 'Fichier index.html de secours créé avec succès',
+            'backup' => $backup_path,
+            'content' => $emergency_html
+        ];
+    }
+    
+    return ['success' => false, 'message' => 'Erreur lors de la création du fichier de secours'];
 }
 
 // Afficher l'interface utilisateur
@@ -207,6 +258,8 @@ function update_index_html($file_path, $js_path = null, $css_path = null) {
         table, th, td { border: 1px solid #ddd; }
         th, td { padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
+        .urgent { background-color: #ffcccc; border: 2px solid #ff6666; padding: 15px; margin: 20px 0; border-radius: 8px; }
+        .info-box { background-color: #e8f4fd; border: 1px solid #b3d7ff; padding: 15px; margin: 20px 0; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -235,6 +288,12 @@ function update_index_html($file_path, $js_path = null, $css_path = null) {
                 
                 if ($index_analysis['has_src_ref']) {
                     echo "<p>Référence à /src/: <span class='warning'>TROUVÉE</span> (devrait être remplacée)</p>";
+                }
+                
+                if ($index_analysis['has_gpteng']) {
+                    echo "<p>Script GPT Engineer: <span class='success'>TROUVÉ</span></p>";
+                } else {
+                    echo "<p>Script GPT Engineer: <span class='error'>NON TROUVÉ</span> (nécessaire pour certaines fonctionnalités)</p>";
                 }
             } else {
                 echo "<p>Fichier index.html: <span class='error'>NON TROUVÉ</span></p>";
@@ -304,6 +363,15 @@ function update_index_html($file_path, $js_path = null, $css_path = null) {
                 }
             }
             ?>
+            
+            <?php if ($index_analysis['has_src_ref']): ?>
+            <div class="urgent">
+                <h3>⚠️ ALERTE: Problème détecté avec les modules ES6</h3>
+                <p>Votre index.html fait référence à <strong>/src/main.tsx</strong> qui n'est pas un format valide pour les modules ES6 en production.</p>
+                <p>Ce problème peut causer l'erreur: <strong>Uncaught TypeError: Failed to resolve module specifier "react"</strong></p>
+                <p>Utilisez la réparation d'urgence ci-dessous pour corriger ce problème.</p>
+            </div>
+            <?php endif; ?>
         </div>
         
         <?php
@@ -379,6 +447,40 @@ function update_index_html($file_path, $js_path = null, $css_path = null) {
             // Rafraîchir l'analyse de index.html
             $index_analysis = analyze_index_html($index_file);
         }
+        
+        // Réparation d'urgence
+        if (isset($_POST['emergency_fix'])) {
+            // Créer un index.html minimal mais fonctionnel avec des importations ES6 correctes
+            $result = create_emergency_index_html($index_file, $main_js, $main_css);
+            
+            echo "<div class='section'>";
+            echo "<h2>Réparation d'Urgence</h2>";
+            
+            if ($result['success']) {
+                echo "<p><span class='success'>SUCCÈS:</span> Un index.html de secours a été créé avec des références correctes aux modules ES6.</p>";
+                echo "<p>L'original a été sauvegardé sous " . basename($result['backup']) . "</p>";
+                echo "<p>Contenu du nouvel index.html:</p>";
+                echo "<pre>" . htmlspecialchars($result['content']) . "</pre>";
+                
+                echo "<div class='info-box'>";
+                echo "<h3>🔄 Veuillez vider le cache de votre navigateur</h3>";
+                echo "<p>Après cette réparation, il est important de vider complètement le cache de votre navigateur:</p>";
+                echo "<ul>";
+                echo "<li>Chrome/Edge: Ctrl+Shift+Suppr</li>";
+                echo "<li>Firefox: Ctrl+Shift+Suppr ou ⌘+Shift+Suppr sur Mac</li>";
+                echo "<li>Safari: Option+⌘+E</li>";
+                echo "</ul>";
+                echo "<p>Assurez-vous de cocher 'Données en cache' ou 'Images et fichiers en cache'.</p>";
+                echo "</div>";
+            } else {
+                echo "<p><span class='error'>ERREUR:</span> Impossible de créer le fichier de secours.</p>";
+            }
+            
+            echo "</div>";
+            
+            // Rafraîchir l'analyse de index.html
+            $index_analysis = analyze_index_html($index_file);
+        }
         ?>
         
         <div class="section">
@@ -394,13 +496,20 @@ function update_index_html($file_path, $js_path = null, $css_path = null) {
                 <?php endif; ?>
                 
                 <?php if (file_exists($index_file) && ($main_js || $main_css)): ?>
-                <div>
+                <div style="margin-bottom: 20px;">
                     <button type="submit" name="update_index" class="button">
                         Mettre à jour index.html avec les bons fichiers
                     </button>
                     <p><small>Met à jour les références dans index.html pour pointer vers les bons fichiers JS et CSS.</small></p>
                 </div>
                 <?php endif; ?>
+                
+                <div>
+                    <button type="submit" name="emergency_fix" class="button" style="background-color: #f44336;">
+                        RÉPARATION D'URGENCE - Erreur de module ES6
+                    </button>
+                    <p><small><strong>Recommandé:</strong> Crée un index.html de secours avec des importations ES6 correctes pour résoudre l'erreur "Failed to resolve module specifier".</small></p>
+                </div>
             </form>
         </div>
         
@@ -416,74 +525,27 @@ function update_index_html($file_path, $js_path = null, $css_path = null) {
         </div>
         
         <div class="section">
-            <h2>Conseils de Dépannage</h2>
+            <h2>Dépannage de l'erreur "Failed to resolve module specifier"</h2>
             <ol>
-                <li><strong>Si vous venez de déployer l'application</strong>, assurez-vous que les fichiers compilés sont présents dans le dossier <code>dist/assets</code>.</li>
-                <li><strong>Si vous avez déjà des fichiers dans <code>assets</code></strong> mais que l'application ne fonctionne pas, vérifiez que index.html y fait référence correctement.</li>
-                <li><strong>En cas de problème persistant</strong>, exécutez <code>npm run build</code> localement, puis transférez le contenu du dossier <code>dist</code> à la racine de votre site.</li>
-                <li>N'oubliez pas de vider le cache de votre navigateur après avoir appliqué les modifications.</li>
+                <li><strong>Problème:</strong> Cette erreur se produit lorsque votre application utilise des importations ES6 (par exemple <code>import React from 'react'</code>) mais que le navigateur ne peut pas résoudre le module.</li>
+                <li><strong>Cause:</strong> En production, les chemins des modules doivent être relatifs (commençant par "./", "../" ou "/") ou utiliser un importmap.</li>
+                <li><strong>Solution:</strong> Utiliser le bouton "RÉPARATION D'URGENCE" ci-dessus pour corriger les références dans index.html.</li>
+                <li><strong>Après réparation:</strong> Vider complètement le cache de votre navigateur et recharger la page.</li>
+                <li><strong>Si le problème persiste:</strong> Vérifiez que vos fichiers JavaScript compilés sont bien présents dans le dossier assets et que leurs noms correspondent à ceux référencés dans index.html.</li>
             </ol>
         </div>
         
         <div class="section">
-            <h2>Réparation d'Urgence</h2>
-            <?php 
-            // Bouton de réparation d'urgence
-            if (isset($_POST['emergency_fix'])) {
-                // Créer un index.html minimal mais fonctionnel
-                $emergency_html = <<<HTML
-<!DOCTYPE html>
-<html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Qualite.cloud - Système de Management de la Qualité</title>
-    <meta name="description" content="Application web pour la gestion de la qualité et la conformité ISO 27001" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
-HTML;
-                
-                // Ajouter les références aux fichiers existants
-                if ($main_js) {
-                    $js_path = '/assets/' . basename($main_js);
-                    $emergency_html .= "    <script type=\"module\" src=\"{$js_path}\"></script>\n";
-                }
-                
-                if ($main_css) {
-                    $css_path = '/assets/' . basename($main_css);
-                    $emergency_html .= "    <link rel=\"stylesheet\" href=\"{$css_path}\">\n";
-                } else {
-                    // Si aucun CSS n'est trouvé, on ajoute un style minimal
-                    $emergency_html .= "    <style>body{font-family:sans-serif}</style>\n";
-                }
-                
-                $emergency_html .= "  </body>\n</html>";
-                
-                // Faire une sauvegarde
-                $backup_path = backup_index_file($index_file);
-                
-                // Écrire le fichier d'urgence
-                $success = file_put_contents($index_file, $emergency_html);
-                
-                if ($success) {
-                    echo "<p><span class='success'>SUCCÈS:</span> Un index.html de secours a été créé. L'original a été sauvegardé sous " . basename($backup_path) . "</p>";
-                    echo "<p>Contenu du nouvel index.html:</p>";
-                    echo "<pre>" . htmlspecialchars($emergency_html) . "</pre>";
-                } else {
-                    echo "<p><span class='error'>ERREUR:</span> Impossible de créer le fichier de secours.</p>";
-                }
-            }
-            ?>
-            <form method="post">
-                <p><strong>ATTENTION:</strong> Utilisez cette option seulement en cas d'urgence. Cela créera un fichier index.html minimal avec les bonnes références.</p>
-                <button type="submit" name="emergency_fix" class="button" style="background-color: #f44336;">
-                    Créer un index.html de secours
-                </button>
-            </form>
+            <h2>Conseils de Dépannage</h2>
+            <ol>
+                <li><strong>Videz le cache</strong> de votre navigateur après avoir appliqué les modifications.</li>
+                <li><strong>Navigation privée/incognito:</strong> Testez votre site dans une fenêtre de navigation privée pour éviter les problèmes de cache.</li>
+                <li><strong>Vérifiez la console développeur</strong> de votre navigateur (F12) pour des erreurs plus précises.</li>
+                <li><strong>Si vous avez un CDN</strong> ou un service de cache, pensez à purger son cache également.</li>
+                <li><strong>En dernier recours:</strong> Si rien ne fonctionne, reconstruisez l'application avec <code>npm run build</code> et redéployez tous les fichiers.</li>
+            </ol>
         </div>
     </div>
 </body>
 </html>
+
