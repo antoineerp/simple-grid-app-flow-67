@@ -57,11 +57,13 @@ header('Content-Type: text/html; charset=utf-8');
                     <?php 
                         $db_ok = false;
                         try {
-                            include_once 'config/DatabaseConfig.php';
-                            $db = new DatabaseConfig();
-                            $params = $db->getConnectionParams();
-                            if ($params['db_name'] === 'p71x6d_richard') {
-                                $db_ok = true;
+                            if (file_exists(__DIR__ . '/config/DatabaseConfig.php')) {
+                                include_once 'config/DatabaseConfig.php';
+                                $db = new DatabaseConfig();
+                                $params = $db->getConnectionParams();
+                                if (isset($params['db_name']) && $params['db_name'] === 'p71x6d_richard') {
+                                    $db_ok = true;
+                                }
                             }
                         } catch (Exception $e) {}
                         $status_class = $db_ok ? 'status-ok' : 'status-warning';
@@ -87,6 +89,26 @@ header('Content-Type: text/html; charset=utf-8');
                 <a href="../copy-assets.php" class="button">Accéder</a>
             </div>
             
+            <!-- Réparation d'urgence de index.html -->
+            <div class="card">
+                <div class="card-icon">🚑</div>
+                <h2>
+                    Réparation d'Urgence
+                    <?php 
+                        $index_ok = false;
+                        if (file_exists('../index.html')) {
+                            $index_content = file_get_contents('../index.html');
+                            $index_ok = strpos($index_content, 'gptengineer.js') !== false && 
+                                       (strpos($index_content, 'main-') !== false || strpos($index_content, 'index-') !== false);
+                        }
+                        $status_class = $index_ok ? 'status-ok' : 'status-error';
+                        echo "<span class='status-indicator $status_class'></span>";
+                    ?>
+                </h2>
+                <p>Réparation d'urgence pour le fichier index.html avec références correctes aux modules ES.</p>
+                <a href="../fix-index-references.php" class="button">Accéder</a>
+            </div>
+            
             <!-- Diagnostic des utilisateurs -->
             <div class="card">
                 <div class="card-icon">👥</div>
@@ -109,6 +131,14 @@ header('Content-Type: text/html; charset=utf-8');
                 <h2>Diagnostic Complet</h2>
                 <p>Analyse complète de l'installation, incluant tous les aspects techniques.</p>
                 <a href="../check-assets-deployment.php" class="button">Accéder</a>
+            </div>
+            
+            <!-- Nouveau vérificateur de référence index.html -->
+            <div class="card">
+                <div class="card-icon">📄</div>
+                <h2>Analyse index.html</h2>
+                <p>Analyse détaillée du fichier index.html et vérification des références aux scripts et styles.</p>
+                <a href="../index-reference-detector.php" class="button">Accéder</a>
             </div>
         </div>
         

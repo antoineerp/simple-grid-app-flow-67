@@ -163,6 +163,16 @@ function update_index_html($file_path, $js_path = null, $css_path = null) {
         }
     }
     
+    // Vérifier la présence du script GPT Engineer
+    if (strpos($content, 'cdn.gpteng.co/gptengineer.js') === false) {
+        $content = preg_replace(
+            '/<\/body>/',
+            '  <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>' . "\n  " . '</body>',
+            $content
+        );
+        $changes[] = "Ajouté script GPT Engineer";
+    }
+    
     // Enregistrer les modifications si nécessaire
     if ($content !== $original) {
         if (file_put_contents($file_path, $content)) {
@@ -413,6 +423,66 @@ function update_index_html($file_path, $js_path = null, $css_path = null) {
                 <li><strong>En cas de problème persistant</strong>, exécutez <code>npm run build</code> localement, puis transférez le contenu du dossier <code>dist</code> à la racine de votre site.</li>
                 <li>N'oubliez pas de vider le cache de votre navigateur après avoir appliqué les modifications.</li>
             </ol>
+        </div>
+        
+        <div class="section">
+            <h2>Réparation d'Urgence</h2>
+            <?php 
+            // Bouton de réparation d'urgence
+            if (isset($_POST['emergency_fix'])) {
+                // Créer un index.html minimal mais fonctionnel
+                $emergency_html = <<<HTML
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Qualite.cloud - Système de Management de la Qualité</title>
+    <meta name="description" content="Application web pour la gestion de la qualité et la conformité ISO 27001" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+HTML;
+                
+                // Ajouter les références aux fichiers existants
+                if ($main_js) {
+                    $js_path = '/assets/' . basename($main_js);
+                    $emergency_html .= "    <script type=\"module\" src=\"{$js_path}\"></script>\n";
+                }
+                
+                if ($main_css) {
+                    $css_path = '/assets/' . basename($main_css);
+                    $emergency_html .= "    <link rel=\"stylesheet\" href=\"{$css_path}\">\n";
+                } else {
+                    // Si aucun CSS n'est trouvé, on ajoute un style minimal
+                    $emergency_html .= "    <style>body{font-family:sans-serif}</style>\n";
+                }
+                
+                $emergency_html .= "  </body>\n</html>";
+                
+                // Faire une sauvegarde
+                $backup_path = backup_index_file($index_file);
+                
+                // Écrire le fichier d'urgence
+                $success = file_put_contents($index_file, $emergency_html);
+                
+                if ($success) {
+                    echo "<p><span class='success'>SUCCÈS:</span> Un index.html de secours a été créé. L'original a été sauvegardé sous " . basename($backup_path) . "</p>";
+                    echo "<p>Contenu du nouvel index.html:</p>";
+                    echo "<pre>" . htmlspecialchars($emergency_html) . "</pre>";
+                } else {
+                    echo "<p><span class='error'>ERREUR:</span> Impossible de créer le fichier de secours.</p>";
+                }
+            }
+            ?>
+            <form method="post">
+                <p><strong>ATTENTION:</strong> Utilisez cette option seulement en cas d'urgence. Cela créera un fichier index.html minimal avec les bonnes références.</p>
+                <button type="submit" name="emergency_fix" class="button" style="background-color: #f44336;">
+                    Créer un index.html de secours
+                </button>
+            </form>
         </div>
     </div>
 </body>
