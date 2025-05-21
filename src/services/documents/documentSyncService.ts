@@ -11,11 +11,12 @@ import { getApiUrl } from '@/config/apiConfig';
 import { validateJsonResponse, extractValidJson } from '@/utils/jsonValidator';
 import { saveLocalData, loadLocalData, syncWithServer } from '@/services/sync/AutoSyncService';
 import robustSync, { verifyJsonEndpoint } from '@/services/sync/robustSyncService';
+import { ensureCorrectUserId } from '@/services/core/userIdConverter';
 
 // Sauvegarde des documents en local (maintenu pour compatibilité)
 export const saveLocalDocuments = (docs: Document[]): void => {
   try {
-    const currentUser = getCurrentUser() || 'default';
+    const currentUser = ensureCorrectUserId(getCurrentUser()) || 'default';
     
     // Utiliser le nouveau système de stockage centralisé
     saveLocalData('documents', docs);
@@ -118,7 +119,7 @@ export const forceFullSync = async (): Promise<boolean> => {
 
 // Chargement des documents depuis le serveur
 export const loadDocumentsFromServer = async (userId?: string): Promise<Document[] | null> => {
-  const currentUser = userId || getCurrentUser() || 'default';
+  const currentUser = ensureCorrectUserId(userId || getCurrentUser()) || 'default';
   
   console.log(`Chargement des documents pour ${currentUser} depuis le serveur...`);
   

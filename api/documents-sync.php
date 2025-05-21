@@ -47,6 +47,18 @@ try {
     error_log("Synchronisation pour l'utilisateur: {$userId}");
     error_log("Nombre de documents: " . count($documents));
     
+    // Traiter l'userId si c'est un email
+    if (filter_var($userId, FILTER_VALIDATE_EMAIL)) {
+        $username = strtolower(explode('@', $userId)[0]);
+        $username = preg_replace('/[^a-z0-9]/', '', $username);
+        $userId = "p71x6d_" . $username;
+        error_log("Email converti en ID technique: {$userId}");
+    }
+    
+    // Forcer l'utilisation de p71x6d_richard comme base de données pour tous
+    $userId = "p71x6d_richard";
+    error_log("ID forcé à: {$userId} pour la base de données");
+    
     // Essayer de se connecter à la base de données
     $host = "p71x6d.myd.infomaniak.com";
     $dbname = "p71x6d_system";

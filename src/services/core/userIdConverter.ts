@@ -80,4 +80,3 @@ export const ensureCorrectUserId = (input: string | any): string => {
   // Par défaut
   return 'p71x6d_richard';
 };
-

@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import SyncIndicator from '@/components/common/SyncIndicator';
 import { exportDocumentsToPdf } from '@/services/documentsExport';
+import { ensureCorrectUserId } from '@/services/core/userIdConverter';
 
 const GestionDocumentaire = () => {
   const {
