@@ -1,4 +1,3 @@
-
 /**
  * Service de synchronisation des documents
  * Utilise le nouveau système de synchronisation automatique centralisée
@@ -53,7 +52,7 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
     // Normaliser les documents pour la synchronisation
     const normalizedDocs = docs.map(doc => ({
       id: doc.id,
-      nom: doc.nom || doc.name || '', // Utiliser 'nom' ou 'name' si disponible
+      nom: doc.nom || doc.name || '', // Utiliser 'nom' si disponible, sinon 'name', sinon chaîne vide
       fichier_path: doc.fichier_path || null,
       responsabilites: doc.responsabilites || null,
       etat: doc.etat || null,

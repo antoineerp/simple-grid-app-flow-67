@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/documents';
 import { v4 as uuidv4 } from 'uuid';
@@ -176,7 +175,7 @@ export function useDocuments() {
         doc.id === id
           ? {
               ...doc,
-              excluded: !doc.excluded,
+              excluded: doc.excluded === true ? false : true,
             }
           : doc
       )

@@ -20,7 +20,7 @@ export interface Document {
   link?: string;
   fichier_path?: string;  // Pour compatibilité avec les anciennes données
   groupId?: string;
-  excluded?: boolean;
+  excluded?: boolean;  // Added the excluded property
   atteinte?: 'NC' | 'PC' | 'C' | null;
   ordre?: number;
   userId?: string;
