@@ -1,3 +1,4 @@
+
 <?php
 // Force output buffering to prevent output before headers
 ob_start();
@@ -78,15 +79,7 @@ function handleGetRequest($pdo) {
     $userId = $_GET['userId'];
     error_log("Récupération des documents pour l'utilisateur: {$userId}");
     
-    // Traiter l'userId si c'est un email
-    if (filter_var($userId, FILTER_VALIDATE_EMAIL)) {
-        $username = strtolower(explode('@', $userId)[0]);
-        $username = preg_replace('/[^a-z0-9]/', '', $username);
-        $userId = "p71x6d_" . $username;
-        error_log("Email converti en ID technique: {$userId}");
-    }
-    
-    // Forcer l'utilisation de p71x6d_richard comme base de données pour tous
+    // Toujours forcer l'utilisation de p71x6d_richard
     $userId = "p71x6d_richard";
     error_log("ID forcé à: {$userId} pour la base de données");
     
@@ -152,14 +145,6 @@ function handlePostRequest($pdo) {
     error_log("Synchronisation pour l'utilisateur: {$userId}");
     error_log("Nombre de documents: " . count($documents));
     
-    // Traiter l'userId si c'est un email
-    if (filter_var($userId, FILTER_VALIDATE_EMAIL)) {
-        $username = strtolower(explode('@', $userId)[0]);
-        $username = preg_replace('/[^a-z0-9]/', '', $username);
-        $userId = "p71x6d_" . $username;
-        error_log("Email converti en ID technique: {$userId}");
-    }
-    
     // Forcer l'utilisation de p71x6d_richard comme base de données pour tous
     $userId = "p71x6d_richard";
     error_log("ID forcé à: {$userId} pour la base de données");
@@ -169,13 +154,14 @@ function handlePostRequest($pdo) {
     $tableName = "documents_{$safeUserId}";
     verifyAndCreateDocumentTable($pdo, $tableName);
     
-    // Vider la table pour une synchronisation complète
-    $pdo->exec("TRUNCATE TABLE `{$tableName}`");
-    
-    // Préparer l'insertion des documents
+    // Vider la table pour une synchronisation complète - uniquement si des documents sont fournis
     if (!empty($documents)) {
-        $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, nom, fichier_path, responsabilites, etat, groupId) 
-                              VALUES (?, ?, ?, ?, ?, ?)");
+        $pdo->exec("TRUNCATE TABLE `{$tableName}`");
+        error_log("Table {$tableName} vidée pour resynchronisation complète");
+        
+        // Préparer l'insertion des documents
+        $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, nom, fichier_path, responsabilites, etat, groupId, excluded) 
+                              VALUES (:id, :nom, :fichier, :resp, :etat, :groupe, :exclu)");
         
         foreach ($documents as $doc) {
             // Vérifier que l'ID existe
@@ -194,15 +180,17 @@ function handlePostRequest($pdo) {
                     json_encode($doc['responsabilites']) : $doc['responsabilites'];
             }
             
-            // Exécuter l'insertion
-            $stmt->execute([
-                $doc['id'],
-                $nom,
-                $doc['fichier_path'] ?? null,
-                $responsabilites,
-                $doc['etat'] ?? null,
-                $doc['groupId'] ?? null
-            ]);
+            // Exécuter l'insertion avec des paramètres nommés pour éviter les erreurs SQL
+            $stmt->bindParam(':id', $doc['id']);
+            $stmt->bindParam(':nom', $nom);
+            $stmt->bindParam(':fichier', $doc['fichier_path'], PDO::PARAM_NULL);
+            $stmt->bindParam(':resp', $responsabilites);
+            $stmt->bindParam(':etat', $doc['etat'], PDO::PARAM_NULL);
+            $stmt->bindParam(':groupe', $doc['groupId'], PDO::PARAM_NULL);
+            $exclu = isset($doc['excluded']) && $doc['excluded'] ? 1 : 0;
+            $stmt->bindParam(':exclu', $exclu, PDO::PARAM_INT);
+            
+            $stmt->execute();
         }
     }
     
@@ -235,6 +223,7 @@ function verifyAndCreateDocumentTable($pdo, $tableName) {
             `etat` VARCHAR(50) NULL,
             `groupId` VARCHAR(36) NULL,
             `excluded` BOOLEAN DEFAULT 0,
+            `ordre` INT(11) NULL,
             `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )");
@@ -246,6 +235,13 @@ function verifyAndCreateDocumentTable($pdo, $tableName) {
         if ($stmt->rowCount() == 0) {
             $pdo->exec("ALTER TABLE `{$tableName}` ADD COLUMN `nom` VARCHAR(255) NOT NULL AFTER `id`");
             error_log("Colonne 'nom' ajoutée à la table {$tableName}");
+        }
+        
+        // Vérifier la colonne 'ordre'
+        $stmt = $pdo->query("SHOW COLUMNS FROM `{$tableName}` LIKE 'ordre'");
+        if ($stmt->rowCount() == 0) {
+            $pdo->exec("ALTER TABLE `{$tableName}` ADD COLUMN `ordre` INT(11) NULL");
+            error_log("Colonne 'ordre' ajoutée à la table {$tableName}");
         }
         
         // Vérifier la colonne 'excluded'

@@ -79,14 +79,6 @@ function handleGetRequest($pdo) {
     $userId = $_GET['userId'];
     error_log("Récupération des exigences pour l'utilisateur: {$userId}");
     
-    // Traiter l'userId si c'est un email
-    if (filter_var($userId, FILTER_VALIDATE_EMAIL)) {
-        $username = strtolower(explode('@', $userId)[0]);
-        $username = preg_replace('/[^a-z0-9]/', '', $username);
-        $userId = "p71x6d_" . $username;
-        error_log("Email converti en ID technique: {$userId}");
-    }
-    
     // Forcer l'utilisation de p71x6d_richard comme base de données pour tous
     $userId = "p71x6d_richard";
     error_log("ID forcé à: {$userId} pour la base de données");
@@ -162,14 +154,6 @@ function handlePostRequest($pdo) {
     error_log("Synchronisation pour l'utilisateur: {$userId}");
     error_log("Nombre d'exigences: " . count($exigences));
     
-    // Traiter l'userId si c'est un email
-    if (filter_var($userId, FILTER_VALIDATE_EMAIL)) {
-        $username = strtolower(explode('@', $userId)[0]);
-        $username = preg_replace('/[^a-z0-9]/', '', $username);
-        $userId = "p71x6d_" . $username;
-        error_log("Email converti en ID technique: {$userId}");
-    }
-    
     // Forcer l'utilisation de p71x6d_richard comme base de données pour tous
     $userId = "p71x6d_richard";
     error_log("ID forcé à: {$userId} pour la base de données");
@@ -189,13 +173,13 @@ function handlePostRequest($pdo) {
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )");
     
-    // Vider la table pour une synchronisation complète
-    $pdo->exec("TRUNCATE TABLE `{$tableName}`");
-    
-    // Préparer l'insertion des exigences
+    // Vider la table pour une synchronisation complète - uniquement si des exigences sont fournies
     if (!empty($exigences)) {
+        $pdo->exec("TRUNCATE TABLE `{$tableName}`");
+        
+        // Préparer l'insertion des exigences avec des paramètres nommés
         $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, nom, responsabilites, exclusion, atteinte, groupId, date_creation) 
-                              VALUES (?, ?, ?, ?, ?, ?, ?)");
+                              VALUES (:id, :nom, :resp, :excl, :att, :groupe, :date)");
         
         foreach ($exigences as $exigence) {
             // Vérifier que l'ID existe
@@ -219,16 +203,20 @@ function handlePostRequest($pdo) {
                 ? date('Y-m-d H:i:s', strtotime($exigence['date_creation']))
                 : date('Y-m-d H:i:s');
             
+            // Option d'exclusion
+            $exclusion = isset($exigence['exclusion']) ? (int)$exigence['exclusion'] : 0;
+            
+            // Liaison des paramètres
+            $stmt->bindParam(':id', $exigence['id']);
+            $stmt->bindParam(':nom', $nom);
+            $stmt->bindParam(':resp', $responsabilites);
+            $stmt->bindParam(':excl', $exclusion, PDO::PARAM_INT);
+            $stmt->bindParam(':att', $exigence['atteinte']);
+            $stmt->bindParam(':groupe', $exigence['groupId']);
+            $stmt->bindParam(':date', $dateCreation);
+            
             // Exécuter l'insertion
-            $stmt->execute([
-                $exigence['id'],
-                $nom,
-                $responsabilites,
-                isset($exigence['exclusion']) ? (int)$exigence['exclusion'] : 0,
-                $exigence['atteinte'] ?? null,
-                $exigence['groupId'] ?? null,
-                $dateCreation
-            ]);
+            $stmt->execute();
         }
     }
     

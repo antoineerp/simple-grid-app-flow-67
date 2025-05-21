@@ -90,8 +90,8 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
     };
     
     const apiUrl = getApiUrl();
-    // Utiliser db-fetch.php avec action=sync au lieu de documents-sync.php
-    const syncUrl = `${apiUrl}/db-fetch.php?table=documents&userId=${userId}&action=sync`;
+    // Utiliser documents-sync.php directement au lieu de db-fetch.php
+    const syncUrl = `${apiUrl}/documents-sync.php`;
     
     console.log(`DocumentSyncService: Envoi à ${syncUrl}`);
     console.log(`DocumentSyncService: Base: ${FIXED_DB_USER}, Préfixe: ${userPrefix}, ID original: ${origUserId}`);
@@ -142,7 +142,8 @@ export const fetchDocumentsFromServer = async (): Promise<Document[]> => {
     console.log(`DocumentSyncService: Récupération depuis le serveur avec Base: ${userId}, Préfixe: ${userPrefix}, ID original: ${origUserId}`);
     
     const apiUrl = getApiUrl();
-    const fetchUrl = `${apiUrl}/db-fetch.php?table=documents&userId=${userId}&action=fetch`;
+    // Utiliser documents-sync.php directement au lieu de db-fetch.php
+    const fetchUrl = `${apiUrl}/documents-sync.php?userId=${userId}`;
     
     console.log(`DocumentSyncService: Récupération depuis ${fetchUrl}`);
     
@@ -160,97 +161,32 @@ export const fetchDocumentsFromServer = async (): Promise<Document[]> => {
     
     const data = await response.json();
     
-    if (data.status === 'error') {
+    if (data.success === false) {
       throw new Error(data.message || 'Échec de récupération des documents');
     }
     
-    // Parser les données du format generic db-fetch.php
+    // Traiter les documents directement depuis la réponse
     let documents: Document[] = [];
     
-    if (data.records && Array.isArray(data.records)) {
-      documents = data.records.map((record: any) => {
-        // Si le record a un champ json_data, le parser
-        if (record.data && record.data.id) {
-          // Format de données structuré
-          const jsonData = record.data;
-          return {
-            id: jsonData.id || record.id || '',
-            nom: jsonData.nom || jsonData.name || 'Document sans nom',
-            fichier_path: jsonData.fichier_path || null,
-            responsabilites: jsonData.responsabilites || { r: [], a: [], c: [], i: [] },
-            etat: jsonData.etat || null,
-            groupId: jsonData.groupId || null,
-            excluded: jsonData.excluded || false,
-            date_creation: record.created_at ? new Date(record.created_at) : new Date(),
-            date_modification: record.updated_at ? new Date(record.updated_at) : new Date()
-          };
-        } else if (record.json_data) {
-          // Format de données JSON
-          try {
-            const jsonData = JSON.parse(record.json_data);
-            return {
-              id: record.id || jsonData.id || '',
-              nom: jsonData.nom || jsonData.name || 'Document sans nom',
-              fichier_path: jsonData.fichier_path || null,
-              responsabilites: jsonData.responsabilites || { r: [], a: [], c: [], i: [] },
-              etat: jsonData.etat || null,
-              groupId: jsonData.groupId || null,
-              excluded: jsonData.excluded || false,
-              date_creation: record.created_at ? new Date(record.created_at) : new Date(),
-              date_modification: record.updated_at ? new Date(record.updated_at) : new Date()
-            };
-          } catch (e) {
-            console.error('Erreur parsing JSON:', e);
-            return null;
-          }
-        }
-        // Sinon, utiliser les champs directement
+    if (data.documents && Array.isArray(data.documents)) {
+      documents = data.documents.map((record: any) => {
+        const responsabilitesData = record.responsabilites ? 
+          (typeof record.responsabilites === 'string' ? 
+            JSON.parse(record.responsabilites) : record.responsabilites) : 
+          { r: [], a: [], c: [], i: [] };
+          
         return {
           id: record.id || '',
           nom: record.nom || record.name || 'Document sans nom',
           fichier_path: record.fichier_path || null,
-          responsabilites: record.responsabilites || { r: [], a: [], c: [], i: [] },
+          responsabilites: responsabilitesData,
           etat: record.etat || null,
           groupId: record.groupId || null,
-          excluded: record.excluded || false,
-          date_creation: record.created_at ? new Date(record.created_at) : new Date(),
-          date_modification: record.updated_at ? new Date(record.updated_at) : new Date()
+          excluded: record.excluded ? true : false,
+          date_creation: record.date_creation ? new Date(record.date_creation) : new Date(),
+          date_modification: record.date_modification ? new Date(record.date_modification) : new Date()
         };
-      }).filter(Boolean) as Document[];
-    } else if (data.raw_records && Array.isArray(data.raw_records)) {
-      // Format de données brut
-      documents = data.raw_records.map((record: any) => {
-        if (record.json_data) {
-          try {
-            const jsonData = JSON.parse(record.json_data);
-            return {
-              id: record.id || jsonData.id || '',
-              nom: jsonData.nom || jsonData.name || 'Document sans nom',
-              fichier_path: jsonData.fichier_path || null,
-              responsabilites: jsonData.responsabilites || { r: [], a: [], c: [], i: [] },
-              etat: jsonData.etat || null,
-              groupId: jsonData.groupId || null,
-              excluded: jsonData.excluded || false,
-              date_creation: record.created_at ? new Date(record.created_at) : new Date(),
-              date_modification: record.updated_at ? new Date(record.updated_at) : new Date()
-            };
-          } catch (e) {
-            console.error('Erreur parsing JSON:', e);
-            return null;
-          }
-        }
-        return {
-          id: record.id || '',
-          nom: record.nom || record.name || 'Document sans nom',
-          fichier_path: record.fichier_path || null,
-          responsabilites: record.responsabilites || { r: [], a: [], c: [], i: [] },
-          etat: record.etat || null,
-          groupId: record.groupId || null,
-          excluded: record.excluded || false,
-          date_creation: record.created_at ? new Date(record.created_at) : new Date(),
-          date_modification: record.updated_at ? new Date(record.updated_at) : new Date()
-        };
-      }).filter(Boolean) as Document[];
+      });
     }
     
     console.log(`DocumentSyncService: ${documents.length} documents récupérés du serveur`);

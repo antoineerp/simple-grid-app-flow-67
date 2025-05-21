@@ -41,7 +41,7 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
     }
   });
   
-  // Enhanced drag and drop using our custom hook
+  // Hook de drag-and-drop amélioré
   const {
     handleDragStart,
     handleDragOver,

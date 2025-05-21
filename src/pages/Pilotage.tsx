@@ -12,7 +12,7 @@ import ExigenceSummary from '@/components/pilotage/ExigenceSummary';
 import DocumentSummary from '@/components/pilotage/DocumentSummary';
 import ResponsabilityMatrix from '@/components/pilotage/ResponsabilityMatrix';
 
-// Type pour les documents de pilotage
+// Interface pour les documents de pilotage
 interface PilotageDocument {
   id: string;
   nom: string;
@@ -31,13 +31,33 @@ interface PilotageDocument {
   ordre?: number;
 }
 
-// Interface pour l'intégration avec le composant DocumentDialog existant
+// Interface pour la table des documents (format du composant existant)
 interface DialogDocument {
   id: number;
   ordre: number;
   nom: string;
   lien: string | null;
 }
+
+// Fonction de conversion de PilotageDocument à DialogDocument
+const convertToDialogDocument = (doc: PilotageDocument): DialogDocument => {
+  return {
+    id: parseInt(doc.id) || Math.floor(Math.random() * 1000),
+    ordre: doc.ordre || 0,
+    nom: doc.nom,
+    lien: doc.fichier_path
+  };
+};
+
+// Fonction de conversion de DialogDocument à PilotageDocument (partiel)
+const convertToPartialPilotageDocument = (doc: DialogDocument): Partial<PilotageDocument> => {
+  return {
+    id: doc.id.toString(),
+    nom: doc.nom,
+    fichier_path: doc.lien,
+    ordre: doc.ordre
+  };
+};
 
 const Pilotage = () => {
   const { toast } = useToast();
@@ -80,12 +100,7 @@ const Pilotage = () => {
   });
 
   // Convertir les documents pour l'affichage dans le composant de table existant
-  const convertedDocuments = documents.map(doc => ({
-    id: parseInt(doc.id) || Math.floor(Math.random() * 1000),
-    ordre: doc.ordre || 0,
-    nom: doc.nom,
-    lien: doc.fichier_path
-  }));
+  const convertedDocuments = documents.map(doc => convertToDialogDocument(doc));
 
   // Gestionnaires d'événements
   const handleAddDocument = () => {
@@ -93,18 +108,15 @@ const Pilotage = () => {
       ? Math.max(...documents.map(doc => doc.ordre || 0)) + 1 
       : 1;
       
-    const newDocument = createItem({ 
-      ordre: newOrderValue,
-      nom: 'Nouveau document'
-    });
+    const newDocData: Partial<PilotageDocument> = { 
+      nom: 'Nouveau document',
+      ordre: newOrderValue
+    };
+    
+    const newDocument = createItem(newDocData);
     
     // Convertir pour l'affichage dans le dialogue
-    setCurrentDialogDocument({
-      id: parseInt(newDocument.id) || Math.floor(Math.random() * 1000),
-      ordre: newDocument.ordre || 0,
-      nom: newDocument.nom,
-      lien: newDocument.fichier_path
-    });
+    setCurrentDialogDocument(convertToDialogDocument(newDocument));
     
     setIsEditing(false);
     setIsDialogOpen(true);
@@ -138,23 +150,18 @@ const Pilotage = () => {
 
   const handleSaveDocument = () => {
     if (currentDialogDocument) {
+      // Convertir en format PilotageDocument
+      const docData = convertToPartialPilotageDocument(currentDialogDocument);
+      
       // Trouver le document correspondant dans notre liste
       const docToUpdate = documents.find(d => parseInt(d.id) === currentDialogDocument.id);
       
       if (docToUpdate) {
         // Mettre à jour le document existant
-        updateItem(docToUpdate.id, {
-          nom: currentDialogDocument.nom,
-          fichier_path: currentDialogDocument.lien,
-          ordre: currentDialogDocument.ordre
-        });
+        updateItem(docToUpdate.id, docData);
       } else {
         // Créer un nouveau document si non trouvé (fallback)
-        createItem({
-          nom: currentDialogDocument.nom,
-          fichier_path: currentDialogDocument.lien,
-          ordre: currentDialogDocument.ordre
-        });
+        createItem(docData);
       }
       
       setIsDialogOpen(false);
