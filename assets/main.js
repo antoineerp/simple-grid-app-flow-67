@@ -105,17 +105,12 @@ const renderApp = () => {
     // Render the app
     renderApp();
     
-    // Try to load the main app bundle using a normal script, not a module
+    // Try to load the main app bundle (as a module now)
     const appScript = document.createElement('script');
-    appScript.src = '/src/main.js';  // Changed from main.tsx to main.js and removed module type
-    appScript.type = 'text/javascript';
+    appScript.src = '/src/main.tsx';
+    appScript.type = 'module';
     appScript.onerror = (error) => {
       console.error("Failed to load main app bundle:", error);
-      // Try alternative path
-      const alternateScript = document.createElement('script');
-      alternateScript.src = '/assets/main.js';
-      alternateScript.type = 'text/javascript';
-      document.body.appendChild(alternateScript);
     };
     document.body.appendChild(appScript);
     
