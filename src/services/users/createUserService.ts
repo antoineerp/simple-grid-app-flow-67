@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { useToast } from '@/hooks/use-toast';
@@ -43,7 +44,7 @@ export const createUser = async (userData: CreateUserData) => {
   // Utiliser uniquement les caractères autorisés pour éviter les problèmes d'encodage
   const sanitizedPrenom = userData.prenom.toLowerCase().replace(/[^a-z0-9]/g, '');
   const sanitizedNom = userData.nom.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const identifiantTechnique = `p71x6d_${sanitizedPrenom}_${sanitizedNom}_${randomStr}_${timestamp}`.substring(0, 50);
+  const identifiantTechnique = `p71x6d_${sanitizedPrenom}_${sanitizedNom}_${randomStr}`.substring(0, 50);
 
   console.log(`Identifiant technique généré: ${identifiantTechnique}`);
 
@@ -54,7 +55,8 @@ export const createUser = async (userData: CreateUserData) => {
   try {
     // Préparation de la requête
     const apiUrl = getApiUrl();
-    const url = `${apiUrl}/users`;
+    // Au lieu d'utiliser users.php, utilisons le point d'entrée check-users.php qui fonctionne déjà
+    const url = `${apiUrl}/check-users.php`;
     
     console.log(`Envoi de la requête à ${url}`);
     const headers = getAuthHeaders();
@@ -122,7 +124,7 @@ export const createUser = async (userData: CreateUserData) => {
       }
       
       // Force un rechargement de l'application après création
-      console.log("Rechargement forcé dans 2 secondes pour refléter la cr��tion de l'utilisateur");
+      console.log("Rechargement forcé dans 2 secondes pour refléter la création de l'utilisateur");
       setTimeout(() => {
         window.location.reload();
       }, 2000);
@@ -161,24 +163,24 @@ export const createUser = async (userData: CreateUserData) => {
   } catch (error) {
     console.error("Erreur lors de la création de l'utilisateur:", error);
     
-    // Essayer de créer l'utilisateur via le endpoint de diagnostic en cas d'échec
+    // Essayer de créer l'utilisateur via le endpoint de test en cas d'échec
     try {
-      console.log("Tentative de création via le endpoint de diagnostic...");
-      const diagnosticResult = await createUserViaDiagnostic({
+      console.log("Tentative de création via le endpoint de test...");
+      const testResult = await createUserViaTest({
         ...userData,
         id: uuid,
         identifiant_technique: identifiantTechnique
       });
       
       // Force un rechargement de la page après un court délai
-      console.log("Rechargement forcé dans 2 secondes suite à la création via diagnostic");
+      console.log("Rechargement forcé dans 2 secondes suite à la création via endpoint de test");
       setTimeout(() => {
         window.location.reload();
       }, 2000);
       
-      return diagnosticResult;
+      return testResult;
     } catch (fallbackError) {
-      console.error("Échec de la création via le endpoint de diagnostic:", fallbackError);
+      console.error("Échec de la création via le endpoint de test:", fallbackError);
       throw error; // Renvoyer l'erreur d'origine si la solution de secours échoue également
     }
   }
@@ -193,11 +195,11 @@ function generateUUID() {
   });
 }
 
-// Fonction de secours pour créer un utilisateur via le endpoint de diagnostic
-const createUserViaDiagnostic = async (userData: any) => {
-  console.log("Tentative de création d'utilisateur via le endpoint de diagnostic");
+// Fonction de secours pour créer un utilisateur via le endpoint de test
+const createUserViaTest = async (userData: any) => {
+  console.log("Tentative de création d'utilisateur via le endpoint de test");
   const apiUrl = getApiUrl();
-  const url = `${apiUrl}/test-create-user`;
+  const url = `${apiUrl}/test.php?action=create-user`;
   
   const response = await fetch(url, {
     method: 'POST',
@@ -212,7 +214,7 @@ const createUserViaDiagnostic = async (userData: any) => {
   
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("Erreur de réponse du diagnostic:", errorText);
+    console.error("Erreur de réponse du endpoint de test:", errorText);
     throw new Error(`Erreur HTTP: ${response.status}`);
   }
   
@@ -225,7 +227,7 @@ const createUserViaDiagnostic = async (userData: any) => {
     };
   } catch (e) {
     const responseText = await response.text();
-    console.log("Réponse non-JSON du diagnostic:", responseText);
+    console.log("Réponse non-JSON du endpoint de test:", responseText);
     
     return {
       success: response.ok,
