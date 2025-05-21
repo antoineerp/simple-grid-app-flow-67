@@ -1,4 +1,3 @@
-
 /**
  * Gestionnaire de stockage local pour la synchronisation
  */
@@ -7,7 +6,8 @@ import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 // Constantes pour la validation
 const RESTRICTED_IDS = ['system', 'admin', 'root', 'p71x6d_system', 'p71x6d_system2', '[object Object]', 'null', 'undefined'];
-const DEFAULT_USER_ID = 'anonymous';
+const DEFAULT_USER_ID = 'p71x6d_richard';
+const BASE_DB_USER = 'p71x6d_richard';
 
 /**
  * Vérifie si un ID est valide
@@ -21,33 +21,24 @@ const isValidUserId = (userId: string | null | undefined): boolean => {
 
 // Génère une clé de stockage unique pour une table et un utilisateur
 export const getStorageKey = (tableName: string, userId?: string | null): string => {
-  // Si aucun ID n'est fourni, utiliser l'ID de l'utilisateur connecté
+  // Utiliser l'ID utilisateur fixe pour la base de données mais ajouter un préfixe utilisateur
+  // pour la séparation des données entre utilisateurs
   const currentUserId = userId || getCurrentUser();
   
-  // Vérifier que l'ID utilisateur est valide
-  if (!isValidUserId(currentUserId)) {
-    console.error(`syncStorageManager: ID utilisateur invalide pour ${tableName}:`, currentUserId);
-    console.warn(`syncStorageManager: Utilisation de l'ID par défaut pour ${tableName}`);
-    return `${tableName}_${DEFAULT_USER_ID}`;
-  }
+  // Préfixe pour garantir que la table appartient à l'utilisateur actuel
+  const userPrefix = localStorage.getItem('userPrefix') || 'u1';
   
-  // Remplacer les caractères problématiques dans l'identifiant utilisateur
-  const safeUserId = String(currentUserId).replace(/[^a-zA-Z0-9_]/g, '_');
-  
-  return `${tableName}_${safeUserId}`;
+  // Construire la clé avec l'utilisateur de BDD fixe mais le préfixe utilisateur local
+  console.log(`syncStorageManager: Génération de clé pour ${tableName} - Base: ${BASE_DB_USER}, Préfixe: ${userPrefix}`);
+  return `${tableName}_${BASE_DB_USER}_${userPrefix}`;
 };
 
 // Sauvegarde des données dans le localStorage
 export const saveLocalData = <T>(tableName: string, data: T[], userId?: string): void => {
   try {
     const storageKey = getStorageKey(tableName, userId);
-    const currentUserId = userId || getCurrentUser();
     
-    console.log(`syncStorageManager: Sauvegarde des données pour ${tableName} avec utilisateur ${currentUserId}`);
-    
-    if (!isValidUserId(currentUserId)) {
-      console.warn(`syncStorageManager: Tentative de sauvegarde avec ID invalide: ${currentUserId}`);
-    }
+    console.log(`syncStorageManager: Sauvegarde des données pour ${tableName} dans la base ${BASE_DB_USER}`);
     
     localStorage.setItem(storageKey, JSON.stringify(data));
     localStorage.setItem(`${storageKey}_last_modified`, Date.now().toString());
@@ -61,14 +52,8 @@ export const saveLocalData = <T>(tableName: string, data: T[], userId?: string):
 export const loadLocalData = <T>(tableName: string, userId?: string): T[] => {
   try {
     const storageKey = getStorageKey(tableName, userId);
-    const currentUserId = userId || getCurrentUser();
     
-    console.log(`syncStorageManager: Chargement des données pour ${tableName} avec utilisateur ${currentUserId}`);
-    
-    if (!isValidUserId(currentUserId)) {
-      console.warn(`syncStorageManager: Tentative de chargement avec ID invalide: ${currentUserId}`);
-      return [];
-    }
+    console.log(`syncStorageManager: Chargement des données pour ${tableName} depuis la base ${BASE_DB_USER}`);
     
     const data = localStorage.getItem(storageKey);
     if (!data) {
@@ -178,6 +163,13 @@ export const cleanupUserData = (userId: string): void => {
     console.error(`SyncStorageManager: Erreur lors du nettoyage des données utilisateur:`, e);
   }
 };
+
+// Initialiser un préfixe utilisateur s'il n'existe pas déjà
+if (!localStorage.getItem('userPrefix')) {
+  const randomPrefix = `u${Math.floor(Math.random() * 10000)}`;
+  localStorage.setItem('userPrefix', randomPrefix);
+  console.log(`syncStorageManager: Initialisation du préfixe utilisateur: ${randomPrefix}`);
+}
 
 // Initialisation: Nettoyer le localStorage au démarrage de l'application
 cleanupStorage();

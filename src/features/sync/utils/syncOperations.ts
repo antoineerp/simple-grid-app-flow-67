@@ -1,4 +1,3 @@
-
 /**
  * Core synchronization operations
  */
@@ -9,6 +8,9 @@ import { SyncOperationResult } from '../types/syncTypes';
 import { syncQueue } from './syncQueue';
 import { syncMonitor } from './syncMonitor';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
+
+// Base de données fixe
+const FIXED_DB_USER = 'p71x6d_richard';
 
 // Tableau pour stocker les noms des tables synchronisées récemment (pour éviter les doublons)
 const recentlySyncedTables = new Set<string>();
@@ -26,7 +28,6 @@ const cleanupRecentlySynced = (tableName: string) => {
  */
 export const isSynchronizing = (tableName: string): boolean => {
   // Vérifier si la table a un verrou actif
-  // Check if a sync lock exists without trying to acquire it
   return localStorage.getItem(`sync_in_progress_${tableName}`) === 'true';
 };
 
@@ -38,14 +39,10 @@ export const executeSyncOperation = async <T>(
   syncKey?: string,
   trigger: "auto" | "manual" | "initial" = "auto"
 ): Promise<SyncOperationResult> => {
-  // Utiliser l'ID de l'utilisateur connecté
-  const userId = getCurrentUser();
+  // Forcer l'utilisation de l'utilisateur de base de données fixe
+  const userId = FIXED_DB_USER;
   
-  // S'assurer que l'ID utilisateur n'est jamais "system" ou un autre identifiant en dur
-  if (!userId || userId === 'system' || userId === 'p71x6d_system' || userId === 'p71x6d_system2') {
-    console.error(`SyncOperations: ID utilisateur invalide - ${userId || 'non défini'}, synchronisation impossible`);
-    return { success: false, message: "Invalid user ID" };
-  }
+  console.log(`SyncOperations: Synchronisation de ${tableName} avec la base ${FIXED_DB_USER}`);
   
   // Check if the data is valid
   if (!data || !Array.isArray(data)) {
@@ -84,7 +81,7 @@ export const executeSyncOperation = async <T>(
 
         // Generate a unique operation ID
         const operationId = `${tableName}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        console.log(`SyncOperations: Starting synchronization ${tableName} (operation ${operationId}, trigger: ${trigger})`);
+        console.log(`SyncOperations: Starting synchronization ${tableName} avec base ${FIXED_DB_USER} (operation ${operationId}, trigger: ${trigger})`);
         
         // Enregistrer le début de l'opération dans le moniteur
         syncMonitor.recordSyncStart(operationId, `${trigger}-sync`);
@@ -98,12 +95,12 @@ export const executeSyncOperation = async <T>(
         
         try {
           // Always save locally first to prevent data loss
-          saveLocalData(tableName, data, syncKey || userId);
+          saveLocalData(tableName, data, userId);
           
           // Perform the actual synchronization with timeout handling
           const syncPromise = syncFn(tableName, data, operationId);
           
-          // Create a timeout promise (réduit à 15 secondes)
+          // Create a timeout promise
           const timeoutPromise = new Promise<boolean>((_, reject) => {
             setTimeout(() => {
               reject(new Error(`Synchronization timeout for ${tableName} (operation ${operationId})`));

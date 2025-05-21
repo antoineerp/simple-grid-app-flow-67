@@ -1,7 +1,6 @@
-
 /**
  * Service de synchronisation des documents
- * Utilise le nouveau système de synchronisation automatique centralisée
+ * Utilise le système de synchronisation avec p71x6d_richard
  */
 
 import { Document } from '@/types/documents';
@@ -9,33 +8,36 @@ import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { toast } from '@/hooks/use-toast'; 
 import { getApiUrl } from '@/config/apiConfig';
 import { validateJsonResponse, extractValidJson } from '@/utils/jsonValidator';
-import { saveLocalData, loadLocalData, syncWithServer } from '@/services/sync/AutoSyncService';
-import robustSync, { verifyJsonEndpoint } from '@/services/sync/robustSyncService';
-import { ensureCorrectUserId } from '@/services/core/userIdConverter';
+import { saveLocalData, loadLocalData } from '@/features/sync/utils/syncStorageManager';
 
-// Sauvegarde des documents en local (maintenu pour compatibilité)
+// Base de données fixe
+const FIXED_DB_USER = 'p71x6d_richard';
+const INFOMANIAK_HOST = 'p71x6d.myd.infomaniak.com';
+
+// Sauvegarde des documents en local
 export const saveLocalDocuments = (docs: Document[]): void => {
   try {
-    const currentUser = ensureCorrectUserId(getCurrentUser()) || 'default';
+    console.log(`DocumentSyncService: Sauvegarde locale de ${docs.length} documents avec base ${FIXED_DB_USER}`);
     
-    // Utiliser le nouveau système de stockage centralisé avec l'ID utilisateur
-    saveLocalData('documents', docs, currentUser);
-    console.log(`${docs.length} documents sauvegardés en local pour ${currentUser}`);
+    // Utiliser le nouveau système de stockage centralisé
+    saveLocalData('documents', docs, FIXED_DB_USER);
+    
   } catch (error) {
-    console.error('Erreur lors de la sauvegarde locale des documents:', error);
+    console.error('DocumentSyncService: Erreur lors de la sauvegarde locale des documents:', error);
   }
 };
 
-// Récupération des documents en local (maintenu pour compatibilité)
+// Récupération des documents en local
 export const getLocalDocuments = (): Document[] => {
   try {
-    const currentUser = ensureCorrectUserId(getCurrentUser()) || 'default';
-    // Utiliser le nouveau système de stockage centralisé avec l'ID utilisateur
-    const docs = loadLocalData<Document>('documents', currentUser);
-    console.log(`${docs.length} documents récupérés en local`);
+    console.log(`DocumentSyncService: Chargement local des documents depuis base ${FIXED_DB_USER}`);
+    
+    // Utiliser le nouveau système de stockage centralisé
+    const docs = loadLocalData<Document>('documents', FIXED_DB_USER);
+    console.log(`DocumentSyncService: ${docs.length} documents récupérés en local`);
     return docs;
   } catch (error) {
-    console.error('Erreur lors de la récupération locale des documents:', error);
+    console.error('DocumentSyncService: Erreur lors de la récupération locale des documents:', error);
     return [];
   }
 };
@@ -43,11 +45,11 @@ export const getLocalDocuments = (): Document[] => {
 // Synchronisation des documents avec le serveur avec gestion d'erreur améliorée
 export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean> => {
   if (!docs || docs.length === 0) {
-    console.log('Aucun document à synchroniser');
+    console.log('DocumentSyncService: Aucun document à synchroniser');
     return true; // Considéré comme un succès car il n'y a rien à faire
   }
   
-  console.log(`Début de la synchronisation de ${docs.length} documents...`);
+  console.log(`DocumentSyncService: Début de la synchronisation de ${docs.length} documents avec ${FIXED_DB_USER} sur ${INFOMANIAK_HOST}`);
   
   try {
     // Normaliser les documents pour la synchronisation
@@ -63,12 +65,16 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
       excluded: doc.excluded || false
     }));
     
-    // Obtenir l'ID utilisateur correctement formaté
-    const userId = ensureCorrectUserId(getCurrentUser());
+    // Utiliser l'ID utilisateur fixe
+    const userId = FIXED_DB_USER;
+    
+    // Ajouter un préfixe utilisateur pour la séparation des données
+    const userPrefix = localStorage.getItem('userPrefix') || 'u1';
     
     // Préparer les données de synchronisation
     const syncData = {
       userId: userId,
+      userPrefix: userPrefix, // Envoyer le préfixe utilisateur pour distinguer les données
       documents: normalizedDocs,
       timestamp: new Date().toISOString()
     };
@@ -76,8 +82,8 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
     const apiUrl = getApiUrl();
     const syncUrl = `${apiUrl}/documents-sync.php`;
     
-    console.log(`Envoi de la requête de synchronisation à ${syncUrl}`);
-    console.log(`ID utilisateur: ${userId}`);
+    console.log(`DocumentSyncService: Envoi de la requête de synchronisation à ${syncUrl}`);
+    console.log(`DocumentSyncService: Base fixe: ${FIXED_DB_USER}, Préfixe utilisateur: ${userPrefix}`);
     
     // Appliquer un délai court pour éviter les problèmes de synchronisation rapide
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -96,13 +102,13 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Erreur HTTP ${response.status}: ${errorText}`);
+      console.error(`DocumentSyncService: Erreur HTTP ${response.status}: ${errorText}`);
       throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
     }
     
     // Lire et valider la réponse
     const responseText = await response.text();
-    console.log(`Réponse brute du serveur: ${responseText.substring(0, 200)}`);
+    console.log(`DocumentSyncService: Réponse brute du serveur: ${responseText.substring(0, 200)}`);
     
     // Analyser la réponse JSON
     try {
@@ -112,84 +118,59 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
         throw new Error(result.message || 'Échec de la synchronisation');
       }
       
-      console.log(`Synchronisation réussie de ${result.count} documents`);
+      console.log(`DocumentSyncService: Synchronisation réussie de ${result.count} documents`);
       return true;
     } catch (jsonError) {
-      console.error('Erreur lors du parsing de la réponse JSON:', jsonError);
+      console.error('DocumentSyncService: Erreur lors du parsing de la réponse JSON:', jsonError);
       
       // Si la réponse est vide mais le statut est 200, considérer comme succès
       if (response.ok && (!responseText || responseText.trim() === '')) {
-        console.log('Réponse vide mais statut OK, considéré comme succès');
+        console.log('DocumentSyncService: Réponse vide mais statut OK, considéré comme succès');
         return true;
       }
       
       throw new Error('Réponse invalide du serveur');
     }
   } catch (error) {
-    console.error('Erreur lors de la synchronisation des documents:', error);
-    
-    // Si c'est une erreur de parsing JSON, sauvegarder une copie de sauvegarde des données
-    if (error instanceof SyntaxError && error.message.includes('JSON')) {
-      console.warn('Erreur de parsing JSON détectée, sauvegarde des données en mode récupération');
-      try {
-        // Sauvegarder une copie de sauvegarde avec un timestamp
-        const timestamp = new Date().getTime();
-        const recoveryKey = `documents_recovery_${timestamp}`;
-        localStorage.setItem(recoveryKey, JSON.stringify(docs));
-        console.log(`Sauvegarde de récupération créée: ${recoveryKey}`);
-      } catch (backupError) {
-        console.error('Échec de la sauvegarde de récupération:', backupError);
-      }
-    }
-    
+    console.error('DocumentSyncService: Erreur lors de la synchronisation des documents:', error);
     return false;
   }
 };
 
-// Chargement des documents depuis le serveur
-export const loadDocumentsFromServer = async (userId?: string): Promise<Document[]> => {
-  const currentUser = ensureCorrectUserId(userId || getCurrentUser()) || 'default';
-  
-  console.log(`Chargement des documents pour ${currentUser} depuis le serveur...`);
-  
+// Récupérer des documents depuis le serveur
+export const fetchDocumentsFromServer = async (): Promise<Document[]> => {
   try {
+    console.log(`DocumentSyncService: Récupération des documents depuis le serveur avec ${FIXED_DB_USER}`);
+    
     const apiUrl = getApiUrl();
-    const loadUrl = `${apiUrl}/documents-sync.php?userId=${currentUser}`;
+    const userPrefix = localStorage.getItem('userPrefix') || 'u1';
     
-    console.log(`Envoi de la requête GET à ${loadUrl}`);
+    const fetchUrl = `${apiUrl}/documents-fetch.php?userId=${FIXED_DB_USER}&userPrefix=${userPrefix}`;
     
-    const response = await fetch(loadUrl, {
+    const response = await fetch(fetchUrl, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'User-Agent': 'FormaCert-App/1.0 (Chargement; QualiAPI)'
+        'Pragma': 'no-cache',
       },
-      cache: 'no-store'
+      cache: 'no-store',
     });
     
     if (!response.ok) {
-      throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(`Erreur HTTP ${response.status}`);
     }
     
     const data = await response.json();
     
     if (!data.success) {
-      throw new Error(data.message || 'Échec du chargement des documents');
+      throw new Error(data.message || 'Échec de récupération des documents');
     }
     
-    // Sauvegarder les documents en local
-    const documents = data.documents || [];
-    saveLocalDocuments(documents);
-    
-    console.log(`${documents.length} documents récupérés du serveur`);
-    return documents;
+    console.log(`DocumentSyncService: ${data.documents.length} documents récupérés depuis le serveur`);
+    return data.documents;
   } catch (error) {
-    console.error('Erreur lors du chargement des documents depuis le serveur:', error);
-    
-    // En cas d'erreur, récupérer les données locales
-    console.log('Utilisation des données locales suite à une erreur réseau');
-    return loadLocalData<Document>('documents', currentUser);
+    console.error('DocumentSyncService: Erreur lors de la récupération des documents:', error);
+    return [];
   }
 };
 

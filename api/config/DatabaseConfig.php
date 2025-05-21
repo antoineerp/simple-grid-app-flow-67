@@ -16,11 +16,11 @@ class DatabaseConfig {
     private function loadDefaultConfig() {
         // Toujours utiliser p71x6d_richard comme base de données par défaut
         $this->host = "p71x6d.myd.infomaniak.com";
-        $this->db_name = "p71x6d_richard"; // Changé de p71x6d_system à p71x6d_richard
-        $this->username = "p71x6d_richard";
+        $this->db_name = "p71x6d_richard"; // Base de données fixe
+        $this->username = "p71x6d_richard"; // Utilisateur fixe
         $this->password = "Trottinette43!";
         
-        error_log("Configuration par défaut chargée pour la base de données Infomaniak (utilisateur richard)");
+        error_log("[SYSTÈME] Configuration par défaut chargée - Base de données Infomaniak: p71x6d_richard");
     }
 
     private function loadConfigFile() {
@@ -35,31 +35,26 @@ class DatabaseConfig {
                         strpos($config['host'], 'infomaniak') !== false && 
                         strpos($config['host'], 'localhost') === false) {
                         $this->host = $config['host'];
+                    } else {
+                        error_log("[SÉCURITÉ] Tentative d'utiliser un hôte non autorisé, forcé vers Infomaniak");
                     }
                     
                     // Toujours forcer l'utilisation de la base richard
-                    if (isset($config['db_name']) && $config['db_name'] === 'p71x6d_richard') {
-                        $this->db_name = $config['db_name'];
-                    } else {
-                        $this->db_name = 'p71x6d_richard';
-                    }
+                    $this->db_name = 'p71x6d_richard';
+                    $this->username = 'p71x6d_richard';
                     
-                    // Forcer l'utilisateur richard
-                    if (isset($config['username']) && $config['username'] === 'p71x6d_richard') {
-                        $this->username = $config['username'];
-                    } else {
-                        $this->username = 'p71x6d_richard';
-                    }
-                    
+                    // Le mot de passe peut être configuré
                     if (isset($config['password'])) $this->password = $config['password'];
+                    
+                    error_log("[SYSTÈME] Configuration appliquée - Base fixée à: p71x6d_richard");
                 }
             } catch (Exception $e) {
-                error_log("Error loading database configuration: " . $e->getMessage());
+                error_log("[ERREUR] Erreur de chargement de configuration: " . $e->getMessage());
             }
         } else {
             // Créer le fichier de configuration s'il n'existe pas
             $this->saveConfig();
-            error_log("Le fichier de configuration n'existe pas. Un fichier par défaut a été créé à " . $this->configFile);
+            error_log("[SYSTÈME] Fichier de configuration créé avec les paramètres par défaut");
         }
     }
 
@@ -78,15 +73,15 @@ class DatabaseConfig {
         }
         
         $result = file_put_contents($this->configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        error_log("Configuration de la base de données sauvegardée dans: " . $this->configFile);
+        error_log("[SYSTÈME] Configuration sauvegardée dans: " . $this->configFile);
         return $result;
     }
 
     public function getConfig() {
         return [
             'host' => $this->host,
-            'db_name' => $this->db_name,
-            'username' => $this->username,
+            'db_name' => $this->db_name, // Toujours p71x6d_richard
+            'username' => $this->username, // Toujours p71x6d_richard
             'password' => '********'
         ];
     }
@@ -94,8 +89,8 @@ class DatabaseConfig {
     public function getConnectionParams() {
         return [
             'host' => $this->host,
-            'db_name' => $this->db_name,
-            'username' => $this->username,
+            'db_name' => $this->db_name, // Toujours p71x6d_richard
+            'username' => $this->username, // Toujours p71x6d_richard
             'password' => $this->password
         ];
     }
@@ -105,7 +100,7 @@ class DatabaseConfig {
         if (strpos($host, 'localhost') !== false) {
             // Forcer l'utilisation d'Infomaniak
             $this->host = "p71x6d.myd.infomaniak.com";
-            error_log("Tentative d'utiliser localhost rejetée, forcée vers Infomaniak");
+            error_log("[SÉCURITÉ] Tentative d'utiliser localhost rejetée, forcée vers Infomaniak");
         }
         // Vérifier que le nouvel hôte contient "infomaniak"
         else if (strpos($host, 'infomaniak') !== false) {
@@ -113,13 +108,15 @@ class DatabaseConfig {
         } else {
             // Forcer l'utilisation d'Infomaniak par défaut
             $this->host = "p71x6d.myd.infomaniak.com";
-            error_log("Hôte non valide, forcé vers Infomaniak");
+            error_log("[SÉCURITÉ] Hôte non valide, forcé vers Infomaniak");
         }
         
         // Forcer toujours l'utilisation de la base richard
         $this->db_name = 'p71x6d_richard';
         $this->username = 'p71x6d_richard';
         $this->password = $password;
+        
+        error_log("[SYSTÈME] Configuration mise à jour - Base fixée à: p71x6d_richard sur " . $this->host);
         return $this->saveConfig();
     }
 }

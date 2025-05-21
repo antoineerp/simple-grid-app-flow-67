@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { toast } from '@/components/ui/use-toast';
@@ -10,13 +9,14 @@ let lastConnectionError: string | null = null;
 
 // Constantes pour la validation
 const RESTRICTED_IDS = ['system', 'admin', 'root', 'p71x6d_system', 'p71x6d_system2', '[object Object]', 'null', 'undefined'];
-const ANONYMOUS_ID = 'p71x6d_richard'; // Changement de 'anonymous' à 'p71x6d_richard' comme valeur par défaut
-const DEFAULT_DB_USER = 'p71x6d_richard'; // Utilisateur par défaut pour la base de données
+const ANONYMOUS_ID = 'p71x6d_richard'; // ID par défaut
+const DEFAULT_DB_USER = 'p71x6d_richard'; // Utilisateur fixe pour la base de données
+const DEFAULT_DB_NAME = 'p71x6d_richard'; // Nom de la base de données fixe
 
 // Mapping d'emails vers des identifiants techniques
 const EMAIL_TO_ID_MAPPING: Record<string, string> = {
   'antcirier@gmail.com': 'p71x6d_cirier',
-  'admin@example.com': 'p71x6d_system'
+  'admin@example.com': 'p71x6d_richard' // Changé pour utiliser l'utilisateur richard
 };
 
 /**
@@ -36,6 +36,7 @@ const isEmail = (input: string): boolean => {
 
 /**
  * Convertit un email en identifiant technique si possible
+ * Toujours associer à la base de données p71x6d_richard
  */
 const convertEmailToId = (email: string): string => {
   if (EMAIL_TO_ID_MAPPING[email]) {
@@ -45,13 +46,14 @@ const convertEmailToId = (email: string): string => {
   
   // Si c'est un email mais pas dans le mapping, créer un ID technique
   if (isEmail(email)) {
+    // Utiliser toujours le même utilisateur de base de données mais avec un préfixe utilisateur
     const username = email.split('@')[0];
-    const technicalId = `p71x6d_${username.toLowerCase()}`;
-    console.log(`Création d'identifiant technique ${technicalId} pour l'email ${email}`);
+    const technicalId = `${DEFAULT_DB_USER}_${username.toLowerCase()}`;
+    console.log(`Utilisation de la base ${DEFAULT_DB_NAME} avec un préfixe utilisateur: ${technicalId}`);
     return technicalId;
   }
   
-  return email;
+  return DEFAULT_DB_USER;
 }
 
 /**
@@ -65,36 +67,18 @@ const generateSafeUserId = (): string => {
  * Récupère l'identifiant de l'utilisateur actuellement connecté
  */
 export const getCurrentUser = (): string => {
-  // Si déjà mis en cache et valide, le retourner
-  if (currentUser && !isRestrictedId(currentUser) && currentUser !== null) {
-    return currentUser;
-  }
-  
-  // Sinon, essayer de le récupérer du localStorage
-  const storedUser = localStorage.getItem('user_id');
-  
-  // Si c'est un email, le convertir en identifiant technique
-  if (storedUser && isEmail(storedUser)) {
-    const technicalId = convertEmailToId(storedUser);
-    console.log(`Email détecté comme ID: ${storedUser}, converti en ${technicalId}`);
-    localStorage.setItem('user_id', technicalId);
-    currentUser = technicalId;
-    return technicalId;
-  }
-  
-  // Vérifier que l'ID est valide, non restreint
-  if (storedUser && !isRestrictedId(storedUser)) {
-    currentUser = storedUser;
-    return storedUser;
-  }
-  
-  // Si l'ID est restreint, logger l'erreur
-  if (storedUser && isRestrictedId(storedUser)) {
-    console.error(`ID non valide détecté: ${storedUser}, utilisation de ${DEFAULT_DB_USER}`);
-  }
+  console.log("Demande d'utilisateur actuel, forcé à utiliser la base de données:", DEFAULT_DB_NAME);
   
   // Force l'utilisation de l'utilisateur richard comme fallback
   currentUser = DEFAULT_DB_USER;
+  
+  // Si un ID est stocké localement mais différent du défaut, le logger mais ne pas l'utiliser
+  const storedUser = localStorage.getItem('user_id');
+  if (storedUser && storedUser !== DEFAULT_DB_USER) {
+    console.log(`ID utilisateur local détecté: ${storedUser}, mais forcé à utiliser: ${DEFAULT_DB_USER}`);
+  }
+  
+  // Toujours retourner l'utilisateur par défaut
   localStorage.setItem('user_id', DEFAULT_DB_USER);
   return DEFAULT_DB_USER;
 };
