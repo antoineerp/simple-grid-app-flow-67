@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAutoSync } from '@/services/sync/AutoSyncService';
 import { toast } from '@/components/ui/use-toast';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { validateUserId } from '@/services/core/apiInterceptor';
 
 /**
  * Hook pour utiliser le service de synchronisation automatique simplifié
@@ -13,8 +14,9 @@ export function useAutoSyncData<T>(tableName: string, options?: {
   initialLoad?: boolean;
   userId?: string; // Permettre l'override de l'utilisateur pour des cas spéciaux
 }) {
-  // Utiliser l'ID utilisateur fourni ou récupérer l'utilisateur courant
-  const userId = options?.userId || getCurrentUser();
+  // S'assurer qu'un ID utilisateur valide est toujours utilisé
+  const providedUserId = options?.userId;
+  const userId = providedUserId || validateUserId();
   
   const {
     data,
@@ -24,7 +26,7 @@ export function useAutoSyncData<T>(tableName: string, options?: {
     lastSynced,
     syncWithServer: forceSync,
     hasPendingChanges
-  } = useAutoSync<T>(tableName, userId); // Passer l'ID utilisateur explicitement
+  } = useAutoSync<T>(tableName, userId);
   
   const [isLoading, setIsLoading] = useState(true);
   
