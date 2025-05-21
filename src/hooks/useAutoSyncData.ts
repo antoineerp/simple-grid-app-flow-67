@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAutoSync } from '@/services/sync/AutoSyncService';
 import { toast } from '@/components/ui/use-toast';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 /**
  * Hook pour utiliser le service de synchronisation automatique simplifié
@@ -10,7 +11,11 @@ import { toast } from '@/components/ui/use-toast';
 export function useAutoSyncData<T>(tableName: string, options?: {
   showToasts?: boolean;
   initialLoad?: boolean;
+  userId?: string; // Permettre l'override de l'utilisateur pour des cas spéciaux
 }) {
+  // Utiliser l'ID utilisateur fourni ou récupérer l'utilisateur courant
+  const userId = options?.userId || getCurrentUser();
+  
   const {
     data,
     setData: saveData,
@@ -19,17 +24,19 @@ export function useAutoSyncData<T>(tableName: string, options?: {
     lastSynced,
     syncWithServer: forceSync,
     hasPendingChanges
-  } = useAutoSync<T>(tableName);
+  } = useAutoSync<T>(tableName, userId); // Passer l'ID utilisateur explicitement
   
   const [isLoading, setIsLoading] = useState(true);
   
   // Effectuer le chargement initial
   useEffect(() => {
+    console.log(`useAutoSyncData: Initialisation pour ${tableName} et utilisateur ${userId}`);
     setIsLoading(false);
-  }, [data]);
+  }, [data, tableName, userId]);
   
   // Fonction pour sauvegarder les données avec notification optionnelle
   const setData = (newData: T[]) => {
+    console.log(`useAutoSyncData: Sauvegarde de ${newData.length} éléments pour ${tableName} (utilisateur: ${userId})`);
     saveData(newData);
     
     if (options?.showToasts) {
@@ -42,6 +49,7 @@ export function useAutoSyncData<T>(tableName: string, options?: {
   
   // Fonction pour synchroniser manuellement
   const syncWithServer = async () => {
+    console.log(`useAutoSyncData: Synchronisation manuelle pour ${tableName} (utilisateur: ${userId})`);
     const result = await forceSync();
     
     if (options?.showToasts) {
@@ -52,7 +60,7 @@ export function useAutoSyncData<T>(tableName: string, options?: {
         });
       } else if (!isOnline) {
         toast({
-          variant: "destructive", // Changed from "warning" to "destructive"
+          variant: "destructive",
           title: "Mode hors ligne",
           description: "Les données seront synchronisées lorsque vous serez en ligne."
         });
@@ -70,6 +78,7 @@ export function useAutoSyncData<T>(tableName: string, options?: {
     isOnline,
     lastSynced,
     syncWithServer,
-    hasPendingChanges: hasPendingChanges()
+    hasPendingChanges: hasPendingChanges(),
+    userId // Exposer l'ID utilisateur pour plus de transparence
   };
 }

@@ -1,217 +1,230 @@
 
-import React, { useEffect, useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
-import { Loader2, RefreshCw, CloudOff, Check } from "lucide-react";
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { forceSync, hasPendingChanges, setSyncEnabled, SYNC_EVENTS } from '@/services/sync/AutoSyncService';
-import { Badge } from "@/components/ui/badge";
-import { formatDistanceToNow } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import React, { useState, useEffect } from 'react';
+import { hasPendingChanges, forceSync, setSyncEnabled } from '@/services/sync/AutoSyncService';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ArrowUpDown, Check, CloudOff, CloudSyncIcon } from 'lucide-react';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import SyncDebugger from '@/components/sync/SyncDebugger';
 
 interface AppSyncManagerProps {
   showControls?: boolean;
   className?: string;
-  showStatus?: boolean;
+  enableDebugger?: boolean;
 }
 
 /**
- * Composant de gestion de synchronisation centralisé pour l'application
+ * Composant de gestion de la synchronisation pour l'application
  */
-export function AppSyncManager({
-  showControls = true,
-  className = "",
-  showStatus = true
-}: AppSyncManagerProps) {
-  const { toast } = useToast();
-  const { isOnline } = useNetworkStatus();
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [pendingChanges, setPendingChanges] = useState(false);
-  const [syncEnabled, setSyncEnabledState] = useState(true);
-  
-  // Écouter les événements de synchronisation
+const AppSyncManager: React.FC<AppSyncManagerProps> = ({ 
+  showControls = true, 
+  className = '',
+  enableDebugger = true
+}) => {
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [hasPending, setHasPending] = useState<boolean>(false);
+  const [syncEnabled, setSyncEnabledState] = useState<boolean>(true);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [userId, setUserId] = useState<string>(getCurrentUser());
+
+  // Surveiller l'état de la connexion
   useEffect(() => {
-    const handleSyncStart = () => {
-      setIsSyncing(true);
-    };
-    
-    const handleSyncCompleted = (event: CustomEvent) => {
-      setIsSyncing(false);
-      if (event.detail?.timestamp) {
-        setLastSynced(new Date(event.detail.timestamp));
-      }
-    };
-    
-    const handleSyncSuccess = (event: CustomEvent) => {
-      if (event.detail?.timestamp) {
-        setLastSynced(new Date(event.detail.timestamp));
-      }
-    };
-    
-    const handleDataChanged = () => {
-      setPendingChanges(hasPendingChanges());
-    };
-    
-    // Ajouter les écouteurs
-    window.addEventListener(SYNC_EVENTS.SYNC_START, handleSyncStart as EventListener);
-    window.addEventListener(SYNC_EVENTS.SYNC_COMPLETED, handleSyncCompleted as EventListener);
-    window.addEventListener(SYNC_EVENTS.SYNC_SUCCESS, handleSyncSuccess as EventListener);
-    window.addEventListener(SYNC_EVENTS.DATA_CHANGED, handleDataChanged as EventListener);
-    
-    // Vérifier initialement s'il y a des modifications en attente
-    setPendingChanges(hasPendingChanges());
-    
-    // Nettoyage
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
     return () => {
-      window.removeEventListener(SYNC_EVENTS.SYNC_START, handleSyncStart as EventListener);
-      window.removeEventListener(SYNC_EVENTS.SYNC_COMPLETED, handleSyncCompleted as EventListener);
-      window.removeEventListener(SYNC_EVENTS.SYNC_SUCCESS, handleSyncSuccess as EventListener);
-      window.removeEventListener(SYNC_EVENTS.DATA_CHANGED, handleDataChanged as EventListener);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
-  
-  // Forcer une synchronisation manuelle
-  const handleForceSync = async () => {
-    if (!isOnline) {
-      toast({
-        variant: "destructive",
-        title: "Mode hors ligne",
-        description: "Impossible de synchroniser en mode hors ligne"
-      });
-      return;
-    }
+
+  // Surveiller l'utilisateur courant
+  useEffect(() => {
+    const checkUserId = () => {
+      const currentUserId = getCurrentUser();
+      if (currentUserId !== userId) {
+        console.log(`AppSyncManager: Changement d'utilisateur détecté ${userId} -> ${currentUserId}`);
+        setUserId(currentUserId);
+      }
+    };
+
+    checkUserId();
+
+    const handleUserChange = (event: CustomEvent) => {
+      if (event.detail?.userId) {
+        setUserId(event.detail.userId);
+      }
+    };
+
+    window.addEventListener('userChanged', handleUserChange as EventListener);
+    window.addEventListener('database-user-changed', handleUserChange as EventListener);
+
+    const intervalId = setInterval(checkUserId, 10000);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('userChanged', handleUserChange as EventListener);
+      window.removeEventListener('database-user-changed', handleUserChange as EventListener);
+    };
+  }, [userId]);
+
+  // Surveiller l'état de la synchronisation
+  useEffect(() => {
+    const updateSyncStatus = () => {
+      // Vérifier s'il y a des modifications en attente
+      const pending = hasPendingChanges(undefined, userId);
+      setHasPending(pending);
+    };
+
+    // Vérifier immédiatement
+    updateSyncStatus();
+
+    // Puis vérifier périodiquement
+    const intervalId = setInterval(updateSyncStatus, 5000);
+
+    // Écouter les événements de synchronisation
+    const handleSyncStart = () => setIsSyncing(true);
+    const handleSyncEnd = () => {
+      setIsSyncing(false);
+      setLastSyncTime(new Date());
+      updateSyncStatus();
+    };
+
+    window.addEventListener('sync-start', handleSyncStart);
+    window.addEventListener('sync-completed', handleSyncEnd);
+    window.addEventListener('sync-success', handleSyncEnd);
+    window.addEventListener('data-changed', updateSyncStatus);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('sync-start', handleSyncStart);
+      window.removeEventListener('sync-completed', handleSyncEnd);
+      window.removeEventListener('sync-success', handleSyncEnd);
+      window.removeEventListener('data-changed', updateSyncStatus);
+    };
+  }, [userId]);
+
+  // Gérer le changement d'état de la synchronisation
+  const handleSyncToggle = (enabled: boolean) => {
+    setSyncEnabledState(enabled);
+    setSyncEnabled(enabled);
+  };
+
+  // Forcer une synchronisation
+  const handleForceSyncNow = async () => {
+    if (!isOnline) return;
     
     setIsSyncing(true);
     try {
-      const results = await forceSync();
-      
-      // Compter les succès et les échecs
-      const successCount = Object.values(results).filter(Boolean).length;
-      const failCount = Object.values(results).filter(result => !result).length;
-      
-      if (Object.keys(results).length === 0) {
-        toast({
-          title: "Aucune donnée à synchroniser",
-          description: "Toutes vos données sont déjà à jour."
-        });
-      } else if (successCount > 0 && failCount === 0) {
-        toast({
-          title: "Synchronisation réussie",
-          description: `${successCount} table${successCount > 1 ? 's' : ''} ${successCount > 1 ? 'ont' : 'a'} été synchronisée${successCount > 1 ? 's' : ''}`
-        });
-        setLastSynced(new Date());
-      } else if (failCount > 0) {
-        toast({
-          variant: "destructive",
-          title: "Synchronisation partiellement réussie",
-          description: `${successCount} réussie${successCount > 1 ? 's' : ''}, ${failCount} échec${failCount > 1 ? 's' : ''}`
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Échec de synchronisation",
-          description: "Aucune table n'a pu être synchronisée."
-        });
-      }
-      
-      // Mettre à jour l'état des modifications en attente
-      setPendingChanges(hasPendingChanges());
+      const results = await forceSync(userId);
+      console.log('AppSyncManager: Résultats de synchronisation forcée:', results);
+      setLastSyncTime(new Date());
     } catch (error) {
-      console.error("AppSyncManager: Erreur lors de la synchronisation forcée:", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Une erreur est survenue lors de la synchronisation."
-      });
+      console.error('AppSyncManager: Erreur lors de la synchronisation forcée:', error);
     } finally {
       setIsSyncing(false);
+      
+      // Vérifier à nouveau l'état des modifications en attente
+      const stillHasPending = hasPendingChanges(undefined, userId);
+      setHasPending(stillHasPending);
     }
   };
-  
-  // Activer/désactiver la synchronisation
-  const toggleSyncEnabled = () => {
-    const newState = !syncEnabled;
-    setSyncEnabledState(newState);
-    setSyncEnabled(newState);
-    
-    toast({
-      title: newState ? "Synchronisation activée" : "Synchronisation désactivée",
-      description: newState 
-        ? "La synchronisation automatique des données est maintenant active." 
-        : "La synchronisation automatique est désactivée. Vos données sont sauvegardées localement uniquement."
-    });
-  };
-  
-  // N'afficher rien si on ne veut pas le statut ni les contrôles
-  if (!showStatus && !showControls) {
-    return null;
+
+  if (enableDebugger) {
+    return <SyncDebugger />;
   }
-  
+
+  // Si les contrôles sont désactivés, afficher seulement un badge d'état
+  if (!showControls) {
+    return (
+      <div className={`flex items-center justify-end gap-2 ${className}`}>
+        <Badge variant={hasPending ? "outline" : "default"} className="text-xs">
+          {hasPending ? (
+            <>
+              <ArrowUpDown className="h-3 w-3 mr-1" />
+              Modifications en attente
+            </>
+          ) : (
+            <>
+              <Check className="h-3 w-3 mr-1" />
+              Synchronisé
+            </>
+          )}
+        </Badge>
+        {lastSyncTime && (
+          <span className="text-xs text-muted-foreground">
+            Dernière synchronisation: {lastSyncTime.toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex flex-col space-y-2 ${className}`}>
-      {showStatus && (
-        <div className="flex items-center text-xs text-muted-foreground justify-between">
-          <div className="flex items-center space-x-2">
-            {isOnline ? (
-              <Badge variant={syncEnabled ? "default" : "outline"}>
-                {syncEnabled ? "Synchronisation active" : "Synchronisation désactivée"}
-              </Badge>
-            ) : (
-              <Badge variant="destructive" className="flex items-center gap-1">
-                <CloudOff className="h-3 w-3" />
-                Mode hors ligne
-              </Badge>
-            )}
-            
-            {pendingChanges && (
-              <Badge variant="secondary">
-                Modifications en attente
-              </Badge>
-            )}
-          </div>
-          
-          <div>
-            {lastSynced ? (
-              <span className="flex items-center gap-1">
-                <Check className="h-3 w-3 text-green-500" />
-                Synchronisé {formatDistanceToNow(lastSynced, { addSuffix: true, locale: fr })}
-              </span>
-            ) : (
-              <span>Jamais synchronisé</span>
-            )}
-          </div>
+    <div className={`flex items-center justify-between ${className}`}>
+      <div className="flex items-center gap-2">
+        <Badge variant={isOnline ? "default" : "destructive"}>
+          {isOnline ? "En ligne" : "Hors ligne"}
+        </Badge>
+        <Badge variant={hasPending ? "outline" : "default"}>
+          {hasPending ? "Modifications en attente" : "Synchronisé"}
+        </Badge>
+      </div>
+
+      <div className="flex items-center gap-4">
+        {lastSyncTime && (
+          <span className="text-xs text-muted-foreground">
+            Dernière synchronisation: {lastSyncTime.toLocaleTimeString()}
+          </span>
+        )}
+        
+        <div className="flex items-center gap-2">
+          <Switch 
+            id="sync-toggle"
+            checked={syncEnabled}
+            onCheckedChange={handleSyncToggle}
+          />
+          <Label htmlFor="sync-toggle" className="cursor-pointer">
+            Synchronisation auto
+          </Label>
         </div>
-      )}
-      
-      {showControls && (
-        <div className="flex items-center justify-end space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleSyncEnabled}
-            disabled={isSyncing}
-          >
-            {syncEnabled ? "Désactiver" : "Activer"} synchronisation
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleForceSync}
-            disabled={isSyncing || !isOnline || !syncEnabled}
-          >
-            {isSyncing ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-1" />
-            )}
-            {isSyncing ? "Synchronisation..." : "Synchroniser maintenant"}
-          </Button>
-        </div>
-      )}
+        
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleForceSyncNow}
+                disabled={!isOnline || isSyncing}
+              >
+                {isSyncing ? (
+                  <CloudSyncIcon className="h-4 w-4 mr-2 animate-spin" />
+                ) : isOnline ? (
+                  <CloudSyncIcon className="h-4 w-4 mr-2" />
+                ) : (
+                  <CloudOff className="h-4 w-4 mr-2" />
+                )}
+                {isSyncing ? "Synchronisation..." : "Synchroniser maintenant"}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isOnline 
+                ? "Forcer la synchronisation immédiate avec le serveur" 
+                : "Impossible de synchroniser en mode hors ligne"}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
     </div>
   );
-}
+};
 
 export default AppSyncManager;

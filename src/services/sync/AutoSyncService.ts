@@ -1,12 +1,15 @@
+
 /**
  * Service de synchronisation automatique centralisée
  * Ce service gère la synchronisation des données entre toutes les pages de l'application
  */
 import { useState, useEffect } from 'react';
-import { getCurrentUser } from '@/services/auth/authService';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { verifyJsonEndpoint } from '@/services/sync/robustSyncService';
 import { useToast } from '@/hooks/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { ensureCorrectUserId } from '@/services/core/userIdConverter';
+import { getApiUrl } from '@/config/apiConfig';
 
 // Interface pour les données d'un tableau
 interface TableData {
@@ -16,13 +19,13 @@ interface TableData {
 }
 
 // Stockage temporaire des données en attente de synchronisation
-const pendingChanges: Record<string, any[]> = {};
-const syncTimestamps: Record<string, number> = {};
-const initialDataLoaded: Record<string, boolean> = {};
+const pendingChanges: Record<string, Record<string, any[]>> = {}; // Organisé par utilisateur puis par table
+const syncTimestamps: Record<string, Record<string, number>> = {}; // Organisé par utilisateur puis par table
+const initialDataLoaded: Record<string, Record<string, boolean>> = {}; // Organisé par utilisateur puis par table
 
 // Intervalles de synchronisation (en ms)
-const SYNC_INTERVAL = 60000; // 60 secondes (augmenté de 5 secondes)
-const RETRY_INTERVAL = 120000; // 2 minutes (augmenté de 30 secondes)
+const SYNC_INTERVAL = 60000; // 60 secondes
+const RETRY_INTERVAL = 120000; // 2 minutes
 
 // État global de la synchronisation
 let isSyncInProgress = false;
@@ -37,6 +40,13 @@ export const SYNC_EVENTS = {
   SYNC_ERROR: 'sync-error',
   DATA_CHANGED: 'data-changed',
   SYNC_COMPLETED: 'sync-completed'
+};
+
+// Fonction utilitaire pour générer une clé de stockage cohérente
+const getStorageKey = (tableName: string, userId: string): string => {
+  // S'assurer que l'ID utilisateur est valide et correctement formaté
+  const safeUserId = ensureCorrectUserId(userId);
+  return `${tableName}_${safeUserId}`;
 };
 
 /**
@@ -56,12 +66,12 @@ export const setSyncEnabled = (enabled: boolean): void => {
 };
 
 /**
- * Enregistre les données localement
+ * Enregistre les données localement avec un ID utilisateur explicite
  */
-export const saveLocalData = <T>(tableName: string, data: T[]): void => {
+export const saveLocalData = <T>(tableName: string, data: T[], userId: string): void => {
   try {
-    const currentUser = getCurrentUser() || 'default';
-    const storageKey = `${tableName}_${currentUser}`;
+    const safeUserId = ensureCorrectUserId(userId);
+    const storageKey = getStorageKey(tableName, safeUserId);
     
     // Sauvegarder dans localStorage
     localStorage.setItem(storageKey, JSON.stringify(data));
@@ -74,15 +84,19 @@ export const saveLocalData = <T>(tableName: string, data: T[]): void => {
     localStorage.setItem(`${storageKey}_last_modified`, timestamp);
     sessionStorage.setItem(`${storageKey}_last_modified`, timestamp);
     
-    console.log(`AutoSync: ${data.length} éléments sauvegardés pour ${tableName}`);
+    console.log(`AutoSync: ${data.length} éléments sauvegardés pour ${tableName} de l'utilisateur ${safeUserId}`);
+    
+    // Initialiser les structures de données pour cet utilisateur si nécessaires
+    if (!pendingChanges[safeUserId]) pendingChanges[safeUserId] = {};
+    if (!syncTimestamps[safeUserId]) syncTimestamps[safeUserId] = {};
     
     // Ajouter aux modifications en attente
-    pendingChanges[tableName] = data;
-    syncTimestamps[tableName] = Date.now();
+    pendingChanges[safeUserId][tableName] = data;
+    syncTimestamps[safeUserId][tableName] = Date.now();
     
     // Émettre un événement pour notification
     window.dispatchEvent(new CustomEvent(SYNC_EVENTS.DATA_CHANGED, { 
-      detail: { tableName, count: data.length }
+      detail: { tableName, userId: safeUserId, count: data.length }
     }));
   } catch (error) {
     console.error(`AutoSync: Erreur lors de la sauvegarde des données pour ${tableName}:`, error);
@@ -90,12 +104,12 @@ export const saveLocalData = <T>(tableName: string, data: T[]): void => {
 };
 
 /**
- * Charge les données depuis le stockage local
+ * Charge les données depuis le stockage local pour un utilisateur spécifique
  */
-export const loadLocalData = <T>(tableName: string): T[] => {
+export const loadLocalData = <T>(tableName: string, userId: string): T[] => {
   try {
-    const currentUser = getCurrentUser() || 'default';
-    const storageKey = `${tableName}_${currentUser}`;
+    const safeUserId = ensureCorrectUserId(userId);
+    const storageKey = getStorageKey(tableName, safeUserId);
     
     // Essayer d'abord sessionStorage (plus récent)
     let data = sessionStorage.getItem(storageKey);
@@ -106,16 +120,24 @@ export const loadLocalData = <T>(tableName: string): T[] => {
     }
     
     if (data) {
-      const parsedData = JSON.parse(data);
-      console.log(`AutoSync: ${parsedData.length} éléments chargés pour ${tableName}`);
-      
-      // Marquer comme chargé initialement
-      initialDataLoaded[tableName] = true;
-      
-      return parsedData;
+      try {
+        const parsedData = JSON.parse(data);
+        console.log(`AutoSync: ${parsedData.length} éléments chargés pour ${tableName} de l'utilisateur ${safeUserId}`);
+        
+        // Initialiser la structure pour cet utilisateur si nécessaire
+        if (!initialDataLoaded[safeUserId]) initialDataLoaded[safeUserId] = {};
+        
+        // Marquer comme chargé initialement
+        initialDataLoaded[safeUserId][tableName] = true;
+        
+        return parsedData;
+      } catch (parseError) {
+        console.error(`AutoSync: Erreur de parsing pour ${storageKey}:`, parseError);
+        return [];
+      }
     }
     
-    console.log(`AutoSync: Aucune donnée locale pour ${tableName}`);
+    console.log(`AutoSync: Aucune donnée locale pour ${tableName} de l'utilisateur ${safeUserId}`);
     return [];
   } catch (error) {
     console.error(`AutoSync: Erreur lors du chargement des données pour ${tableName}:`, error);
@@ -124,9 +146,9 @@ export const loadLocalData = <T>(tableName: string): T[] => {
 };
 
 /**
- * Effectue la synchronisation des données avec le serveur
+ * Effectue la synchronisation des données avec le serveur pour un utilisateur spécifique
  */
-export const syncWithServer = async <T>(tableName: string, data: T[]): Promise<boolean> => {
+export const syncWithServer = async <T>(tableName: string, data: T[], userId: string): Promise<boolean> => {
   if (!syncEnabled) {
     console.log(`AutoSync: Synchronisation désactivée, ignorée pour ${tableName}`);
     return false;
@@ -137,11 +159,11 @@ export const syncWithServer = async <T>(tableName: string, data: T[]): Promise<b
     return false;
   }
   
-  const currentUser = getCurrentUser() || 'default';
+  const safeUserId = ensureCorrectUserId(userId);
   
   // Diffuser un événement de début de synchronisation
   window.dispatchEvent(new CustomEvent(SYNC_EVENTS.SYNC_START, { 
-    detail: { tableName, count: data.length }
+    detail: { tableName, userId: safeUserId, count: data.length }
   }));
   
   try {
@@ -156,17 +178,19 @@ export const syncWithServer = async <T>(tableName: string, data: T[]): Promise<b
       
       // Diffuser un événement d'erreur
       window.dispatchEvent(new CustomEvent(SYNC_EVENTS.SYNC_ERROR, { 
-        detail: { tableName, error: "Point d'accès API invalide" }
+        detail: { tableName, userId: safeUserId, error: "Point d'accès API invalide" }
       }));
       
       return false;
     }
     
-    console.log(`AutoSync: Synchronisation de ${data.length} éléments pour ${tableName}`);
+    console.log(`AutoSync: Synchronisation de ${data.length} éléments pour ${tableName} de l'utilisateur ${safeUserId}`);
     
     // Préparer l'URL de l'endpoint
-    const API_URL = process.env.API_URL || '/api';
+    const API_URL = getApiUrl();
     const endpoint = `${API_URL}/${tableName}-sync.php`;
+    
+    console.log(`AutoSync: Envoi à ${endpoint} avec utilisateur ${safeUserId}`);
     
     // Effectuer la requête
     const response = await fetch(endpoint, {
@@ -174,10 +198,11 @@ export const syncWithServer = async <T>(tableName: string, data: T[]): Promise<b
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Cache-Control': 'no-store, no-cache, must-revalidate'
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'X-User-Id': safeUserId // Ajouter l'ID utilisateur dans les headers pour sécurité additionnelle
       },
       body: JSON.stringify({
-        userId: currentUser,
+        userId: safeUserId,
         [tableName]: data
       })
     });
@@ -192,18 +217,20 @@ export const syncWithServer = async <T>(tableName: string, data: T[]): Promise<b
       const responseData = JSON.parse(responseText);
       
       if (responseData.success === true) {
-        console.log(`AutoSync: Synchronisation réussie pour ${tableName}`);
+        console.log(`AutoSync: Synchronisation réussie pour ${tableName} de l'utilisateur ${safeUserId}`);
         
         // Supprimer des modifications en attente
-        delete pendingChanges[tableName];
+        if (pendingChanges[safeUserId]) {
+          delete pendingChanges[safeUserId][tableName];
+        }
         
         // Enregistrer la date de dernière synchronisation
         const syncTime = new Date().toISOString();
-        localStorage.setItem(`${tableName}_${currentUser}_last_synced`, syncTime);
+        localStorage.setItem(`${tableName}_${safeUserId}_last_synced`, syncTime);
         
         // Diffuser un événement de synchronisation réussie
         window.dispatchEvent(new CustomEvent(SYNC_EVENTS.SYNC_SUCCESS, { 
-          detail: { tableName, timestamp: syncTime }
+          detail: { tableName, userId: safeUserId, timestamp: syncTime }
         }));
         
         return true;
@@ -216,11 +243,11 @@ export const syncWithServer = async <T>(tableName: string, data: T[]): Promise<b
       throw new Error(`Erreur de parsing: ${parseError.message}`);
     }
   } catch (error) {
-    console.error(`AutoSync: Erreur lors de la synchronisation de ${tableName}:`, error);
+    console.error(`AutoSync: Erreur lors de la synchronisation de ${tableName} pour ${userId}:`, error);
     
     // Diffuser un événement d'erreur
     window.dispatchEvent(new CustomEvent(SYNC_EVENTS.SYNC_ERROR, { 
-      detail: { tableName, error: error instanceof Error ? error.message : String(error) }
+      detail: { tableName, userId: safeUserId, error: error instanceof Error ? error.message : String(error) }
     }));
     
     return false;
@@ -229,7 +256,7 @@ export const syncWithServer = async <T>(tableName: string, data: T[]): Promise<b
     
     // Diffuser un événement de fin de synchronisation
     window.dispatchEvent(new CustomEvent(SYNC_EVENTS.SYNC_COMPLETED, { 
-      detail: { tableName, timestamp: new Date().toISOString() }
+      detail: { tableName, userId: safeUserId, timestamp: new Date().toISOString() }
     }));
   }
 };
@@ -253,29 +280,33 @@ export const startAutoSync = (): void => {
       return;
     }
     
-    // Ne pas synchroniser s'il n'y a pas de données en attente
-    const tablesWithChanges = Object.keys(pendingChanges);
-    if (tablesWithChanges.length === 0) {
-      return;
-    }
-    
     // Vérifier si nous sommes en ligne
     if (!navigator.onLine) {
       console.log('AutoSync: Hors ligne, synchronisation reportée');
       return;
     }
     
-    // Synchroniser toutes les tables modifiées
-    console.log(`AutoSync: Synchronisation automatique de ${tablesWithChanges.length} tables`);
+    // Parcourir tous les utilisateurs ayant des modifications en attente
+    const userIds = Object.keys(pendingChanges);
     
-    // Prendre la table la plus anciennement modifiée
-    tablesWithChanges.sort((a, b) => (syncTimestamps[a] || 0) - (syncTimestamps[b] || 0));
-    const tableName = tablesWithChanges[0];
-    
-    if (tableName && pendingChanges[tableName]) {
-      syncWithServer(tableName, pendingChanges[tableName]).catch(error => {
-        console.error(`AutoSync: Erreur lors de la synchronisation automatique de ${tableName}:`, error);
-      });
+    for (const userId of userIds) {
+      const userTables = pendingChanges[userId];
+      if (!userTables || Object.keys(userTables).length === 0) continue;
+      
+      // Prendre la table la plus anciennement modifiée pour cet utilisateur
+      const tablesWithChanges = Object.keys(userTables);
+      tablesWithChanges.sort((a, b) => (syncTimestamps[userId]?.[a] || 0) - (syncTimestamps[userId]?.[b] || 0));
+      
+      const tableName = tablesWithChanges[0];
+      if (tableName && userTables[tableName]) {
+        console.log(`AutoSync: Synchronisation automatique de ${tableName} pour l'utilisateur ${userId}`);
+        syncWithServer(tableName, userTables[tableName], userId).catch(error => {
+          console.error(`AutoSync: Erreur lors de la synchronisation automatique de ${tableName}:`, error);
+        });
+        
+        // Ne synchroniser qu'une table à la fois pour éviter les problèmes
+        break;
+      }
     }
   }, SYNC_INTERVAL);
   
@@ -317,20 +348,29 @@ function handleOnline() {
     return;
   }
   
-  // Synchroniser toutes les tables modifiées
-  const tablesWithChanges = Object.keys(pendingChanges);
+  // Parcourir tous les utilisateurs ayant des modifications en attente
+  const userIds = Object.keys(pendingChanges);
   
-  if (tablesWithChanges.length > 0) {
-    console.log(`AutoSync: ${tablesWithChanges.length} tables à synchroniser après reconnexion`);
+  for (const userId of userIds) {
+    const userTables = pendingChanges[userId];
+    if (!userTables || Object.keys(userTables).length === 0) continue;
     
-    // Synchroniser une table à la fois, en commençant par la plus ancienne
-    tablesWithChanges.sort((a, b) => (syncTimestamps[a] || 0) - (syncTimestamps[b] || 0));
-    const tableName = tablesWithChanges[0];
-    
-    if (tableName && pendingChanges[tableName]) {
-      syncWithServer(tableName, pendingChanges[tableName]).catch(error => {
-        console.error(`AutoSync: Erreur lors de la synchronisation après reconnexion de ${tableName}:`, error);
-      });
+    // Prendre la table la plus anciennement modifiée pour cet utilisateur
+    const tablesWithChanges = Object.keys(userTables);
+    if (tablesWithChanges.length > 0) {
+      tablesWithChanges.sort((a, b) => (syncTimestamps[userId]?.[a] || 0) - (syncTimestamps[userId]?.[b] || 0));
+      
+      const tableName = tablesWithChanges[0];
+      if (tableName && userTables[tableName]) {
+        console.log(`AutoSync: Synchronisation après reconnexion de ${tableName} pour l'utilisateur ${userId}`);
+        
+        syncWithServer(tableName, userTables[tableName], userId).catch(error => {
+          console.error(`AutoSync: Erreur lors de la synchronisation après reconnexion de ${tableName}:`, error);
+        });
+        
+        // Ne synchroniser qu'une table à la fois
+        break;
+      }
     }
   }
 }
@@ -361,22 +401,27 @@ function handleVisibilityChange() {
 }
 
 /**
- * Vérifie s'il y a des modifications en attente de synchronisation
+ * Vérifie s'il y a des modifications en attente de synchronisation pour un utilisateur spécifique
  */
-export const hasPendingChanges = (tableName?: string): boolean => {
+export const hasPendingChanges = (tableName?: string, userId?: string): boolean => {
+  const safeUserId = ensureCorrectUserId(userId || getCurrentUser());
+  
+  if (!pendingChanges[safeUserId]) return false;
+  
   if (tableName) {
-    return !!pendingChanges[tableName];
+    return !!pendingChanges[safeUserId][tableName];
   }
-  return Object.keys(pendingChanges).length > 0;
+  
+  return Object.keys(pendingChanges[safeUserId]).length > 0;
 };
 
 /**
- * Obtient l'horodatage de la dernière synchronisation pour une table
+ * Obtient l'horodatage de la dernière synchronisation pour une table d'un utilisateur
  */
-export const getLastSynced = (tableName: string): Date | null => {
+export const getLastSynced = (tableName: string, userId?: string): Date | null => {
   try {
-    const currentUser = getCurrentUser() || 'default';
-    const lastSyncedStr = localStorage.getItem(`${tableName}_${currentUser}_last_synced`);
+    const safeUserId = ensureCorrectUserId(userId || getCurrentUser());
+    const lastSyncedStr = localStorage.getItem(`${tableName}_${safeUserId}_last_synced`);
     return lastSyncedStr ? new Date(lastSyncedStr) : null;
   } catch (error) {
     return null;
@@ -384,26 +429,33 @@ export const getLastSynced = (tableName: string): Date | null => {
 };
 
 /**
- * Force la synchronisation de toutes les tables avec des changements en attente
+ * Force la synchronisation de toutes les tables avec des changements en attente pour un utilisateur
  */
-export const forceSync = async (): Promise<Record<string, boolean>> => {
+export const forceSync = async (userId?: string): Promise<Record<string, boolean>> => {
   if (!syncEnabled) {
     return {};
   }
   
+  const safeUserId = ensureCorrectUserId(userId || getCurrentUser());
   const results: Record<string, boolean> = {};
-  const tablesWithChanges = Object.keys(pendingChanges);
+  
+  if (!pendingChanges[safeUserId]) {
+    console.log(`AutoSync: Aucune modification en attente pour l'utilisateur ${safeUserId}`);
+    return results;
+  }
+  
+  const tablesWithChanges = Object.keys(pendingChanges[safeUserId]);
   
   if (tablesWithChanges.length === 0) {
     return results;
   }
   
-  console.log(`AutoSync: Forçage de la synchronisation pour ${tablesWithChanges.length} tables`);
+  console.log(`AutoSync: Forçage de la synchronisation pour ${tablesWithChanges.length} tables de l'utilisateur ${safeUserId}`);
   
   for (const tableName of tablesWithChanges) {
-    if (pendingChanges[tableName]) {
+    if (pendingChanges[safeUserId][tableName]) {
       try {
-        const success = await syncWithServer(tableName, pendingChanges[tableName]);
+        const success = await syncWithServer(tableName, pendingChanges[safeUserId][tableName], safeUserId);
         results[tableName] = success;
       } catch (error) {
         console.error(`AutoSync: Erreur lors du forçage de la synchronisation de ${tableName}:`, error);
@@ -418,29 +470,38 @@ export const forceSync = async (): Promise<Record<string, boolean>> => {
 /**
  * Hook personnalisé pour utiliser le service de synchronisation automatique
  */
-export const useAutoSync = <T>(tableName: string) => {
+export const useAutoSync = <T>(tableName: string, userId?: string) => {
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
   const [data, setData] = useState<T[]>([]);
-  const [lastSynced, setLastSynced] = useState<Date | null>(getLastSynced(tableName));
+  const [lastSynced, setLastSynced] = useState<Date | null>(getLastSynced(tableName, userId));
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  
+  // Utiliser l'ID utilisateur fourni ou récupérer l'utilisateur courant
+  const safeUserId = ensureCorrectUserId(userId || getCurrentUser());
   
   // Charger les données initiales
   useEffect(() => {
-    // Si les données sont déjà chargées, ne pas recharger
-    if (initialDataLoaded[tableName]) {
+    // Initialiser la structure de données si nécessaire
+    if (!initialDataLoaded[safeUserId]) initialDataLoaded[safeUserId] = {};
+    
+    // Si les données sont déjà chargées pour cet utilisateur, ne pas recharger
+    if (initialDataLoaded[safeUserId][tableName]) {
+      console.log(`AutoSync: Données déjà chargées pour ${tableName} et utilisateur ${safeUserId}`);
       return;
     }
     
     const loadInitialData = async () => {
+      console.log(`AutoSync: Chargement initial des données pour ${tableName} et utilisateur ${safeUserId}`);
+      
       // Charger depuis le stockage local
-      const localData = loadLocalData<T>(tableName);
+      const localData = loadLocalData<T>(tableName, safeUserId);
       
       if (localData.length > 0) {
         setData(localData);
         
         // Récupérer la date de dernière synchronisation
-        const lastSyncDate = getLastSynced(tableName);
+        const lastSyncDate = getLastSynced(tableName, safeUserId);
         if (lastSyncDate) {
           setLastSynced(lastSyncDate);
         }
@@ -450,12 +511,12 @@ export const useAutoSync = <T>(tableName: string) => {
       if (isOnline && syncEnabled) {
         setIsSyncing(true);
         try {
-          const success = await syncWithServer(tableName, localData);
+          const success = await syncWithServer(tableName, localData, safeUserId);
           if (success) {
             setLastSynced(new Date());
           }
         } catch (error) {
-          console.error(`useAutoSync: Erreur lors de la synchronisation initiale de ${tableName}:`, error);
+          console.error(`useAutoSync: Erreur lors de la synchronisation initiale de ${tableName} pour ${safeUserId}:`, error);
           // Ne pas afficher de toast pour les erreurs initiales
         } finally {
           setIsSyncing(false);
@@ -464,40 +525,33 @@ export const useAutoSync = <T>(tableName: string) => {
     };
     
     loadInitialData();
-  }, [tableName, isOnline, toast]);
+  }, [tableName, isOnline, safeUserId]);
   
   // Écouter les événements de synchronisation
   useEffect(() => {
     const handleSyncStart = (event: CustomEvent) => {
-      if (event.detail?.tableName === tableName) {
+      if (event.detail?.tableName === tableName && event.detail?.userId === safeUserId) {
         setIsSyncing(true);
       }
     };
     
     const handleSyncCompleted = (event: CustomEvent) => {
-      if (event.detail?.tableName === tableName) {
+      if (event.detail?.tableName === tableName && event.detail?.userId === safeUserId) {
         setIsSyncing(false);
       }
     };
     
     const handleDataChanged = (event: CustomEvent) => {
-      if (event.detail?.tableName === tableName) {
+      if (event.detail?.tableName === tableName && event.detail?.userId === safeUserId) {
         // Recharger les données
-        const localData = loadLocalData<T>(tableName);
+        const localData = loadLocalData<T>(tableName, safeUserId);
         setData(localData);
       }
     };
     
     const handleSyncSuccess = (event: CustomEvent) => {
-      if (event.detail?.tableName === tableName) {
+      if (event.detail?.tableName === tableName && event.detail?.userId === safeUserId) {
         setLastSynced(new Date(event.detail.timestamp));
-      }
-    };
-    
-    const handleSyncError = (event: CustomEvent) => {
-      if (event.detail?.tableName === tableName) {
-        // Ne pas afficher automatiquement les erreurs de synchronisation
-        // sauf pour les synchronisations manuelles
       }
     };
     
@@ -506,7 +560,6 @@ export const useAutoSync = <T>(tableName: string) => {
     window.addEventListener(SYNC_EVENTS.SYNC_COMPLETED, handleSyncCompleted as EventListener);
     window.addEventListener(SYNC_EVENTS.DATA_CHANGED, handleDataChanged as EventListener);
     window.addEventListener(SYNC_EVENTS.SYNC_SUCCESS, handleSyncSuccess as EventListener);
-    window.addEventListener(SYNC_EVENTS.SYNC_ERROR, handleSyncError as EventListener);
     
     // Nettoyage
     return () => {
@@ -514,14 +567,13 @@ export const useAutoSync = <T>(tableName: string) => {
       window.removeEventListener(SYNC_EVENTS.SYNC_COMPLETED, handleSyncCompleted as EventListener);
       window.removeEventListener(SYNC_EVENTS.DATA_CHANGED, handleDataChanged as EventListener);
       window.removeEventListener(SYNC_EVENTS.SYNC_SUCCESS, handleSyncSuccess as EventListener);
-      window.removeEventListener(SYNC_EVENTS.SYNC_ERROR, handleSyncError as EventListener);
     };
-  }, [tableName, toast]);
+  }, [tableName, safeUserId]);
   
   // Fonction pour sauvegarder les données
   const saveData = (newData: T[]) => {
     // Sauvegarder localement
-    saveLocalData(tableName, newData);
+    saveLocalData(tableName, newData, safeUserId);
     setData(newData);
   };
   
@@ -547,7 +599,7 @@ export const useAutoSync = <T>(tableName: string) => {
     
     setIsSyncing(true);
     try {
-      const success = await syncWithServer(tableName, data);
+      const success = await syncWithServer(tableName, data, safeUserId);
       if (success) {
         setLastSynced(new Date());
         toast({
@@ -564,7 +616,7 @@ export const useAutoSync = <T>(tableName: string) => {
         return false;
       }
     } catch (error) {
-      console.error(`useAutoSync: Erreur lors de la synchronisation forcée de ${tableName}:`, error);
+      console.error(`useAutoSync: Erreur lors de la synchronisation forcée de ${tableName} pour ${safeUserId}:`, error);
       toast({
         title: "Erreur de synchronisation",
         description: error instanceof Error ? error.message : "Erreur inconnue",
@@ -583,7 +635,8 @@ export const useAutoSync = <T>(tableName: string) => {
     isOnline,
     lastSynced,
     syncWithServer: forceSyncWithServer,
-    hasPendingChanges: () => hasPendingChanges(tableName)
+    hasPendingChanges: () => hasPendingChanges(tableName, safeUserId),
+    userId: safeUserId // Exposer l'ID utilisateur utilisé
   };
 };
 
@@ -608,5 +661,6 @@ export default {
   forceSync,
   hasPendingChanges,
   getLastSynced,
-  SYNC_EVENTS
+  SYNC_EVENTS,
+  getStorageKey // Exporter la fonction utilitaire pour les tests
 };
