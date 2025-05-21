@@ -31,6 +31,19 @@ try {
     message: error instanceof Error ? error.message : 'Unknown error',
     stack: error instanceof Error ? error.stack : 'No stack trace available'
   });
+  
+  // Afficher une erreur visuelle
+  const rootElement = document.getElementById('root');
+  if (rootElement) {
+    rootElement.innerHTML = `
+      <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+        <h1>Erreur de chargement</h1>
+        <p>L'application n'a pas pu être chargée correctement.</p>
+        <p style="color: #721c24;">Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}</p>
+        <button onclick="window.location.reload()" style="background: #0066cc; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer;">Réessayer</button>
+      </div>
+    `;
+  }
 }
 
 // Global error handler
