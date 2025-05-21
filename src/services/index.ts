@@ -1,3 +1,4 @@
+
 // authService
 export {
   getAuthHeaders,
@@ -53,7 +54,7 @@ export {
   deleteTache
 } from './taches/tacheService';
 
-// syncService - Use lowercase filename consistently
+// syncService - Utiliser la casse correcte
 export {
   syncData,
   loadData,

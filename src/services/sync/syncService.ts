@@ -1,7 +1,7 @@
 
 import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '../auth/authService';
-import { getCurrentUser } from '../core/databaseConnectionService';
+import { getAuthHeaders } from '@/services/auth/authService';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { toast } from '@/components/ui/use-toast';
 
 // Type for generic data table

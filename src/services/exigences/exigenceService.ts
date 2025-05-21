@@ -1,9 +1,10 @@
+
 import { Exigence } from '@/types/exigences';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { loadDataFromStorage, saveDataToStorage } from '@/services/core/dataStorageService';
-import { loadData, saveData } from '@/services/sync/syncService';
+import { loadData, saveData } from '../sync/syncService';
 import { toast } from '@/components/ui/use-toast';
 import { getUserStorageKey } from '@/services/core/userIdValidator';
 

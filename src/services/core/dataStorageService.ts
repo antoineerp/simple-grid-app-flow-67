@@ -35,5 +35,5 @@ export const saveDataToStorage = <T>(key: string, data: T[]): void => {
   }
 };
 
-// Import with consistent casing
-export { loadData, saveData } from '@/services/sync/syncService';
+// Import avec la casse correcte et le chemin complet
+export { loadData, saveData } from '../sync/syncService';
