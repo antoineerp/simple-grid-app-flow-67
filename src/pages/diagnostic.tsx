@@ -9,6 +9,7 @@ import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import ConnectionDiagnostic from '@/components/debug/ConnectionDiagnostic';
 import TableDataComparison from '@/components/debug/TableDataComparison';
 import UserSyncTester from '@/components/debug/UserSyncTester';
+import UserIdChecker from '@/components/debug/UserIdChecker';
 
 /**
  * Page de diagnostic pour tester la synchronisation et les problèmes d'utilisateur
@@ -33,8 +34,9 @@ const DiagnosticPage: React.FC = () => {
           </Button>
           <h1 className="text-xl font-bold">Diagnostic et tests</h1>
         </div>
-        <div className="text-sm text-gray-500">
-          Utilisateur: <span className="font-mono">{currentUser}</span>
+        <div className="text-sm text-gray-500 flex items-center gap-2">
+          <UserIdChecker />
+          <span className="text-muted-foreground">ID actuel: {currentUser}</span>
         </div>
       </div>
       

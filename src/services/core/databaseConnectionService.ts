@@ -1,11 +1,12 @@
 
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
+import { toast } from '@/components/ui/use-toast';
 
 // Fonction pour récupérer l'utilisateur actuel
 export const getCurrentUser = (): string => {
   // Récupérer l'ID utilisateur depuis le stockage
-  const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+  const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || localStorage.getItem('currentDatabaseUser');
   if (userId && userId !== 'undefined' && userId !== 'null') {
     return userId;
   }
@@ -25,6 +26,18 @@ export const setCurrentUser = (userId: string): void => {
     localStorage.setItem('currentDatabaseUser', userId);
     localStorage.setItem('userId', userId);
     sessionStorage.setItem('userId', userId);
+    
+    // Déclencher un événement pour informer l'application du changement d'utilisateur
+    window.dispatchEvent(new CustomEvent('userChanged', { 
+      detail: { userId } 
+    }));
+    
+    // Afficher une notification pour informer l'utilisateur
+    toast({
+      title: "Utilisateur modifié",
+      description: `L'utilisateur actif est maintenant: ${userId}`
+    });
+    
   } catch (error) {
     console.error("Erreur lors de la définition de l'utilisateur:", error);
   }
@@ -36,6 +49,9 @@ export const removeCurrentUser = (): void => {
     localStorage.removeItem('currentDatabaseUser');
     localStorage.removeItem('userId');
     sessionStorage.removeItem('userId');
+    
+    // Informer l'application que l'utilisateur a été supprimé
+    window.dispatchEvent(new Event('userRemoved'));
   } catch (error) {
     console.error("Erreur lors de la suppression de l'utilisateur du localStorage:", error);
   }
@@ -67,16 +83,41 @@ export const connectAsUser = async (userId: string): Promise<boolean> => {
     // Enregistrer l'ID dans le stockage
     setCurrentUser(userId);
     
+    // Vérifier que l'identifiant est bien enregistré
+    const currentUser = getCurrentUser();
+    if (currentUser !== userId) {
+      throw new Error(`Échec de l'enregistrement de l'identifiant: ${currentUser} != ${userId}`);
+    }
+    
+    // Tester la connexion à la base de données après le changement d'utilisateur
+    const connectionTest = await testDatabaseConnection();
+    if (!connectionTest) {
+      throw new Error("Échec du test de connexion après changement d'utilisateur");
+    }
+    
     // Mettre à jour l'interface utilisateur
     window.dispatchEvent(new CustomEvent('database-user-changed', {
       detail: { user: userId }
     }));
+    
+    // Notification de succès
+    toast({
+      title: "Connexion réussie",
+      description: `Connecté en tant que: ${userId}`
+    });
     
     return true;
   } catch (error) {
     console.error("Erreur lors de la connexion en tant qu'utilisateur:", error);
     const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
     setLastConnectionError(errorMessage);
+    
+    toast({
+      variant: "destructive",
+      title: "Erreur de connexion",
+      description: errorMessage
+    });
+    
     return false;
   }
 };
@@ -85,6 +126,12 @@ export const connectAsUser = async (userId: string): Promise<boolean> => {
 export const disconnectUser = (): void => {
   removeCurrentUser();
   console.log("Utilisateur déconnecté de la base de données");
+  
+  // Notification de déconnexion
+  toast({
+    title: "Déconnexion",
+    description: "Utilisateur déconnecté de la base de données"
+  });
 };
 
 // Fonction pour obtenir l'utilisateur actuel de la connexion à la base de données
@@ -202,4 +249,24 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
 export const initializeCurrentUser = (): void => {
   const currentUser = getCurrentUser();
   console.log(`Utilisateur initialisé: ${currentUser}`);
+  
+  // Vérifier si l'utilisateur est valide et afficher une notification si nécessaire
+  if (currentUser === 'p71x6d_system') {
+    toast({
+      variant: "warning",
+      title: "Utilisateur par défaut",
+      description: "Vous utilisez l'utilisateur par défaut du système. Connectez-vous pour accéder à vos données."
+    });
+  } else {
+    toast({
+      title: "Utilisateur initialisé",
+      description: `Utilisateur actif: ${currentUser}`
+    });
+  }
+};
+
+// Fonction pour vérifier si l'utilisateur actuel est l'utilisateur par défaut
+export const isDefaultUser = (): boolean => {
+  const currentUser = getCurrentUser();
+  return currentUser === 'p71x6d_system';
 };
