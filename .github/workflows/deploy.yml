@@ -60,21 +60,6 @@ jobs:
         cp dist/index.html deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         
-        # Copie des fichiers PHP de correction automatique
-        cp fix-assets-auto.php deploy/ || echo "Fichier fix-assets-auto.php non trouvé"
-        cp fix-mime-types-auto.php deploy/ || echo "Fichier fix-mime-types-auto.php non trouvé"
-        
-        # Création de fichiers fallback pour main.js et index.css si nécessaire
-        if [ ! -f "deploy/assets/main.js" ]; then
-          echo "Création d'un fichier main.js de secours..."
-          cp src/main.js deploy/assets/main.js || echo "Création manuelle de main.js"
-        fi
-        
-        if [ ! -f "deploy/assets/index.css" ]; then
-          echo "Création d'un fichier index.css de secours..."
-          cp src/index.css deploy/assets/index.css || echo "Création manuelle de index.css"
-        fi
-        
         # Copie des fichiers de l'API
         if [ -d "api" ]; then
           echo "Copie des fichiers API..."
@@ -115,22 +100,6 @@ jobs:
           package-lock.json
         log-level: verbose
         timeout: 120000
-    
-    - name: Run Fix Assets Script
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./deploy/
-        server-dir: /sites/qualiopi.ch/
-        dangerous-clean-slate: false
-        exclude: |
-          **/*
-          !fix-assets-auto.php
-          !fix-mime-types-auto.php
-        log-level: verbose
-        timeout: 30000
 
     - name: Clean up
       run: |

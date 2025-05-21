@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { ensureUserIdFromToken } from '@/services/auth/authService';
-import { getCurrentUser, setCurrentUser, purgeSystem2Data } from '@/services/core/databaseConnectionService';
+import { getCurrentUser, setCurrentUser } from '@/services/core/databaseConnectionService';
 import { toast } from '@/components/ui/use-toast';
 
 /**
@@ -13,9 +13,6 @@ export const UserInitializer: React.FC = () => {
   const { isLoggedIn } = useAuth();
   
   useEffect(() => {
-    // Nettoyer d'abord les données potentiellement problématiques
-    purgeSystem2Data();
-    
     // Initialiser l'identifiant utilisateur
     if (isLoggedIn) {
       console.log("UserInitializer: Démarrage de l'initialisation de l'utilisateur");
