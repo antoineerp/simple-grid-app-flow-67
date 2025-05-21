@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, LogOut, Settings, Database } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronDown, LogOut, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
 import LogoSelector from './LogoSelector';
@@ -14,9 +14,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  getCurrentUser as getDatabaseUser,
-} from '@/services/core/databaseConnectionService';
 import { logout, getCurrentUser } from '@/services/auth/authService';
 import { UserRole, checkPermission } from '@/types/roles';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -25,7 +22,6 @@ const Header = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [logo, setLogo] = useState("/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png");
-  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getDatabaseUser());
   const { isOnline } = useNetworkStatus();
   
   // Obtenir l'ID utilisateur depuis le service d'authentification
@@ -37,19 +33,6 @@ const Header = () => {
   
   // Utiliser un nom d'affichage par défaut
   const userDisplayName = 'Utilisateur';
-
-  useEffect(() => {
-    const checkDatabaseUser = () => {
-      const dbUser = getDatabaseUser();
-      if (dbUser !== currentDatabaseUser) {
-        setCurrentDatabaseUser(dbUser);
-      }
-    };
-    
-    const interval = setInterval(checkDatabaseUser, 2000);
-    
-    return () => clearInterval(interval);
-  }, [currentDatabaseUser]);
 
   const handleLogout = () => {
     // Appel à la fonction logout du service d'authentification
@@ -96,13 +79,6 @@ const Header = () => {
           <div className={`px-2 py-1 rounded-full text-xs ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
             {isOnline ? 'En ligne' : 'Hors ligne'}
           </div>
-          
-          {currentDatabaseUser && (
-            <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-md flex items-center">
-              <Database className="w-3 h-3 mr-1" />
-              <span>DB: {currentDatabaseUser}</span>
-            </div>
-          )}
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
