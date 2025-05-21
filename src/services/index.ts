@@ -9,8 +9,7 @@ export {
   verifyToken,
   getIsLoggedIn,
   ensureUserIdFromToken,
-  getCurrentUser,
-  getCurrentUser as getAuthCurrentUser
+  getCurrentUser
 } from './auth/authService';
 
 // userService

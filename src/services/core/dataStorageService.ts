@@ -1,5 +1,6 @@
 
 import { getCurrentUser } from './databaseConnectionService';
+import { syncService } from '@/services/sync/syncService';
 
 /**
  * Charge des données depuis le stockage local
@@ -35,5 +36,5 @@ export const saveDataToStorage = <T>(key: string, data: T[]): void => {
   }
 };
 
-// Add the missing exports that are referenced in exigencesService.ts
+// Use the exported functions from syncService with correct casing
 export { loadData, saveData } from '@/services/sync/syncService';

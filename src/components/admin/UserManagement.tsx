@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -66,7 +65,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     setConnectionError(null);
   };
 
-  const getInitials = (nom: string, prenom: string) => {
+  const getInitials = (nom: string, prenom: string): string => {
     return `${prenom.charAt(0)}${nom.charAt(0)}`.toUpperCase();
   };
 
@@ -95,6 +94,8 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
         setTimeout(() => {
           window.location.reload();
         }, 500);
+        
+        return true;
       } else {
         const error = getLastConnectionError();
         setConnectionError(error || "Erreur inconnue lors de la connexion");
@@ -103,6 +104,8 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
           description: error || "Erreur inconnue lors de la connexion",
           variant: "destructive",
         });
+        
+        return false;
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
@@ -112,6 +115,8 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
         description: errorMessage,
         variant: "destructive",
       });
+      
+      return false;
     } finally {
       setConnectingUser(null);
     }
