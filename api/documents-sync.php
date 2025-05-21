@@ -10,7 +10,7 @@ header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Journalisation
+// Journalisation détaillée
 error_log("=== DEBUT DE L'EXÉCUTION DE documents-sync.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
@@ -27,22 +27,35 @@ try {
     
     // Récupérer les données POST JSON
     $json = file_get_contents('php://input');
+    error_log("Données reçues (brut): " . substr($json, 0, 500) . "...");
+    
     $data = json_decode($json, true);
     
-    if (!$json || !$data) {
-        throw new Exception("Aucune donnée reçue ou format JSON invalide");
+    if ($json === false || $json === "") {
+        throw new Exception("Aucune donnée reçue. Input vide.");
     }
     
-    error_log("Données reçues pour synchronisation des documents");
-    error_log("Contenu: " . substr($json, 0, 500) . "...");
+    if ($data === null) {
+        error_log("Erreur JSON: " . json_last_error_msg() . " - JSON reçu: " . substr($json, 0, 500));
+        throw new Exception("Format JSON invalide: " . json_last_error_msg());
+    }
+    
+    error_log("Données décodées: " . print_r($data, true));
     
     // Vérifier si les données nécessaires sont présentes
-    if (!isset($data['userId'])) {
-        throw new Exception("Données incomplètes. 'userId' est requis");
+    if (!isset($data['userId']) && !isset($data['user_id'])) {
+        throw new Exception("Données incomplètes. 'userId' ou 'user_id' est requis");
     }
     
-    $userId = $data['userId'];
+    // Récupérer l'ID utilisateur du bon champ
+    $userId = isset($data['userId']) ? $data['userId'] : $data['user_id'];
     $documents = isset($data['documents']) ? $data['documents'] : [];
+    
+    if (!is_array($documents)) {
+        error_log("Format de documents invalide: " . gettype($documents) . " au lieu d'un tableau");
+        error_log("Contenu: " . print_r($documents, true));
+        throw new Exception("Le champ 'documents' doit être un tableau");
+    }
     
     error_log("Synchronisation pour l'utilisateur: {$userId}");
     error_log("Nombre de documents: " . count($documents));
@@ -62,7 +75,7 @@ try {
     // Essayer de se connecter à la base de données
     $host = "p71x6d.myd.infomaniak.com";
     $dbname = "p71x6d_system";
-    $username = "p71x6d_system";
+    $username = "p71x6d_richard";
     $password = "Trottinette43!";
     
     try {
@@ -90,7 +103,6 @@ try {
             )");
             
             // Vider la table pour une synchronisation complète
-            // Note: Dans un système de production, vous voudrez peut-être modifier uniquement les enregistrements modifiés
             $pdo->exec("TRUNCATE TABLE `{$tableName}`");
             
             // Préparer l'insertion des documents
@@ -99,12 +111,29 @@ try {
                                       VALUES (?, ?, ?, ?, ?, ?)");
                 
                 foreach ($documents as $doc) {
+                    // Vérifier que l'ID existe
+                    if (!isset($doc['id'])) {
+                        error_log("Document sans ID trouvé, génération d'un UUID");
+                        $doc['id'] = uniqid('doc_', true);
+                    }
+                    
+                    // Vérifier que le nom existe
+                    $nom = isset($doc['nom']) ? $doc['nom'] : (isset($doc['name']) ? $doc['name'] : 'Document sans nom');
+                    
+                    // Traiter les responsabilités (gérer les formats possibles)
+                    $responsabilites = null;
+                    if (isset($doc['responsabilites'])) {
+                        $responsabilites = is_array($doc['responsabilites']) ? 
+                            json_encode($doc['responsabilites']) : $doc['responsabilites'];
+                    }
+                    
+                    // Exécuter l'insertion
                     $stmt->execute([
                         $doc['id'],
-                        $doc['nom'],
-                        $doc['fichier_path'] ?? null,
-                        isset($doc['responsabilites']) ? json_encode($doc['responsabilites']) : null,
-                        $doc['etat'] ?? null,
+                        $nom,
+                        $doc['fichier_path'] ?? ($doc['link'] ?? null),
+                        $responsabilites,
+                        $doc['etat'] ?? ($doc['statut'] ?? null),
                         $doc['groupId'] ?? null
                     ]);
                 }
@@ -119,12 +148,10 @@ try {
         
     } catch (PDOException $e) {
         error_log("Erreur de connexion à la base de données: " . $e->getMessage());
-        // On continue malgré l'erreur pour simuler un succès (pour les tests)
-        error_log("Simulation de succès malgré l'erreur de connexion");
+        throw new Exception("Erreur de connexion à la base de données: " . $e->getMessage());
     }
     
-    // Simuler une réponse réussie (pour les tests)
-    // Dans un système de production, vous retourneriez le vrai statut
+    // Réponse de succès
     $response = [
         'success' => true,
         'message' => 'Synchronisation réussie',

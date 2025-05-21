@@ -5,8 +5,8 @@
  */
 
 import { Document } from '@/types/documents';
-import { getCurrentUser } from '@/services/auth/authService';
-import { toast } from '@/components/ui/use-toast';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { toast } from '@/components/ui/use-toast'; 
 import { getApiUrl } from '@/config/apiConfig';
 import { validateJsonResponse, extractValidJson } from '@/utils/jsonValidator';
 import { saveLocalData, loadLocalData, syncWithServer } from '@/services/sync/AutoSyncService';
@@ -49,8 +49,77 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
   console.log(`Début de la synchronisation de ${docs.length} documents...`);
   
   try {
-    // Utiliser le nouveau système de synchronisation automatique
-    return await syncWithServer('documents', docs);
+    // Normaliser les documents pour la synchronisation
+    const normalizedDocs = docs.map(doc => ({
+      id: doc.id,
+      nom: doc.nom || doc.name || 'Sans titre',
+      fichier_path: doc.fichier_path || doc.link || null,
+      responsabilites: doc.responsabilites || null,
+      etat: doc.etat || doc.statut || null,
+      groupId: doc.groupId || null
+    }));
+    
+    // Obtenir l'ID utilisateur correctement formaté
+    const userId = ensureCorrectUserId(getCurrentUser());
+    
+    // Préparer les données de synchronisation
+    const syncData = {
+      userId: userId,
+      documents: normalizedDocs,
+      timestamp: new Date().toISOString()
+    };
+    
+    const apiUrl = getApiUrl();
+    const syncUrl = `${apiUrl}/documents-sync.php`;
+    
+    console.log(`Envoi de la requête de synchronisation à ${syncUrl}`);
+    console.log(`ID utilisateur: ${userId}`);
+    
+    // Appliquer un délai court pour éviter les problèmes de synchronisation rapide
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const response = await fetch(syncUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      },
+      body: JSON.stringify(syncData),
+      cache: 'no-store',
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Erreur HTTP ${response.status}: ${errorText}`);
+      throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    // Lire et valider la réponse
+    const responseText = await response.text();
+    console.log(`Réponse brute du serveur: ${responseText.substring(0, 200)}`);
+    
+    // Analyser la réponse JSON
+    try {
+      const result = JSON.parse(responseText);
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Échec de la synchronisation');
+      }
+      
+      console.log(`Synchronisation réussie de ${result.count} documents`);
+      return true;
+    } catch (jsonError) {
+      console.error('Erreur lors du parsing de la réponse JSON:', jsonError);
+      
+      // Si la réponse est vide mais le statut est 200, considérer comme succès
+      if (response.ok && (!responseText || responseText.trim() === '')) {
+        console.log('Réponse vide mais statut OK, considéré comme succès');
+        return true;
+      }
+      
+      throw new Error('Réponse invalide du serveur');
+    }
   } catch (error) {
     console.error('Erreur lors de la synchronisation des documents:', error);
     
