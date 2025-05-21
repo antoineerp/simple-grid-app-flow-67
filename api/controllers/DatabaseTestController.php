@@ -10,6 +10,9 @@ header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -27,10 +30,10 @@ ini_set('error_log', __DIR__ . '/../logs/database_test_errors.log');
 // Fonction pour tester la connexion à la base de données
 function testDatabaseConnection() {
     try {
-        // Configuration de connexion standard
+        // Configuration de connexion pour la base "richard"
         $host = "p71x6d.myd.infomaniak.com";
-        $dbname = "p71x6d_system";
-        $username = "p71x6d_system";
+        $dbname = "p71x6d_richard";
+        $username = "p71x6d_richard";
         $password = "Trottinette43!";
         
         // Créer une connexion PDO directe
@@ -53,16 +56,16 @@ function testDatabaseConnection() {
         
         return [
             'success' => true,
-            'message' => 'Connexion à la base de données réussie',
+            'message' => 'Connexion à la base de données richard réussie',
             'version' => $result['version'],
             'tables_count' => count($tables),
             'tables' => $tables
         ];
     } catch (PDOException $e) {
-        error_log("Erreur de connexion PDO: " . $e->getMessage());
+        error_log("Erreur de connexion PDO à la base richard: " . $e->getMessage());
         return [
             'success' => false,
-            'message' => 'Erreur de connexion à la base de données',
+            'message' => 'Erreur de connexion à la base de données richard',
             'error' => $e->getMessage()
         ];
     }

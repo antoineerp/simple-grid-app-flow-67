@@ -14,13 +14,13 @@ class DatabaseConfig {
     }
 
     private function loadDefaultConfig() {
-        // Toujours utiliser uniquement les valeurs d'Infomaniak
+        // Toujours utiliser p71x6d_richard comme base de données par défaut
         $this->host = "p71x6d.myd.infomaniak.com";
-        $this->db_name = "p71x6d_system";
+        $this->db_name = "p71x6d_richard";
         $this->username = "p71x6d_richard";
         $this->password = "Trottinette43!";
         
-        error_log("Configuration par défaut chargée pour la base de données Infomaniak");
+        error_log("Configuration par défaut chargée pour la base de données Infomaniak (utilisateur richard)");
     }
 
     private function loadConfigFile() {
@@ -37,8 +37,20 @@ class DatabaseConfig {
                         $this->host = $config['host'];
                     }
                     
-                    if (isset($config['db_name'])) $this->db_name = $config['db_name'];
-                    if (isset($config['username'])) $this->username = $config['username'];
+                    // Toujours forcer l'utilisation de la base richard
+                    if (isset($config['db_name']) && $config['db_name'] === 'p71x6d_richard') {
+                        $this->db_name = $config['db_name'];
+                    } else {
+                        $this->db_name = 'p71x6d_richard';
+                    }
+                    
+                    // Forcer l'utilisateur richard
+                    if (isset($config['username']) && $config['username'] === 'p71x6d_richard') {
+                        $this->username = $config['username'];
+                    } else {
+                        $this->username = 'p71x6d_richard';
+                    }
+                    
                     if (isset($config['password'])) $this->password = $config['password'];
                 }
             } catch (Exception $e) {
@@ -104,8 +116,9 @@ class DatabaseConfig {
             error_log("Hôte non valide, forcé vers Infomaniak");
         }
         
-        $this->db_name = $db_name;
-        $this->username = $username;
+        // Forcer toujours l'utilisation de la base richard
+        $this->db_name = 'p71x6d_richard';
+        $this->username = 'p71x6d_richard';
         $this->password = $password;
         return $this->saveConfig();
     }
