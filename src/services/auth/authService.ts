@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { User, AuthResponse } from '@/types/auth';
 import { setCurrentUser as setDbUser } from '@/services/core/databaseConnectionService';
@@ -152,8 +151,10 @@ export const login = async (username: string, password: string): Promise<AuthRes
           if (decodedPayload.user) {
             if (typeof decodedPayload.user === 'object' && decodedPayload.user.identifiant_technique) {
               userId = decodedPayload.user.identifiant_technique;
+              console.log(`ID technique extrait du token (objet): ${userId}`);
             } else if (typeof decodedPayload.user === 'string') {
               userId = decodedPayload.user;
+              console.log(`ID technique extrait du token (string): ${userId}`);
             }
           }
           
