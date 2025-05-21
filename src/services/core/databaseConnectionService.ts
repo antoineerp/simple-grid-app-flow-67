@@ -1,8 +1,4 @@
 
-import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '@/services/auth/authService';
-import { toast } from '@/components/ui/use-toast';
-
 // Fonction pour récupérer l'utilisateur actuel
 export const getCurrentUser = (): string => {
   // Récupérer l'ID utilisateur depuis le token JWT (le plus fiable)
@@ -13,9 +9,16 @@ export const getCurrentUser = (): string => {
       const parts = authToken.split('.');
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1]));
+        
+        // Extraction selon différents formats possibles
         if (payload && payload.user) {
-          console.log(`ID utilisateur récupéré depuis le token JWT: ${payload.user}`);
-          return payload.user;
+          if (typeof payload.user === 'object' && payload.user.identifiant_technique) {
+            console.log(`ID utilisateur récupéré depuis le token JWT: ${payload.user.identifiant_technique}`);
+            return payload.user.identifiant_technique;
+          } else if (typeof payload.user === 'string') {
+            console.log(`ID utilisateur récupéré depuis le token JWT: ${payload.user}`);
+            return payload.user;
+          }
         }
       }
     } catch (error) {

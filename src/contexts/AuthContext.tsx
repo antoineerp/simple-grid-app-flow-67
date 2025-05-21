@@ -6,6 +6,7 @@ import { User } from '@/types/auth';
 interface AuthContextType {
   isLoggedIn: boolean;
   user: User | null;
+  userId: string | null;
   setIsLoggedIn: (value: boolean) => void;
   setUser: (user: User | null) => void;
 }
@@ -13,6 +14,7 @@ interface AuthContextType {
 const defaultAuthContext: AuthContextType = {
   isLoggedIn: false,
   user: null,
+  userId: null,
   setIsLoggedIn: () => {},
   setUser: () => {},
 };
@@ -30,6 +32,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(getIsLoggedIn());
   const [user, setUser] = useState<User | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     // Vérifier l'état d'authentification au chargement
@@ -38,10 +41,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoggedIn(loggedIn);
       
       if (loggedIn) {
-        const currentUser = getCurrentUser();
-        setUser(currentUser);
+        const currentUserId = getCurrentUser();
+        setUserId(currentUserId);
+        
+        // Construire un objet utilisateur minimal avec l'ID
+        if (currentUserId) {
+          setUser({ 
+            id: currentUserId 
+          });
+        } else {
+          setUser(null);
+        }
       } else {
         setUser(null);
+        setUserId(null);
       }
     };
     
@@ -49,7 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, user, setIsLoggedIn, setUser }}>
+    <AuthContext.Provider value={{ isLoggedIn, user, userId, setIsLoggedIn, setUser }}>
       {children}
     </AuthContext.Provider>
   );
