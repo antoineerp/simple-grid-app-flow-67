@@ -52,10 +52,10 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
     // Normaliser les documents pour la synchronisation
     const normalizedDocs = docs.map(doc => ({
       id: doc.id,
-      nom: doc.nom || doc.name || 'Sans titre',
-      fichier_path: doc.fichier_path || doc.link || null,
+      nom: doc.nom || '',
+      fichier_path: doc.fichier_path || null,
       responsabilites: doc.responsabilites || null,
-      etat: doc.etat || doc.statut || null,
+      etat: doc.etat || null,
       groupId: doc.groupId || null
     }));
     
@@ -83,7 +83,8 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
+        'Pragma': 'no-cache',
+        'User-Agent': 'FormaCert-App/1.0 (Synchronisation; QualiAPI)'
       },
       body: JSON.stringify(syncData),
       cache: 'no-store',

@@ -7,12 +7,13 @@ ob_start();
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, User-Agent");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
 // Journalisation détaillée
 error_log("=== DEBUT DE L'EXÉCUTION DE documents-sync.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+error_log("User-Agent: " . (isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : 'Non défini'));
 
 // Gestion des requêtes OPTIONS (preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -118,7 +119,7 @@ try {
                     }
                     
                     // Vérifier que le nom existe
-                    $nom = isset($doc['nom']) ? $doc['nom'] : (isset($doc['name']) ? $doc['name'] : 'Document sans nom');
+                    $nom = isset($doc['nom']) ? $doc['nom'] : 'Document sans nom';
                     
                     // Traiter les responsabilités (gérer les formats possibles)
                     $responsabilites = null;
@@ -131,9 +132,9 @@ try {
                     $stmt->execute([
                         $doc['id'],
                         $nom,
-                        $doc['fichier_path'] ?? ($doc['link'] ?? null),
+                        $doc['fichier_path'] ?? null,
                         $responsabilites,
-                        $doc['etat'] ?? ($doc['statut'] ?? null),
+                        $doc['etat'] ?? null,
                         $doc['groupId'] ?? null
                     ]);
                 }
