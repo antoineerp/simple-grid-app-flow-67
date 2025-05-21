@@ -49,163 +49,27 @@ jobs:
         mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
         
-        # Vérification des fichiers JS et CSS critiques dans dist/assets
-        echo "Vérification des fichiers JS et CSS principaux..."
-        MAIN_JS=$(find dist/assets -name "main*.js" | head -n 1)
-        INDEX_JS=$(find dist/assets -name "index*.js" | head -n 1)
-        MAIN_CSS=$(find dist/assets -name "*.css" | head -n 1)
-        
-        if [ -z "$MAIN_JS" ] && [ -z "$INDEX_JS" ]; then
-          echo "ATTENTION: Aucun fichier main.js ou index.js trouvé dans dist/assets!"
-        else
-          echo "Fichier JS principal trouvé: ${MAIN_JS:-$INDEX_JS}"
-        fi
-        
-        if [ -z "$MAIN_CSS" ]; then
-          echo "ATTENTION: Aucun fichier CSS trouvé dans dist/assets!"
-        else
-          echo "Fichier CSS principal trouvé: $MAIN_CSS"
-        fi
-        
         # Copie du contenu du dossier dist à la racine du déploiement
         echo "Copie de index.html à la racine..."
         cp dist/index.html deploy/
         
-        # Copie des fichiers assets avec vérification et feedback
+        # Copie des assets
         echo "Copie des assets..."
         if [ -d "dist/assets" ]; then
           cp -rv dist/assets/* deploy/assets/
-          echo "Nombre de fichiers copiés dans deploy/assets: $(find deploy/assets -type f | wc -l)"
         else
           echo "ERREUR: Le dossier dist/assets n'existe pas!"
         fi
         
-        # Copie DIRECTE des fichiers critiques depuis src
+        # IMPORTANT: Copie directe des fichiers critiques
         echo "Copie des fichiers critiques depuis src..."
-        if [ -f "src/main.js" ]; then
-          echo "Copie du fichier src/main.js vers deploy/assets/"
-          cp src/main.js deploy/assets/
-        fi
-        
-        if [ -f "src/assets/index.js" ]; then
-          echo "Copie du fichier src/assets/index.js vers deploy/assets/"
-          cp src/assets/index.js deploy/assets/
-        fi
-        
-        # Créer des fichiers statiques de fallback si nécessaire
-        if [ ! -f "deploy/assets/main.js" ]; then
-          echo "Création d'un fichier main.js de fallback..."
-          if [ -f "src/main.js" ]; then
-            cp src/main.js deploy/assets/main.js
-            echo "Fichier main.js copié depuis src/"
-          elif [ -f "src/main.tsx" ]; then
-            cat src/main.tsx > deploy/assets/main.js
-            echo "Fichier main.tsx converti en main.js"
-          else
-            echo "console.log('Fichier main.js de fallback chargé. Veuillez vider le cache du navigateur.');" > deploy/assets/main.js
-            echo "Fallback minimal créé pour main.js"
-          fi
-        fi
-        
-        if [ ! -f "deploy/assets/index.js" ]; then
-          echo "Création d'un fichier index.js de fallback..."
-          if [ -f "src/assets/index.js" ]; then
-            cp src/assets/index.js deploy/assets/index.js
-            echo "Fichier index.js copié depuis src/assets/"
-          else
-            echo "console.log('Fichier index.js de fallback chargé. Veuillez vider le cache du navigateur.');" > deploy/assets/index.js
-            echo "Fallback minimal créé pour index.js"
-          fi
-        fi
-        
-        # Création d'un backup des assets pour référence
-        mkdir -p deploy/dist/assets
-        cp -r dist/assets/* deploy/dist/assets/ || echo "Aucun fichier à copier pour le backup"
+        cp src/main.js deploy/assets/ || echo "Fichier src/main.js non trouvé"
+        cp src/main.tsx deploy/assets/main.tsx || echo "Fichier src/main.tsx non trouvé"
+        cp src/assets/index.js deploy/assets/ || echo "Fichier src/assets/index.js non trouvé"
         
         # Copie des autres fichiers nécessaires
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         cp fix-assets-auto.php deploy/ || echo "Fichier fix-assets-auto.php non trouvé"
-        
-        # Vérification finale des assets critiques et actions supplémentaires si nécessaires
-        echo "Vérification finale des assets critiques..."
-        if [ ! -f "deploy/assets/main.js" ]; then
-          echo "ERREUR CRITIQUE: main.js TOUJOURS manquant après les tentatives de récupération!"
-          
-          # Dernier recours: créer un main.js fonctionnel
-          echo "Création d'un main.js fonctionnel en dernier recours..."
-          cat > deploy/assets/main.js << 'EOF'
-// Main entry point for the application
-// This file provides a fallback for browsers that might have issues with direct ES imports
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
-import './index.css';
-
-window.addEventListener('DOMContentLoaded', () => {
-  try {
-    console.log("Application initialization started");
-    const rootElement = document.getElementById("root");
-    
-    if (rootElement) {
-      console.log("Root element found, starting React rendering");
-      const root = createRoot(rootElement);
-      root.render(React.createElement(App));
-      
-      console.log("Application rendering successfully started");
-    } else {
-      console.error("Root element not found");
-      document.body.innerHTML = `
-        <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
-          <h1>Erreur critique</h1>
-          <p>L'élément racine de l'application est introuvable.</p>
-          <button onclick="window.location.reload()">Réessayer</button>
-        </div>
-      `;
-    }
-  } catch (error) {
-    console.error("Failed to render React application:", error);
-    
-    // Afficher des informations détaillées sur l'erreur
-    console.error("Error details:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
-    
-    // Fallback pour afficher une erreur à l'utilisateur
-    if (document.getElementById("root")) {
-      document.getElementById("root").innerHTML = `
-        <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
-          <h1>Erreur de chargement</h1>
-          <p>L'application n'a pas pu être chargée correctement.</p>
-          <p>Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}</p>
-          <button onclick="window.location.reload()">Réessayer</button>
-        </div>
-      `;
-    }
-  }
-});
-
-// Global error handler
-window.addEventListener('error', (event) => {
-  console.error('Global error caught:', event.error);
-  console.error('Error details:', {
-    message: event.error?.message,
-    stack: event.error?.stack,
-    filename: event.filename,
-    lineno: event.lineno,
-    colno: event.colno
-  });
-});
-EOF
-        fi
-        
-        # Vérification finale de l'existence des fichiers critiques
-        echo "Contenu final du dossier assets:"
-        ls -la deploy/assets/
-        
-        echo "Structure du dossier de déploiement:"
-        find deploy -type f | sort | head -n 20
 
     - name: Sync to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
