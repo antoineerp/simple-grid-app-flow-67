@@ -1,3 +1,4 @@
+
 /**
  * Service unifié de synchronisation des documents
  * Utilise exclusivement la base p71x6d_richard sur Infomaniak
@@ -139,8 +140,11 @@ export const fetchDocumentsFromServer = async (): Promise<Document[]> => {
     
     console.log(`DocumentSyncService: Récupération depuis le serveur avec Base: ${userId}, Préfixe: ${userPrefix}, ID original: ${origUserId}`);
     
+    // MODIFICATION: Utiliser db-fetch.php au lieu de documents-fetch.php
     const apiUrl = getApiUrl();
-    const fetchUrl = `${apiUrl}/documents-fetch.php?userId=${userId}&userPrefix=${userPrefix}&originalUserId=${origUserId}`;
+    const fetchUrl = `${apiUrl}/db-fetch.php?table=documents&userId=${userId}`;
+    
+    console.log(`DocumentSyncService: Récupération depuis ${fetchUrl}`);
     
     const response = await fetch(fetchUrl, {
       method: 'GET',
@@ -156,18 +160,54 @@ export const fetchDocumentsFromServer = async (): Promise<Document[]> => {
     
     const data = await response.json();
     
-    if (!data.success) {
+    if (data.status === 'error') {
       throw new Error(data.message || 'Échec de récupération des documents');
     }
     
-    // Sauvegarder les documents récupérés dans le cache local
-    if (data.documents && Array.isArray(data.documents)) {
-      console.log(`DocumentSyncService: ${data.documents.length} documents récupérés du serveur`);
-      saveLocalDocuments(data.documents);
-      return data.documents;
+    // Parser les données du format generic db-fetch.php
+    let documents: Document[] = [];
+    
+    if (data.records && Array.isArray(data.records)) {
+      documents = data.records.map((record: any) => {
+        // Si le record a un champ json_data, le parser
+        if (record.json_data) {
+          try {
+            const jsonData = JSON.parse(record.json_data);
+            return {
+              id: record.id || jsonData.id,
+              nom: jsonData.nom || jsonData.name || 'Document sans nom',
+              fichier_path: jsonData.fichier_path || null,
+              responsabilites: jsonData.responsabilites || { r: [], a: [], c: [], i: [] },
+              etat: jsonData.etat || null,
+              groupId: jsonData.groupId || null,
+              excluded: jsonData.excluded || false,
+              date_creation: record.created_at ? new Date(record.created_at) : new Date(),
+              date_modification: record.updated_at ? new Date(record.updated_at) : new Date()
+            };
+          } catch (e) {
+            console.error('Erreur parsing JSON:', e);
+            return null;
+          }
+        }
+        // Sinon, utiliser les champs directement
+        return {
+          id: record.id || '',
+          nom: record.nom || record.name || 'Document sans nom',
+          fichier_path: record.fichier_path || null,
+          responsabilites: record.responsabilites || { r: [], a: [], c: [], i: [] },
+          etat: record.etat || null,
+          groupId: record.groupId || null,
+          excluded: record.excluded || false,
+          date_creation: record.created_at ? new Date(record.created_at) : new Date(),
+          date_modification: record.updated_at ? new Date(record.updated_at) : new Date()
+        };
+      }).filter(Boolean) as Document[];
     }
     
-    return [];
+    console.log(`DocumentSyncService: ${documents.length} documents récupérés du serveur`);
+    saveLocalDocuments(documents);
+    return documents;
+    
   } catch (error) {
     console.error('DocumentSyncService: Erreur lors de la récupération:', error);
     toast({
