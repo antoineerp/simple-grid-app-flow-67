@@ -19,7 +19,7 @@ export interface MembreResponsabilite extends Membre {
 export const useResponsabilityMatrix = () => {
   const { membres } = useMembres();
   const [membreResponsabilites, setMembreResponsabilites] = useState<MembreResponsabilite[]>([]);
-  const userId = getCurrentUser(); // Utilisateur fixe: p71x6d_richard
+  const userId = getCurrentUser();
   
   useEffect(() => {
     const calculateResponsabilites = () => {
@@ -46,8 +46,6 @@ export const useResponsabilityMatrix = () => {
           } as MembreResponsabilite;
         }
         
-        console.log(`Calcul des responsabilités pour ${membre.prenom} ${membre.nom} (${initiales})`);
-        
         // Initialiser les compteurs
         const exigencesCount = { r: 0, a: 0, c: 0, i: 0 };
         const documentsCount = { r: 0, a: 0, c: 0, i: 0 };
@@ -67,10 +65,10 @@ export const useResponsabilityMatrix = () => {
             });
         }
         
-        // Compter les occurrences dans les documents (en excluant les documents exclus)
+        // Compter les occurrences dans les documents (en tenant compte que le document peut avoir excluded=true ou etat='EX')
         if (Array.isArray(documents)) {
           documents
-            .filter((document: any) => document.etat !== 'EX')
+            .filter((document: any) => !document.excluded && document.etat !== 'EX')
             .forEach((document: any) => {
               if (document.responsabilites) {
                 // Vérifier si les initiales du membre sont dans chaque type de responsabilité
@@ -81,8 +79,6 @@ export const useResponsabilityMatrix = () => {
               }
             });
         }
-
-        console.log(`Résultats pour ${initiales}:`, { exigences: exigencesCount, documents: documentsCount });
 
         // Inclure toutes les propriétés du membre et ajouter les nouvelles propriétés
         return {

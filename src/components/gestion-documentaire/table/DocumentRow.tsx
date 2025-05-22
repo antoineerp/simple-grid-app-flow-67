@@ -53,10 +53,16 @@ const DocumentRow: React.FC<DocumentRowProps> = ({
     onResponsabiliteChange(doc.id, 'i', values);
   };
 
+  // Convertir le statut 'EX' en excluded=true pour compatibilité
+  const isExcluded = doc.excluded || doc.etat === 'EX';
+  
+  // Convertir etat pour AtteinteSelector qui n'accepte que 'NC', 'PC', 'C' ou null
+  const normalizedEtat = doc.etat === 'EX' ? null : doc.etat;
+
   return (
     <TableRow
       key={doc.id}
-      className={cn("border-b hover:bg-gray-50", doc.excluded ? "bg-gray-100 text-gray-400" : "")}
+      className={cn("border-b hover:bg-gray-50", isExcluded ? "bg-gray-100 text-gray-400" : "")}
       draggable
       onDragStart={(e) => onDragStart(e, doc.id)}
       onDragOver={onDragOver}
@@ -77,7 +83,7 @@ const DocumentRow: React.FC<DocumentRowProps> = ({
           selectedInitiales={doc.responsabilites?.r || []}
           onChange={handleRChange}
           type="r"
-          disabled={doc.excluded}
+          disabled={isExcluded}
         />
       </TableCell>
 
@@ -86,7 +92,7 @@ const DocumentRow: React.FC<DocumentRowProps> = ({
           selectedInitiales={doc.responsabilites?.a || []}
           onChange={handleAChange}
           type="a"
-          disabled={doc.excluded}
+          disabled={isExcluded}
         />
       </TableCell>
 
@@ -95,7 +101,7 @@ const DocumentRow: React.FC<DocumentRowProps> = ({
           selectedInitiales={doc.responsabilites?.c || []}
           onChange={handleCChange}
           type="c"
-          disabled={doc.excluded}
+          disabled={isExcluded}
         />
       </TableCell>
 
@@ -104,15 +110,15 @@ const DocumentRow: React.FC<DocumentRowProps> = ({
           selectedInitiales={doc.responsabilites?.i || []}
           onChange={handleIChange}
           type="i"
-          disabled={doc.excluded}
+          disabled={isExcluded}
         />
       </TableCell>
 
       <TableCell className="w-1/6">
         <AtteinteSelector
-          value={doc.etat}
+          value={normalizedEtat}
           onChange={(value) => onAtteinteChange(doc.id, value)}
-          disabled={doc.excluded}
+          disabled={isExcluded}
         />
       </TableCell>
 
@@ -130,11 +136,11 @@ const DocumentRow: React.FC<DocumentRowProps> = ({
         <Button 
           variant="ghost" 
           size="icon" 
-          className={doc.excluded ? "text-green-600 hover:text-green-700" : "text-gray-500 hover:text-gray-700"}
+          className={isExcluded ? "text-green-600 hover:text-green-700" : "text-gray-500 hover:text-gray-700"}
           onClick={() => onExclusionChange(doc.id)}
-          title={doc.excluded ? "Inclure" : "Exclure"}
+          title={isExcluded ? "Inclure" : "Exclure"}
         >
-          {doc.excluded ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          {isExcluded ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
         </Button>
         
         <Button 

@@ -1,9 +1,4 @@
 
-/**
- * Service centralisé pour gérer toutes les synchronisations
- * Garantit l'utilisation exclusive de p71x6d_richard pour toutes les opérations
- */
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -124,7 +119,7 @@ export function useUnifiedSync<T extends SyncItem>({
         }
       } 
       // Pour les autres types de synchronisation (comme 'auto'), envoyer les données locales au serveur
-      else {
+      else if (type === 'auto') {
         const result = await syncWithServer<T>(tableName, data, endpoint);
         if (result.success) {
           setLastSynced(new Date());

@@ -38,12 +38,9 @@ class UserPostOperations extends BaseOperations {
                 return;
             }
             
-            // S'assurer que la table est définie à utilisateurs_p71x6d_richard
+            // TOUJOURS utiliser la table utilisateurs_p71x6d_richard
             $this->model->table = 'utilisateurs_p71x6d_richard';
-            error_log("UserPostOperations: Utilisation forcée de la table {$this->model->table}");
-            
-            // HARDCODER le nom de table directement dans la requête SQL pour déboguer
-            error_log("UserPostOperations: Table avant l'assignation: " . $this->model->table);
+            error_log("UserPostOperations: Utilisation FORCÉE de la table {$this->model->table}");
             
             // Assigner les valeurs au modèle
             $this->model->nom = htmlspecialchars(strip_tags($data['nom']));
@@ -61,12 +58,47 @@ class UserPostOperations extends BaseOperations {
                 $this->model->identifiant_technique = $data['identifiant_technique'];
             }
             
-            // Création forcée dans p71x6d_richard en double-vérification
-            error_log("UserPostOperations: Création de l'utilisateur {$this->model->prenom} {$this->model->nom} dans la table {$this->model->table}");
+            // Vérifier si cette email existe déjà UNIQUEMENT dans la table p71x6d_richard
+            $stmt = $this->model->conn->prepare("SELECT COUNT(*) as count FROM utilisateurs_p71x6d_richard WHERE email = :email");
+            $stmt->bindParam(":email", $this->model->email);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            // Créer l'utilisateur
-            if ($this->model->create()) {
-                error_log("UserPostOperations: Utilisateur créé avec succès dans la table {$this->model->table}, ID: " . $this->model->id);
+            if ($result['count'] > 0) {
+                ResponseHandler::error("L'email est déjà utilisé dans cette instance.", 400);
+                return;
+            }
+            
+            // Création directe dans la table p71x6d_richard
+            $query = "INSERT INTO utilisateurs_p71x6d_richard 
+                      (identifiant_technique, nom, prenom, email, mot_de_passe, role, date_creation) 
+                      VALUES 
+                      (:identifiant_technique, :nom, :prenom, :email, :mot_de_passe, :role, NOW())";
+            
+            $stmt = $this->model->conn->prepare($query);
+            
+            // Générer un mot de passe haché si nécessaire
+            $passwordToSave = isset($this->model->mot_de_passe) ? 
+                              password_hash($this->model->mot_de_passe, PASSWORD_DEFAULT) : 
+                              null;
+                              
+            // Générer un identifiant technique s'il n'existe pas
+            $idTechnique = $this->model->identifiant_technique ?? uniqid("user_");
+            
+            // Bind des paramètres
+            $stmt->bindParam(":identifiant_technique", $idTechnique);
+            $stmt->bindParam(":nom", $this->model->nom);
+            $stmt->bindParam(":prenom", $this->model->prenom);
+            $stmt->bindParam(":email", $this->model->email);
+            $stmt->bindParam(":mot_de_passe", $passwordToSave);
+            $stmt->bindParam(":role", $this->model->role);
+            
+            if ($stmt->execute()) {
+                $this->model->id = $this->model->conn->lastInsertId();
+                $this->model->identifiant_technique = $idTechnique;
+                $this->model->date_creation = date('Y-m-d H:i:s');
+                
+                error_log("UserPostOperations: Utilisateur créé avec succès dans p71x6d_richard, ID: " . $this->model->id);
                 
                 ResponseHandler::success([
                     'message' => 'Utilisateur créé avec succès.',
@@ -81,15 +113,8 @@ class UserPostOperations extends BaseOperations {
                     ]
                 ], 201);
             } else {
-                $errorMsg = "Échec de la création de l'utilisateur.";
-                
-                // Vérifier si l'erreur est due à un email existant
-                if ($this->model->emailExists()) {
-                    $errorMsg .= " L'email est déjà utilisé.";
-                }
-                
-                error_log("UserPostOperations: " . $errorMsg);
-                ResponseHandler::error($errorMsg, 400);
+                error_log("UserPostOperations: Échec de la création de l'utilisateur dans p71x6d_richard");
+                ResponseHandler::error("Échec de la création de l'utilisateur.", 400);
             }
             
         } catch (Exception $e) {
