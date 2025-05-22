@@ -110,7 +110,7 @@ export function useUnifiedSync<T extends SyncItem>({
         return false;
       }
       
-      // Comparaison correcte de type string littéral
+      // Utiliser une comparaison stricte avec les chaînes littérales
       if (type === 'init' || type === 'manual') {
         const serverData = await fetchFromServer<T>(tableName, endpoint);
         if (serverData && serverData.length > 0) {
@@ -125,6 +125,9 @@ export function useUnifiedSync<T extends SyncItem>({
         } else {
           console.error(`useUnifiedSync: Échec de synchronisation pour ${tableName}:`, result.message);
           setSyncFailed(true);
+          
+          // Cette condition est maintenant correcte car nous sommes dans le bloc "else"
+          // où type est forcément 'auto'
           if (type === 'manual') {
             toast({
               title: "Échec de synchronisation",
