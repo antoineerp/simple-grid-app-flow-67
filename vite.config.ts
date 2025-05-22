@@ -3,6 +3,19 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { randomBytes } from "crypto";
+
+// Polyfill for crypto.getRandomValues
+if (!globalThis.crypto) {
+  // @ts-ignore - Add crypto polyfill for Node environment
+  globalThis.crypto = {
+    getRandomValues: (buffer: Uint8Array) => {
+      const bytes = randomBytes(buffer.length);
+      buffer.set(new Uint8Array(bytes));
+      return buffer;
+    }
+  };
+}
 
 // Configuration pour Vite (compatible avec v5 et v6)
 export default defineConfig(({ mode }) => {
