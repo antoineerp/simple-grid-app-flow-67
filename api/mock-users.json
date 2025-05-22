@@ -1,0 +1,30 @@
+
+{
+  "status": "success",
+  "message": "Utilisateurs récupérés avec succès (données simulées)",
+  "success": true,
+  "records": [
+    {
+      "id": 1,
+      "nom": "Admin",
+      "prenom": "Système",
+      "email": "admin@system.local",
+      "mot_de_passe": "******",
+      "identifiant_technique": "p71x6d_richard",
+      "role": "admin",
+      "date_creation": "2023-01-01 00:00:00"
+    },
+    {
+      "id": 2,
+      "nom": "Utilisateur",
+      "prenom": "Test",
+      "email": "test@example.com",
+      "mot_de_passe": "******",
+      "identifiant_technique": "p71x6d_test",
+      "role": "utilisateur",
+      "date_creation": "2023-01-02 00:00:00"
+    }
+  ],
+  "count": 2,
+  "timestamp": "2023-05-22 00:00:00"
+}

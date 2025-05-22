@@ -11,6 +11,60 @@ const CACHE_DURATION = 30000; // 30 secondes de cache seulement
 const MAX_RETRIES = 3; // Maximum de tentatives de récupération
 
 /**
+ * Vérifie si une réponse contient du PHP au lieu de JSON
+ */
+const isPhpResponse = (text: string): boolean => {
+  return text.trim().startsWith('<?php') || 
+         text.includes('<?php') || 
+         text.includes('<br />') || 
+         text.includes('<!DOCTYPE');
+};
+
+/**
+ * Récupère les données mockées pour les utilisateurs
+ */
+const getMockUsers = async (): Promise<Utilisateur[]> => {
+  try {
+    const apiUrl = getApiUrl();
+    // Essayer d'utiliser un fichier JSON statique à la place du PHP
+    const response = await fetch(`${apiUrl}/mock-users.json?_t=${Date.now()}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Accept': 'application/json'
+      },
+      cache: 'no-store'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log("Données mockées récupérées:", data);
+    
+    if (data.records && Array.isArray(data.records)) {
+      return data.records;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error("Erreur lors de la récupération des données mockées:", error);
+    
+    // Créer un utilisateur par défaut en dernier recours
+    return [{
+      id: "default_admin",
+      username: "admin",
+      email: "admin@example.com",
+      role: "admin",
+      status: "active",
+      nom: "Admin",
+      prenom: "Default",
+      identifiant_technique: "p71x6d_richard"
+    }];
+  }
+};
+
+/**
  * Service centralisé pour la gestion des utilisateurs
  */
 export const UserManager = {
@@ -64,7 +118,7 @@ export const UserManager = {
           throw new Error("Réponse vide du serveur");
         }
         
-        if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+        if (isPhpResponse(responseText)) {
           console.error("Réponse PHP/HTML brute:", responseText.substring(0, 200));
           throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
         }
@@ -170,30 +224,40 @@ export const UserManager = {
           cache: 'no-store'
         });
         
-        if (response.ok) {
-          const data = await response.json();
+        const text = await response.text();
+        
+        // Vérifier si la réponse contient du PHP non exécuté
+        if (isPhpResponse(text)) {
+          console.error("Réponse PHP/HTML brute (check-users.php):", text.substring(0, 200));
+          // Utiliser les données mockées
+          console.log("Utilisation des données mockées...");
+          const mockUsers = await getMockUsers();
+          usersCache = mockUsers;
+          lastFetchTimestamp = Date.now();
+          return mockUsers;
+        }
+        
+        try {
+          const data = JSON.parse(text);
           if (data && data.records && Array.isArray(data.records) && data.records.length > 0) {
             console.log("Récupération alternative réussie:", data.records.length, "utilisateurs");
             usersCache = data.records;
             lastFetchTimestamp = Date.now();
             return data.records;
           }
+        } catch (parseError) {
+          console.error("Erreur de parsing JSON (check-users.php):", parseError);
         }
       } catch (altError) {
         console.error("Échec de la récupération alternative:", altError);
       }
       
-      // En dernier recours, créer un utilisateur par défaut
-      return [{
-        id: "default_admin",
-        username: "admin",
-        email: "admin@example.com",
-        role: "admin",
-        status: "active",
-        nom: "Admin",
-        prenom: "Default",
-        identifiant_technique: "p71x6d_richard"
-      }];
+      // En dernier recours, utiliser les données mockées
+      console.log("Utilisation des données mockées en dernier recours...");
+      const mockUsers = await getMockUsers();
+      usersCache = mockUsers;
+      lastFetchTimestamp = Date.now();
+      return mockUsers;
     }
   },
   
@@ -218,47 +282,49 @@ export const UserManager = {
         cache: 'no-store'
       });
       
-      if (!response.ok) {
-        console.error(`Erreur HTTP: ${response.status} ${response.statusText}`);
-        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
-      }
+      const text = await response.text();
       
-      const responseText = await response.text();
-      
-      if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
-        console.error("Réponse PHP/HTML brute:", responseText.substring(0, 200));
-        throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
-      }
-      
-      const data = JSON.parse(responseText);
-      console.log("Données de tables reçues:", data);
-      
-      if (!data.tables || !Array.isArray(data.tables)) {
-        // Si pas de tables trouvées, essayer de créer les tables pour cet utilisateur
-        console.log(`Aucune table trouvée pour l'utilisateur ${userId}, tentative de création...`);
-        
-        const createResponse = await fetch(`${currentApiUrl}/users.php?action=create_tables_for_user&userId=${encodeURIComponent(userId)}&_t=${Date.now()}`, {
-          method: 'GET',
-          headers: {
-            ...getAuthHeaders(),
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache'
-          }
-        });
-        
-        if (createResponse.ok) {
-          const createResult = await createResponse.json();
-          console.log("Résultat de la création des tables:", createResult);
-          
-          // Réessayer de récupérer les tables
-          return this.getUserTables(userId);
-        }
-        
-        console.warn("Aucune table trouvée et impossible d'en créer pour l'utilisateur", userId);
+      // Vérifier si la réponse contient du PHP non exécuté
+      if (isPhpResponse(text)) {
+        console.error("Réponse PHP/HTML brute (getUserTables):", text.substring(0, 200));
+        // Retourner une liste vide puisque nous ne pouvons pas obtenir les tables
         return [];
       }
       
-      return data.tables;
+      try {
+        const data = JSON.parse(text);
+        console.log("Données de tables reçues:", data);
+        
+        if (!data.tables || !Array.isArray(data.tables)) {
+          // Si pas de tables trouvées, essayer de créer les tables pour cet utilisateur
+          console.log(`Aucune table trouvée pour l'utilisateur ${userId}, tentative de création...`);
+          
+          const createResponse = await fetch(`${currentApiUrl}/users.php?action=create_tables_for_user&userId=${encodeURIComponent(userId)}&_t=${Date.now()}`, {
+            method: 'GET',
+            headers: {
+              ...getAuthHeaders(),
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache'
+            }
+          });
+          
+          if (createResponse.ok) {
+            const createResult = await createResponse.json();
+            console.log("Résultat de la création des tables:", createResult);
+            
+            // Réessayer de récupérer les tables
+            return this.getUserTables(userId);
+          }
+          
+          console.warn("Aucune table trouvée et impossible d'en créer pour l'utilisateur", userId);
+          return [];
+        }
+        
+        return data.tables;
+      } catch (parseError) {
+        console.error("Erreur de parsing JSON (getUserTables):", parseError);
+        return [];
+      }
     } catch (error) {
       console.error(`Erreur lors de la récupération des tables pour l'utilisateur ${userId}:`, error);
       return [];
@@ -282,14 +348,23 @@ export const UserManager = {
         }
       });
       
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP ${response.status}`);
+      const text = await response.text();
+      
+      // Vérifier si la réponse contient du PHP non exécuté
+      if (isPhpResponse(text)) {
+        console.error("Erreur lors de la vérification des tables:", text.substring(0, 200));
+        throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
       }
       
-      const result = await response.json();
-      console.log("Résultat de la vérification des tables:", result);
-      
-      return result.success === true;
+      try {
+        const result = JSON.parse(text);
+        console.log("Résultat de la vérification des tables:", result);
+        
+        return result.success === true;
+      } catch (parseError) {
+        console.error("Erreur de parsing JSON (ensureAllUserTablesExist):", parseError);
+        return false;
+      }
     } catch (error) {
       console.error("Erreur lors de la vérification des tables:", error);
       return false;

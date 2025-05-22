@@ -9,15 +9,24 @@ Options +FollowSymLinks
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
-# Définir les types MIME sans les forcer
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType text/css .css
+# Forcer l'exécution des fichiers PHP
+AddHandler application/x-httpd-php .php
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
 
 # Permettre l'accès direct aux ressources statiques
 RewriteCond %{REQUEST_URI} \.(js|mjs|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?|json)$
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
+
+# Traitement spécial pour les fichiers PHP - s'assurer qu'ils sont exécutés
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteCond %{REQUEST_URI} \.php$
+RewriteRule ^ - [L]
+
+# Redirection du dossier /api vers les scripts PHP
+RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # IMPORTANT: Prévention des boucles de redirection
 # Pour les requêtes qui ne correspondent pas à des fichiers réels
@@ -33,8 +42,8 @@ RewriteRule ^(.*)$ index.html [QSA,L]
 # Configuration CORS simplifiée
 <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, OPTIONS"
-    Header set Access-Control-Allow-Headers "Content-Type"
+    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, X-Forced-DB-User, X-User-Prefix"
 </IfModule>
 
 # Gestion des erreurs personnalisée
