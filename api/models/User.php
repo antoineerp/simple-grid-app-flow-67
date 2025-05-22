@@ -1,252 +1,265 @@
-
 <?php
-require_once dirname(__FILE__) . '/BaseModel.php';
-require_once dirname(__FILE__) . '/traits/TableManager.php';
-require_once dirname(__FILE__) . '/traits/UserValidator.php';
-require_once dirname(__FILE__) . '/traits/UserQueries.php';
-
-class User extends BaseModel {
-    use TableManager, UserValidator, UserQueries;
-
-    // Properties
+class User {
+    // Connexion à la base de données et nom de la table
+    private $conn;
+    public $table = "utilisateurs_p71x6d_richard"; // Utiliser TOUJOURS cette table
+    
+    // Propriétés de l'objet
     public $id;
+    public $identifiant_technique;
     public $nom;
     public $prenom;
     public $email;
     public $mot_de_passe;
-    public $identifiant_technique;
-    public $role;
     public $date_creation;
-
+    public $role;
+    public $last_login;
+    
+    // Constructeur avec $db comme connexion à la base de données
     public function __construct($db) {
-        parent::__construct($db, 'utilisateurs');
+        $this->conn = $db;
+        error_log("Modèle User initialisé avec la table fixe: {$this->table}");
     }
-
-    public function countUsersByRole($role) {
+    
+    // Créer un nouvel utilisateur
+    public function create() {
         try {
-            $query = "SELECT COUNT(*) FROM " . $this->table_name . " WHERE role = :role";
+            // Vérifier si la table existe, sinon la créer
+            $this->checkTableExists();
+            
+            // Vérifier si l'email existe déjà
+            if ($this->emailExists()) {
+                return false;
+            }
+            
+            // Vérifier le nombre de gestionnaires si le rôle est "gestionnaire"
+            if ($this->role === "gestionnaire" && $this->countGestionnaires() > 0) {
+                error_log("Impossible de créer plus d'un gestionnaire");
+                return false;
+            }
+            
+            // Générer un identifiant technique s'il n'est pas défini
+            if (empty($this->identifiant_technique)) {
+                $this->identifiant_technique = $this->generateTechnicalId();
+            }
+            
+            // Préparer la requête d'insertion
+            $query = "INSERT INTO " . $this->table . " 
+                    (identifiant_technique, nom, prenom, email, mot_de_passe, role) 
+                    VALUES
+                    (:identifiant_technique, :nom, :prenom, :email, :mot_de_passe, :role)";
+                    
+            error_log("Requête de création: " . $query);
+            
             $stmt = $this->conn->prepare($query);
-            $role = $this->sanitizeInput($role);
-            $stmt->bindParam(":role", $role);
+            
+            // Nettoyer les données
+            $this->nom = htmlspecialchars(strip_tags($this->nom));
+            $this->prenom = htmlspecialchars(strip_tags($this->prenom));
+            $this->email = htmlspecialchars(strip_tags($this->email));
+            $this->role = htmlspecialchars(strip_tags($this->role));
+            
+            // Hacher le mot de passe s'il est fourni
+            if (!empty($this->mot_de_passe)) {
+                $this->mot_de_passe = password_hash($this->mot_de_passe, PASSWORD_DEFAULT);
+            } else {
+                // Générer un mot de passe aléatoire si non fourni
+                $randomPass = bin2hex(random_bytes(4));
+                $this->mot_de_passe = password_hash($randomPass, PASSWORD_DEFAULT);
+            }
+            
+            // Liaison des valeurs
+            $stmt->bindParam(":identifiant_technique", $this->identifiant_technique);
+            $stmt->bindParam(":nom", $this->nom);
+            $stmt->bindParam(":prenom", $this->prenom);
+            $stmt->bindParam(":email", $this->email);
+            $stmt->bindParam(":mot_de_passe", $this->mot_de_passe);
+            $stmt->bindParam(":role", $this->role);
+            
+            error_log("Tentative de création d'utilisateur: " . $this->prenom . " " . $this->nom . " (" . $this->email . ")");
+            
+            // Exécuter la requête
+            if ($stmt->execute()) {
+                $this->id = $this->conn->lastInsertId();
+                error_log("Utilisateur créé avec succès. ID: " . $this->id);
+                return true;
+            }
+            
+            error_log("Échec de la création de l'utilisateur: " . json_encode($stmt->errorInfo()));
+            return false;
+            
+        } catch (PDOException $e) {
+            error_log("Exception lors de la création de l'utilisateur: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    // Vérifier si la table existe, sinon la créer
+    private function checkTableExists() {
+        try {
+            $query = "SHOW TABLES LIKE '" . $this->table . "'";
+            $stmt = $this->conn->prepare($query);
             $stmt->execute();
+            
+            if ($stmt->rowCount() == 0) {
+                error_log("La table {$this->table} n'existe pas, création en cours...");
+                
+                // Créer la table
+                $createTableQuery = "CREATE TABLE " . $this->table . " (
+                    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    identifiant_technique VARCHAR(255) NOT NULL UNIQUE,
+                    nom VARCHAR(100) NOT NULL,
+                    prenom VARCHAR(100) NOT NULL,
+                    email VARCHAR(255) NOT NULL UNIQUE,
+                    mot_de_passe VARCHAR(255) NOT NULL,
+                    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    role ENUM('admin', 'user', 'administrateur', 'utilisateur', 'gestionnaire') NOT NULL DEFAULT 'utilisateur',
+                    last_login TIMESTAMP NULL
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
+                
+                $this->conn->exec($createTableQuery);
+                error_log("Table {$this->table} créée avec succès.");
+            }
+        } catch (PDOException $e) {
+            error_log("Erreur lors de la vérification/création de la table: " . $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    // Vérifier si l'email existe déjà
+    public function emailExists() {
+        try {
+            $query = "SELECT COUNT(*) FROM " . $this->table . " WHERE email = :email";
+            $stmt = $this->conn->prepare($query);
+            $this->email = htmlspecialchars(strip_tags($this->email));
+            $stmt->bindParam(":email", $this->email);
+            $stmt->execute();
+            
+            return $stmt->fetchColumn() > 0;
+        } catch (PDOException $e) {
+            error_log("Erreur lors de la vérification de l'existence de l'email: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    // Compter le nombre de gestionnaires
+    private function countGestionnaires() {
+        try {
+            $query = "SELECT COUNT(*) FROM " . $this->table . " WHERE role = 'gestionnaire'";
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute();
+            
             return $stmt->fetchColumn();
         } catch (PDOException $e) {
-            error_log("Erreur lors du comptage des utilisateurs par rôle: " . $e->getMessage());
+            error_log("Erreur lors du comptage des gestionnaires: " . $e->getMessage());
             return 0;
         }
     }
-
-    public function emailExists($email) {
+    
+    // Générer un identifiant technique
+    private function generateTechnicalId() {
+        $prefix = "p71x6d_";
+        $timestamp = time();
+        $random = bin2hex(random_bytes(4));
+        
+        $technicalId = $prefix . strtolower(substr($this->nom, 0, 3) . substr($this->prenom, 0, 3) . "_" . $timestamp . $random);
+        
+        return $technicalId;
+    }
+    
+    // Autres méthodes (lire, mettre à jour, supprimer, etc.)
+    // Lire les données d'un utilisateur par ID
+    public function readOne() {
         try {
-            $query = "SELECT COUNT(*) FROM " . $this->table_name . " WHERE email = :email";
+            $query = "SELECT * FROM " . $this->table . " WHERE id = :id";
             $stmt = $this->conn->prepare($query);
-            $email = $this->sanitizeInput($email);
-            $stmt->bindParam(":email", $email);
+            $stmt->bindParam(":id", $this->id);
             $stmt->execute();
-            return ($stmt->fetchColumn() > 0);
+            
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($row) {
+                $this->identifiant_technique = $row['identifiant_technique'];
+                $this->nom = $row['nom'];
+                $this->prenom = $row['prenom'];
+                $this->email = $row['email'];
+                $this->mot_de_passe = $row['mot_de_passe'];
+                $this->date_creation = $row['date_creation'];
+                $this->role = $row['role'];
+                $this->last_login = $row['last_login'];
+                
+                return true;
+            }
+            
+            return false;
         } catch (PDOException $e) {
-            error_log("Erreur lors de la vérification de l'email: " . $e->getMessage());
+            error_log("Erreur lors de la lecture des données de l'utilisateur: " . $e->getMessage());
             return false;
         }
     }
-
-    public function identifiantExists($identifiant) {
+    
+    // Mettre à jour les données d'un utilisateur
+    public function update() {
         try {
-            $query = "SELECT COUNT(*) FROM " . $this->table_name . " WHERE identifiant_technique = :identifiant";
+            $query = "UPDATE " . $this->table . "
+                    SET
+                        nom = :nom,
+                        prenom = :prenom,
+                        email = :email,
+                        mot_de_passe = :mot_de_passe,
+                        role = :role
+                    WHERE id = :id";
+            
             $stmt = $this->conn->prepare($query);
-            $identifiant = $this->sanitizeInput($identifiant);
-            $stmt->bindParam(":identifiant", $identifiant);
-            $stmt->execute();
-            return ($stmt->fetchColumn() > 0);
+            
+            // Nettoyer les données
+            $this->nom = htmlspecialchars(strip_tags($this->nom));
+            $this->prenom = htmlspecialchars(strip_tags($this->prenom));
+            $this->email = htmlspecialchars(strip_tags($this->email));
+            $this->role = htmlspecialchars(strip_tags($this->role));
+            
+            // Hacher le mot de passe s'il est fourni
+            if (!empty($this->mot_de_passe)) {
+                $this->mot_de_passe = password_hash($this->mot_de_passe, PASSWORD_DEFAULT);
+            }
+            
+            // Liaison des valeurs
+            $stmt->bindParam(":nom", $this->nom);
+            $stmt->bindParam(":prenom", $this->prenom);
+            $stmt->bindParam(":email", $this->email);
+            $stmt->bindParam(":mot_de_passe", $this->mot_de_passe);
+            $stmt->bindParam(":role", $this->role);
+            $stmt->bindParam(":id", $this->id);
+            
+            // Exécuter la requête
+            if ($stmt->execute()) {
+                return true;
+            }
+            
+            return false;
         } catch (PDOException $e) {
-            error_log("Erreur lors de la vérification de l'identifiant: " . $e->getMessage());
+            error_log("Erreur lors de la mise à jour des données de l'utilisateur: " . $e->getMessage());
             return false;
         }
     }
-
-    public function findByEmailQuery($email) {
+    
+    // Supprimer un utilisateur
+    public function delete() {
         try {
-            $this->createTableIfNotExists();
-            
-            $query = "SELECT id, nom, prenom, email, identifiant_technique, role, date_creation 
-                     FROM " . $this->table_name . " 
-                     WHERE email = :email";
-                     
+            $query = "DELETE FROM " . $this->table . " WHERE id = :id";
             $stmt = $this->conn->prepare($query);
-            $email = $this->sanitizeInput($email);
-            $stmt->bindParam(":email", $email);
-            $stmt->execute();
+            $stmt->bindParam(":id", $this->id);
             
-            return $stmt;
-        } catch (PDOException $e) {
-            error_log("Erreur lors de la recherche par email: " . $e->getMessage());
-            return null;
-        }
-    }
-
-    public function findByIdentifiant($identifiant) {
-        $identifiant = $this->cleanUTF8($this->sanitizeInput($identifiant));
-        $this->createTableIfNotExists();
-        
-        // Vérifier le format de l'identifiant
-        if (empty($identifiant) || strpos($identifiant, 'p71x6d_') !== 0) {
-            error_log("Identifiant technique invalide: {$identifiant}");
+            // Exécuter la requête
+            if ($stmt->execute()) {
+                return true;
+            }
+            
             return false;
-        }
-        
-        $query = "SELECT * FROM " . $this->table_name . " WHERE identifiant_technique = ? LIMIT 0,1";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(1, $identifiant);
-        $stmt->execute();
-        
-        if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            foreach ($row as $key => $value) {
-                $this->$key = $value;
-            }
-            return true;
-        }
-        return false;
-    }
-
-    public function findByEmail($email) {
-        $email = $this->cleanUTF8($this->sanitizeInput($email));
-        $this->createTableIfNotExists();
-        
-        $query = "SELECT * FROM " . $this->table_name . " WHERE email = ? LIMIT 0,1";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(1, $email);
-        $stmt->execute();
-        
-        if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            // Vérifier et corriger l'identifiant technique si nécessaire
-            if (empty($row['identifiant_technique']) || strpos($row['identifiant_technique'], 'p71x6d_') !== 0) {
-                $identifiant_technique = 'p71x6d_' . preg_replace('/[^a-z0-9]/', '', strtolower($row['nom']));
-                
-                // Mettre à jour l'utilisateur dans la base de données
-                $update = $this->conn->prepare("UPDATE " . $this->table_name . " SET identifiant_technique = ? WHERE id = ?");
-                $update->execute([$identifiant_technique, $row['id']]);
-                
-                error_log("Identifiant technique corrigé pour l'utilisateur {$row['id']}: {$identifiant_technique}");
-                
-                $row['identifiant_technique'] = $identifiant_technique;
-            }
-            
-            foreach ($row as $key => $value) {
-                $this->$key = $value;
-            }
-            return true;
-        }
-        return false;
-    }
-
-    public function findById($id) {
-        try {
-            $query = "SELECT * FROM " . $this->table_name . " WHERE id = :id LIMIT 1";
-            $stmt = $this->conn->prepare($query);
-            $stmt->bindParam(":id", $id);
-            $stmt->execute();
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            // Vérifier et corriger l'identifiant technique si nécessaire
-            if ($user && (empty($user['identifiant_technique']) || strpos($user['identifiant_technique'], 'p71x6d_') !== 0)) {
-                $identifiant_technique = 'p71x6d_' . preg_replace('/[^a-z0-9]/', '', strtolower($user['nom']));
-                
-                // Mettre à jour l'utilisateur dans la base de données
-                $update = $this->conn->prepare("UPDATE " . $this->table_name . " SET identifiant_technique = ? WHERE id = ?");
-                $update->execute([$identifiant_technique, $user['id']]);
-                
-                error_log("Identifiant technique corrigé pour l'utilisateur {$user['id']}: {$identifiant_technique}");
-                
-                $user['identifiant_technique'] = $identifiant_technique;
-            }
-            
-            return $user;
         } catch (PDOException $e) {
-            error_log("Erreur lors de la recherche par ID: " . $e->getMessage());
-            return null;
-        }
-    }
-
-    public function getAdminCount() {
-        try {
-            $query = "SELECT COUNT(*) FROM " . $this->table_name . " WHERE role IN ('admin', 'administrateur')";
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute();
-            return $stmt;
-        } catch (PDOException $e) {
-            error_log("Erreur lors du comptage des administrateurs: " . $e->getMessage());
-            return null;
-        }
-    }
-
-    public function getManager() {
-        try {
-            $query = "SELECT * FROM " . $this->table_name . " WHERE role = 'gestionnaire' LIMIT 1";
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute();
-            $manager = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            // Vérifier et corriger l'identifiant technique si nécessaire
-            if ($manager && (empty($manager['identifiant_technique']) || strpos($manager['identifiant_technique'], 'p71x6d_') !== 0)) {
-                $identifiant_technique = 'p71x6d_' . preg_replace('/[^a-z0-9]/', '', strtolower($manager['nom']));
-                
-                // Mettre à jour l'utilisateur dans la base de données
-                $update = $this->conn->prepare("UPDATE " . $this->table_name . " SET identifiant_technique = ? WHERE id = ?");
-                $update->execute([$identifiant_technique, $manager['id']]);
-                
-                error_log("Identifiant technique corrigé pour le gestionnaire {$manager['id']}: {$identifiant_technique}");
-                
-                $manager['identifiant_technique'] = $identifiant_technique;
-            }
-            
-            return $manager;
-        } catch (PDOException $e) {
-            error_log("Erreur lors de la récupération du gestionnaire: " . $e->getMessage());
-            return null;
-        }
-    }
-
-    public function initializeUserDataFromManager($userId) {
-        try {
-            error_log("Initialisation des données pour l'utilisateur: $userId");
-            
-            // Vérifier le format de l'identifiant utilisateur
-            if (empty($userId) || strpos($userId, 'p71x6d_') !== 0) {
-                error_log("Format d'identifiant utilisateur invalide: $userId");
-                return false;
-            }
-            
-            $manager = $this->getManager();
-            if (!$manager) {
-                error_log("Aucun gestionnaire trouvé pour initialiser les données utilisateur");
-                return false;
-            }
-            
-            $managerIdentifiant = $manager['identifiant_technique'];
-            error_log("Gestionnaire trouvé: $managerIdentifiant");
-            
-            $this->copyUserData('documents', $managerIdentifiant, $userId);
-            $this->copyUserData('exigences', $managerIdentifiant, $userId);
-            return true;
-        } catch (Exception $e) {
-            error_log("Erreur lors de l'initialisation des données utilisateur: " . $e->getMessage());
-            return false;
-        }
-    }
-
-    private function copyUserData($dataType, $sourceUserId, $targetUserId) {
-        error_log("Copie des données $dataType de $sourceUserId vers $targetUserId");
-        // Implémentation simulée - à adapter selon votre structure de données
-        try {
-            // Vérifiez si la table existe, sinon la créer
-            $tableName = $dataType . '_' . str_replace('-', '_', $targetUserId);
-            error_log("Préparation de la table: $tableName");
-            
-            // Simule une copie de données
-            return true;
-        } catch (Exception $e) {
-            error_log("Erreur lors de la copie des données $dataType: " . $e->getMessage());
+            error_log("Erreur lors de la suppression de l'utilisateur: " . $e->getMessage());
             return false;
         }
     }
 }
+?>
