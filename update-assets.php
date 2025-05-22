@@ -25,8 +25,34 @@ function updateIndexHtml() {
     $original = $content;
     
     // Trouver les derniers fichiers JS et CSS
-    $latestJs = findLatestAsset('./assets', 'main*.js');
-    $latestCss = findLatestAsset('./assets', '*css');
+    $latestJs = null;
+    $latestCss = null;
+    
+    // Vérifier d'abord dans le dossier dist/assets
+    if (is_dir('./dist/assets')) {
+        $latestJs = findLatestAsset('./dist/assets', '*.js');
+        $latestCss = findLatestAsset('./dist/assets', '*.css');
+        
+        // Si trouvé dans dist/assets, ajuster les chemins
+        if ($latestJs) {
+            $latestJs = str_replace('/dist/assets/', '/assets/', $latestJs);
+        }
+        if ($latestCss) {
+            $latestCss = str_replace('/dist/assets/', '/assets/', $latestCss);
+        }
+    }
+    
+    // Vérifier ensuite dans le dossier assets si rien n'a été trouvé
+    if (!$latestJs && is_dir('./assets')) {
+        $latestJs = findLatestAsset('./assets', '*.js');
+    }
+    if (!$latestCss && is_dir('./assets')) {
+        $latestCss = findLatestAsset('./assets', '*.css');
+    }
+    
+    // Afficher les fichiers détectés
+    echo "Fichier JS détecté: " . ($latestJs ?? "Aucun") . "<br>";
+    echo "Fichier CSS détecté: " . ($latestCss ?? "Aucun") . "<br>";
     
     $changes = [];
     
@@ -126,6 +152,15 @@ $success = $result['success'] ? '<span style="color:green;font-weight:bold;">Suc
             </ul>
         </div>
     <?php endif; ?>
+    
+    <h2>Structure des fichiers détectés</h2>
+    <div class="changes">
+        <h3>Dossier dist/assets:</h3>
+        <pre><?php echo is_dir('./dist/assets') ? htmlspecialchars(implode("\n", glob('./dist/assets/*'))) : 'Dossier non trouvé'; ?></pre>
+        
+        <h3>Dossier assets:</h3>
+        <pre><?php echo is_dir('./assets') ? htmlspecialchars(implode("\n", glob('./assets/*'))) : 'Dossier non trouvé'; ?></pre>
+    </div>
     
     <h2>Prochaines étapes</h2>
     <ol>
