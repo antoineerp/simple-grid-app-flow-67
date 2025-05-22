@@ -5,7 +5,7 @@ header('Content-Type: text/html; charset=utf-8');
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Diagnostic de Déploiement</title>
+    <title>Diagnostic des Assets</title>
     <style>
         body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
         .success { color: green; font-weight: bold; }
@@ -109,5 +109,7 @@ header('Content-Type: text/html; charset=utf-8');
             <li>Vérifiez que le répertoire <code>assets</code> contient les fichiers JS compilés</li>
         </ol>
     </div>
+    
+    <p><a href="/">Retour à l'application</a> | <a href="../php-test.php">Diagnostic PHP complet</a></p>
 </body>
 </html>
