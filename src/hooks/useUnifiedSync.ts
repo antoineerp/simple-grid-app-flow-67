@@ -110,7 +110,7 @@ export function useUnifiedSync<T extends SyncItem>({
         return false;
       }
       
-      // Si c'est une initialisation ou une synchro manuelle, récupérer du serveur d'abord
+      // Correction de la condition pour résoudre l'erreur TS2367
       if (type === 'init' || type === 'manual') {
         const serverData = await fetchFromServer<T>(tableName, endpoint);
         if (serverData && serverData.length > 0) {

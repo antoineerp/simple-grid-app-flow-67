@@ -2,6 +2,7 @@
 /**
  * Service Unifié de Synchronisation 
  * Gère toute la synchronisation des données entre les composants et avec le serveur
+ * avec une segmentation stricte des données par utilisateur
  */
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { toast } from '@/hooks/use-toast';
@@ -63,6 +64,19 @@ export const syncEvents = {
 };
 
 /**
+ * Génère une clé de stockage unique pour chaque utilisateur
+ * Utilise toujours p71x6d_richard comme base mais ajoute un préfixe utilisateur
+ * pour isoler les données
+ */
+export const getStorageKey = (tableName: string): string => {
+  // Récupérer le préfixe utilisateur pour l'isolation des données
+  const userPrefix = localStorage.getItem('userPrefix') || 'default';
+  
+  // Construire la clé avec l'utilisateur de BDD fixe et le préfixe utilisateur
+  return `${tableName}_${FIXED_DB_USER}_${userPrefix}`;
+};
+
+/**
  * Charge les données depuis le cache local
  */
 export const loadFromCache = <T extends SyncItem>(table: string): T[] => {
@@ -73,8 +87,8 @@ export const loadFromCache = <T extends SyncItem>(table: string): T[] => {
       return cachedTable.data as T[];
     }
     
-    // Sinon chercher dans le localStorage
-    const key = `data_${FIXED_DB_USER}_${table}`;
+    // Sinon chercher dans le localStorage avec la clé segmentée par utilisateur
+    const key = getStorageKey(table);
     const data = localStorage.getItem(key);
     if (!data) return [];
     
@@ -102,8 +116,8 @@ export const saveToCache = <T extends SyncItem>(table: string, data: T[]): void 
       lastSynced: new Date()
     });
     
-    // Sauvegarder dans le localStorage également
-    const key = `data_${FIXED_DB_USER}_${table}`;
+    // Sauvegarder dans le localStorage également avec la clé segmentée
+    const key = getStorageKey(table);
     localStorage.setItem(key, JSON.stringify(data));
     localStorage.setItem(`${key}_timestamp`, new Date().toISOString());
     
@@ -119,6 +133,7 @@ export const saveToCache = <T extends SyncItem>(table: string, data: T[]): void 
 
 /**
  * Synchronise les données avec le serveur
+ * Toujours utiliser p71x6d_richard comme base, mais segmenter avec userPrefix
  */
 export const syncWithServer = async <T extends SyncItem>(
   table: string,
@@ -145,10 +160,15 @@ export const syncWithServer = async <T extends SyncItem>(
     
     console.log(`UnifiedSync: Envoi à ${syncUrl} avec ${dataToSync.length} éléments`);
     
+    // Récupérer le préfixe utilisateur pour la séparation des données
+    const userPrefix = localStorage.getItem('userPrefix') || 'default';
+    
     // Préparer les données pour l'envoi
     const syncData = {
+      // TOUJOURS utiliser p71x6d_richard comme identifiant de base
       userId: FIXED_DB_USER,
-      userPrefix: localStorage.getItem('userPrefix') || 'u1',
+      // Mais ajouter un préfixe utilisateur pour la séparation des données
+      userPrefix: userPrefix,
       originalUserId: localStorage.getItem('originalUserId') || getCurrentUser(),
       [table]: dataToSync,
       timestamp: new Date().toISOString()
@@ -160,7 +180,10 @@ export const syncWithServer = async <T extends SyncItem>(
       headers: {
         ...getAuthHeaders(),
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        // Ajouter un en-tête pour forcer l'identifiant
+        'X-Forced-DB-User': FIXED_DB_USER,
+        'X-User-Prefix': userPrefix
       },
       body: JSON.stringify(syncData)
     });
@@ -217,16 +240,22 @@ export const syncWithServer = async <T extends SyncItem>(
 
 /**
  * Récupère les données depuis le serveur
+ * Toujours utiliser p71x6d_richard comme base, mais segmenter avec userPrefix
  */
 export const fetchFromServer = async <T extends SyncItem>(
   table: string,
   endpoint?: string
 ): Promise<T[]> => {
   try {
+    // Récupérer le préfixe utilisateur pour la séparation des données
+    const userPrefix = localStorage.getItem('userPrefix') || 'default';
+    
     // Déterminer le point d'entrée API
     const apiEndpoint = endpoint || `${table}-sync.php`;
     const apiUrl = getApiUrl();
-    const fetchUrl = `${apiUrl}/${apiEndpoint}?userId=${FIXED_DB_USER}`;
+    
+    // Ajouter les paramètres userId et userPrefix à l'URL
+    const fetchUrl = `${apiUrl}/${apiEndpoint}?userId=${FIXED_DB_USER}&userPrefix=${userPrefix}`;
     
     console.log(`UnifiedSync: Récupération depuis ${fetchUrl}`);
     
@@ -235,7 +264,10 @@ export const fetchFromServer = async <T extends SyncItem>(
       method: 'GET',
       headers: {
         ...getAuthHeaders(),
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        // Ajouter un en-tête pour forcer l'identifiant
+        'X-Forced-DB-User': FIXED_DB_USER,
+        'X-User-Prefix': userPrefix
       }
     });
     
@@ -256,7 +288,7 @@ export const fetchFromServer = async <T extends SyncItem>(
     
     const data = result[dataKey] || [];
     
-    // Sauvegarder dans le cache
+    // Sauvegarder dans le cache avec la clé segmentée
     saveToCache(table, data);
     
     // Mettre à jour l'état de synchronisation
@@ -470,6 +502,7 @@ export const unifiedSyncService = {
   reorderItems,
   getSyncState,
   getItemById,
+  getStorageKey,
   events: syncEvents
 };
 

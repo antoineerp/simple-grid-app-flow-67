@@ -1,183 +1,179 @@
-/**
- * Core synchronization operations
- */
 
-import { acquireLock, releaseLock } from './syncLockManager';
-import { saveLocalData } from './syncStorageManager';
-import { SyncOperationResult } from '../types/syncTypes';
-import { syncQueue } from './syncQueue';
-import { syncMonitor } from './syncMonitor';
-import { getCurrentUser } from '@/services/core/databaseConnectionService';
+// syncOperations.ts - Fonctions utilitaires pour la synchronisation
 
-// Base de données fixe
+import { getDbUser } from "@/services/core/databaseConnectionManager";
+import { v4 as uuidv4 } from 'uuid';
+
+// Constante pour la base de données fixe
 const FIXED_DB_USER = 'p71x6d_richard';
 
-// Tableau pour stocker les noms des tables synchronisées récemment (pour éviter les doublons)
-const recentlySyncedTables = new Set<string>();
+// Types de base pour la synchronisation
+export interface SyncableItem {
+  id: string;
+  [key: string]: any;
+}
 
-// Nettoie la liste des tables synchronisées récemment après un délai
-const cleanupRecentlySynced = (tableName: string) => {
-  setTimeout(() => {
-    recentlySyncedTables.delete(tableName);
-    console.log(`SyncOperations: Table ${tableName} retirée de la liste des synchronisations récentes`);
-  }, 5000); // 5 secondes de "cooldown" entre les synchronisations
+/**
+ * Génère une clé de stockage unique pour une table spécifique
+ * Cette fonction assure que chaque utilisateur a ses propres données dans le stockage local,
+ * tout en utilisant la même base de données p71x6d_richard
+ */
+export const generateStorageKey = (tableName: string): string => {
+  // Récupérer le préfixe utilisateur pour la séparation des données
+  const userPrefix = localStorage.getItem('userPrefix') || 'default';
+  
+  // Utiliser p71x6d_richard comme identifiant de base, mais séparer par préfixe d'utilisateur
+  return `${tableName}_${FIXED_DB_USER}_${userPrefix}`;
 };
 
 /**
- * Vérifie si une table est en cours de synchronisation
+ * Sauvegarde des données dans le stockage local
  */
-export const isSynchronizing = (tableName: string): boolean => {
-  // Vérifier si la table a un verrou actif
-  return localStorage.getItem(`sync_in_progress_${tableName}`) === 'true';
+export const saveToStorage = <T extends SyncableItem>(tableName: string, items: T[]): void => {
+  try {
+    const storageKey = generateStorageKey(tableName);
+    localStorage.setItem(storageKey, JSON.stringify(items));
+    localStorage.setItem(`${storageKey}_lastUpdated`, Date.now().toString());
+    console.log(`syncOperations: Données sauvegardées pour ${tableName} (${items.length} éléments)`);
+  } catch (error) {
+    console.error(`syncOperations: Erreur lors de la sauvegarde pour ${tableName}:`, error);
+  }
 };
 
-// Execute a sync operation with proper locking
-export const executeSyncOperation = async <T>(
-  tableName: string, 
-  data: T[], 
-  syncFn: (tableName: string, data: T[], operationId: string) => Promise<boolean>,
-  syncKey?: string,
-  trigger: "auto" | "manual" | "initial" = "auto"
-): Promise<SyncOperationResult> => {
-  // Forcer l'utilisation de l'utilisateur de base de données fixe
-  const userId = FIXED_DB_USER;
-  
-  console.log(`SyncOperations: Synchronisation de ${tableName} avec la base ${FIXED_DB_USER}`);
-  
-  // Check if the data is valid
-  if (!data || !Array.isArray(data)) {
-    console.log(`SyncOperations: Data invalid for ${tableName}, initializing empty array`);
-    data = [] as unknown as T[];
-  }
-  
-  // Log data shape for debugging
-  console.log(`SyncOperations: Sync for ${tableName} has ${data?.length || 0} items, data type: ${Array.isArray(data) ? 'array' : typeof data}`);
-  
-  // Vérifier si cette table a été synchronisée récemment
-  if (recentlySyncedTables.has(tableName) && trigger === "auto") {
-    console.log(`SyncOperations: Table ${tableName} synchronisée récemment, ignorée (trigger: ${trigger})`);
-    return { success: true, message: "Already synced recently" };
-  }
-  
-  // Ajouter cette table à la liste des tables synchronisées récemment
-  recentlySyncedTables.add(tableName);
-  cleanupRecentlySynced(tableName);
-
-  // Déterminer la priorité en fonction du type de déclenchement
-  const priority = trigger === "manual" ? 1 : (trigger === "initial" ? 3 : 5);
-
-  // Enqueue the task with priority
+/**
+ * Charge des données depuis le stockage local
+ */
+export const loadFromStorage = <T extends SyncableItem>(tableName: string): T[] => {
   try {
-    return await syncQueue.enqueue(tableName, async () => {
-      try {
-        // Release any existing lock first to prevent deadlocks
-        releaseLock(tableName);
-        
-        // Try to acquire a lock
-        if (!acquireLock(tableName)) {
-          console.log(`SyncOperations: Synchronization already in progress for ${tableName}, request ignored`);
-          return { success: false, message: "Synchronization already in progress" };
-        }
-
-        // Generate a unique operation ID
-        const operationId = `${tableName}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        console.log(`SyncOperations: Starting synchronization ${tableName} avec base ${FIXED_DB_USER} (operation ${operationId}, trigger: ${trigger})`);
-        
-        // Enregistrer le début de l'opération dans le moniteur
-        syncMonitor.recordSyncStart(operationId, `${trigger}-sync`);
-        
-        // Émettre un événement pour informer l'application du début de la synchronisation
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('syncStarted', { 
-            detail: { tableName, operationId, trigger } 
-          }));
-        }
-        
-        try {
-          // Always save locally first to prevent data loss
-          saveLocalData(tableName, data, userId);
-          
-          // Perform the actual synchronization with timeout handling
-          const syncPromise = syncFn(tableName, data, operationId);
-          
-          // Create a timeout promise
-          const timeoutPromise = new Promise<boolean>((_, reject) => {
-            setTimeout(() => {
-              reject(new Error(`Synchronization timeout for ${tableName} (operation ${operationId})`));
-            }, 15000); // 15 secondes timeout
-          });
-          
-          // Race between sync and timeout
-          const success = await Promise.race([syncPromise, timeoutPromise]);
-
-          if (success) {
-            console.log(`SyncOperations: Synchronization successful for ${tableName} (operation ${operationId})`);
-            
-            // Enregistrer le succès dans le moniteur
-            syncMonitor.recordSyncEnd(operationId, true);
-            
-            // Émettre un événement de succès
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('syncCompleted', { 
-                detail: { tableName, operationId, trigger } 
-              }));
-            }
-            
-            return { success: true, message: "Synchronization successful" };
-          } else {
-            console.error(`SyncOperations: Synchronization failed for ${tableName} (operation ${operationId})`);
-            
-            // Enregistrer l'échec dans le moniteur
-            syncMonitor.recordSyncEnd(operationId, false, "Synchronization failed");
-            
-            // Émettre un événement d'échec
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('syncFailed', { 
-                detail: { tableName, operationId, error: "Synchronization failed" } 
-              }));
-            }
-            
-            return { success: false, message: "Synchronization failed" };
-          }
-        } catch (error) {
-          console.error(`SyncOperations: Error during synchronization of ${tableName}:`, error);
-          
-          // Enregistrer l'erreur dans le moniteur
-          syncMonitor.recordSyncEnd(operationId, false, error instanceof Error ? error.message : String(error));
-          
-          // Émettre un événement d'erreur
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('syncFailed', { 
-              detail: { 
-                tableName, 
-                operationId, 
-                error: error instanceof Error ? error.message : String(error) 
-              } 
-            }));
-          }
-          
-          return { 
-            success: false, 
-            message: error instanceof Error ? error.message : String(error)
-          };
-        } finally {
-          // Always release the lock
-          releaseLock(tableName);
-        }
-      } catch (error) {
-        console.error(`SyncOperations: Unexpected error in sync queue for ${tableName}:`, error);
-        releaseLock(tableName);
-        return { 
-          success: false, 
-          message: error instanceof Error ? error.message : String(error)
-        };
-      }
-    });
+    const storageKey = generateStorageKey(tableName);
+    const data = localStorage.getItem(storageKey);
+    
+    if (!data) {
+      return [];
+    }
+    
+    return JSON.parse(data) as T[];
   } catch (error) {
-    console.error(`SyncOperations: Error enqueuing sync task for ${tableName}:`, error);
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : String(error)
-    };
+    console.error(`syncOperations: Erreur lors du chargement pour ${tableName}:`, error);
+    return [];
   }
+};
+
+/**
+ * Obtient la date de dernière mise à jour
+ */
+export const getLastUpdateTime = (tableName: string): Date | null => {
+  try {
+    const storageKey = generateStorageKey(tableName);
+    const timestamp = localStorage.getItem(`${storageKey}_lastUpdated`);
+    
+    if (!timestamp) {
+      return null;
+    }
+    
+    return new Date(parseInt(timestamp, 10));
+  } catch (error) {
+    console.error(`syncOperations: Erreur lors de la récupération de la date de mise à jour pour ${tableName}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Obtient la date de dernière synchronisation
+ */
+export const getLastSyncTime = (tableName: string): Date | null => {
+  try {
+    const storageKey = generateStorageKey(tableName);
+    const timestamp = localStorage.getItem(`${storageKey}_lastSynced`);
+    
+    if (!timestamp) {
+      return null;
+    }
+    
+    return new Date(parseInt(timestamp, 10));
+  } catch (error) {
+    console.error(`syncOperations: Erreur lors de la récupération de la date de synchronisation pour ${tableName}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Met à jour la date de dernière synchronisation
+ */
+export const updateLastSyncTime = (tableName: string): void => {
+  try {
+    const storageKey = generateStorageKey(tableName);
+    localStorage.setItem(`${storageKey}_lastSynced`, Date.now().toString());
+  } catch (error) {
+    console.error(`syncOperations: Erreur lors de la mise à jour de la date de synchronisation pour ${tableName}:`, error);
+  }
+};
+
+/**
+ * Crée un nouvel élément avec un ID unique
+ * Correction de l'erreur TS2554: Expected 2 arguments, but got 3
+ */
+export const createItemWithId = <T extends SyncableItem>(tableName: string, data: Partial<T>): T => {
+  const id = data.id || uuidv4();
+  
+  const newItem = {
+    id,
+    date_creation: new Date(),
+    date_modification: new Date(),
+    ...data
+  } as T;
+  
+  return newItem;
+};
+
+/**
+ * Fusionne les données locales et serveur (stratégie configurable)
+ */
+export const mergeData = <T extends SyncableItem>(
+  localData: T[],
+  serverData: T[],
+  strategy: 'server-wins' | 'local-wins' | 'newest-wins' = 'server-wins'
+): T[] => {
+  if (!localData.length) return serverData;
+  if (!serverData.length) return localData;
+  
+  // Créer une map pour un accès plus rapide
+  const localMap = new Map(localData.map(item => [item.id, item]));
+  const serverMap = new Map(serverData.map(item => [item.id, item]));
+  const result: T[] = [];
+  
+  // Traiter tous les éléments du serveur
+  serverMap.forEach((serverItem, id) => {
+    const localItem = localMap.get(id);
+    
+    // Si l'élément n'existe pas localement ou si la stratégie est server-wins
+    if (!localItem || strategy === 'server-wins') {
+      result.push(serverItem);
+    }
+    // Si la stratégie est local-wins
+    else if (strategy === 'local-wins') {
+      result.push(localItem);
+    }
+    // Si la stratégie est newest-wins
+    else if (strategy === 'newest-wins') {
+      const serverDate = new Date(serverItem.date_modification || serverItem.date_creation || 0);
+      const localDate = new Date(localItem.date_modification || localItem.date_creation || 0);
+      
+      if (serverDate > localDate) {
+        result.push(serverItem);
+      } else {
+        result.push(localItem);
+      }
+    }
+    
+    // Supprimer de la map locale pour tracking
+    localMap.delete(id);
+  });
+  
+  // Ajouter les éléments qui n'existent que localement
+  localMap.forEach((localItem) => {
+    result.push(localItem);
+  });
+  
+  return result;
 };
