@@ -29,6 +29,35 @@ try {
     // Initialize user operations
     $userOps = new UserOperations($db);
 
+    // Handle specific action if provided
+    if (isset($_GET['action'])) {
+        switch ($_GET['action']) {
+            case 'ensure_tables':
+                // Action pour vérifier et créer les tables de tous les utilisateurs
+                $result = $userOps->ensureAllUserTablesExist();
+                ResponseHandler::success([
+                    'success' => $result,
+                    'message' => $result ? 'Tables vérifiées et créées avec succès pour tous les utilisateurs' : 'Échec lors de la vérification des tables'
+                ]);
+                exit;
+                break;
+                
+            case 'create_tables_for_user':
+                // Action pour créer les tables d'un utilisateur spécifique
+                if (!isset($_GET['userId'])) {
+                    ResponseHandler::error("Paramètre userId manquant", 400);
+                    exit;
+                }
+                $result = $userOps->createUserTables($_GET['userId']);
+                ResponseHandler::success([
+                    'success' => $result,
+                    'message' => $result ? "Tables créées avec succès pour l'utilisateur {$_GET['userId']}" : "Échec lors de la création des tables pour l'utilisateur {$_GET['userId']}"
+                ]);
+                exit;
+                break;
+        }
+    }
+
     // Handle request based on HTTP method
     switch ($_SERVER['REQUEST_METHOD']) {
         case 'GET':

@@ -1,11 +1,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { connectAsUser, Utilisateur } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { checkPermission, UserRole } from '@/types/roles';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
+import { getUtilisateurs, ensureAllUserTablesExist, clearUsersCache } from '@/services/users/userManager';
+import type { Utilisateur } from '@/types/auth';
 
 // ID utilisateur fixe pour toute l'application
 const FIXED_USER_ID = 'p71x6d_richard';
@@ -53,79 +54,19 @@ export const useAdminUsers = () => {
       console.log("Début du chargement des utilisateurs...");
       console.log(`Utilisateur base de données actuel: ${FIXED_USER_ID}`);
       
-      // Utiliser directement l'API des utilisateurs
-      const API_URL = getApiUrl();
-      console.log(`Récupération des utilisateurs depuis: ${API_URL}/users.php`);
+      // S'assurer que toutes les tables existent pour tous les utilisateurs
+      await ensureAllUserTablesExist();
       
-      const response = await fetch(`${API_URL}/users.php`, {
-        method: 'GET',
-        headers: {
-          ...getAuthHeaders(),
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        },
-        cache: 'no-store'
-      });
+      // Effacer le cache pour forcer un rechargement frais
+      clearUsersCache();
       
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
-      }
+      // Récupérer la liste des utilisateurs
+      const users = await getUtilisateurs(true);
       
-      const responseText = await response.text();
-      
-      if (!responseText || !responseText.trim()) {
-        throw new Error("Réponse vide du serveur");
-      }
-      
-      if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
-        console.error("Réponse PHP/HTML brute:", responseText.substring(0, 200));
-        throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
-      }
-      
-      console.log("Réponse texte reçue:", responseText.substring(0, 200));
-      
-      const data = JSON.parse(responseText);
-      console.log("Données utilisateurs brutes:", data);
-      
-      let users: Utilisateur[] = [];
-      
-      // Vérification plus flexible des formats de réponse possibles
-      if (data && data.records && Array.isArray(data.records)) {
-        console.log("Format détecté: data.records");
-        users = data.records;
-      } else if (data && data.data && data.data.records && Array.isArray(data.data.records)) {
-        console.log("Format détecté: data.data.records");
-        users = data.data.records;
-      } else if (data && Array.isArray(data)) {
-        console.log("Format détecté: data[] (tableau direct)");
-        users = data;
-      } else if (data && data.status === "success" && data.data && Array.isArray(data.data)) {
-        console.log("Format détecté: data.data (tableau)");
-        users = data.data;
-      } else {
-        // Solution de secours - tenter de trouver un tableau dans la réponse
-        console.log("Recherche de structure utilisateur dans la réponse...");
-        for (const key in data) {
-          if (Array.isArray(data[key]) && data[key].length > 0 && data[key][0].id && data[key][0].email) {
-            console.log(`Structure utilisateur trouvée dans data.${key}`);
-            users = data[key];
-            break;
-          }
-        }
-        
-        if (!users.length) {
-          console.error("Impossible de trouver une structure utilisateur valide dans:", data);
-          throw new Error("Format de données invalide: aucun utilisateur trouvé");
-        }
-      }
-      
-      console.log("Utilisateurs traités:", users.length);
-      
+      console.log("Utilisateurs chargés:", users.length);
       setUtilisateurs(users);
-      setError(null); // Réinitialiser l'erreur si réussite
-      setRetryCount(0); // Réinitialiser le compteur de tentatives
+      setError(null);
+      setRetryCount(0);
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs", error);
       setError(error instanceof Error ? error.message : "Impossible de charger les utilisateurs.");
@@ -134,7 +75,7 @@ export const useAdminUsers = () => {
       try {
         console.log("Tentative de récupération via l'API alternative check-users.php");
         const API_URL = getApiUrl();
-        const altResponse = await fetch(`${API_URL}/check-users.php`, {
+        const altResponse = await fetch(`${API_URL}/check-users.php?_t=${Date.now()}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -155,9 +96,23 @@ export const useAdminUsers = () => {
         console.error("Échec de la récupération alternative:", altError);
       }
       
+      // Si toutes les tentatives échouent, créer un utilisateur par défaut pour l'interface
+      const defaultUser: Utilisateur = {
+        id: "default_admin",
+        username: "admin",
+        email: "admin@example.com",
+        role: "admin",
+        status: "active",
+        nom: "Admin",
+        prenom: "Default",
+        identifiant_technique: FIXED_USER_ID
+      };
+      
+      setUtilisateurs([defaultUser]);
+      
       toast({
         title: "Erreur",
-        description: "Impossible de charger les utilisateurs.",
+        description: "Impossible de charger les utilisateurs. Un utilisateur par défaut a été créé.",
         variant: "destructive",
       });
     } finally {
@@ -188,8 +143,25 @@ export const useAdminUsers = () => {
         description: `Connecté en tant que ${FIXED_USER_ID}`,
       });
       
+      // S'assurer que les tables existent pour cet utilisateur
+      const API_URL = getApiUrl();
+      const response = await fetch(`${API_URL}/users.php?action=create_tables_for_user&userId=${encodeURIComponent(identifiantTechnique)}&_t=${Date.now()}`, {
+        method: 'GET',
+        headers: {
+          ...getAuthHeaders(),
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log("Résultat de la création de tables:", result);
+      }
+      
       // Mettre à jour explicitement localStorage pour la cohérence de l'interface
       localStorage.setItem('currentDatabaseUser', FIXED_USER_ID);
+      localStorage.setItem('userPrefix', identifiantTechnique.replace(/[^a-zA-Z0-9]/g, '_'));
       return true;
     } catch (error) {
       console.error("Erreur lors de la connexion en tant qu'utilisateur:", error);

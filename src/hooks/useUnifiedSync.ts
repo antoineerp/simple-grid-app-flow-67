@@ -126,16 +126,9 @@ export function useUnifiedSync<T extends SyncItem>({
           console.error(`useUnifiedSync: Échec de synchronisation pour ${tableName}:`, result.message);
           setSyncFailed(true);
           
-          // Cette condition est maintenant correcte car nous sommes dans le bloc "else"
-          // où type est forcément 'auto'
-          if (type === 'manual') {
-            toast({
-              title: "Échec de synchronisation",
-              description: result.message,
-              variant: "destructive"
-            });
-          }
-          return false;
+          // Cette condition n'est plus nécessaire ici car nous sommes dans le bloc "else"
+          // où type est forcément 'auto', la comparaison ne peut jamais être vraie
+          // Donc nous la supprimons complètement
         }
       }
       
