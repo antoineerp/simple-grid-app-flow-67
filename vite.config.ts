@@ -9,9 +9,13 @@ import { randomBytes } from "crypto";
 if (!globalThis.crypto) {
   // @ts-ignore - Add crypto polyfill for Node environment
   globalThis.crypto = {
-    getRandomValues: function<T extends Uint8Array>(array: T): T {
+    getRandomValues: function(array) {
+      // Implementation that works with any TypedArray
       const bytes = randomBytes(array.length);
-      array.set(new Uint8Array(bytes));
+      // Copy the random bytes into the array
+      for (let i = 0; i < bytes.length; i++) {
+        array[i] = bytes[i];
+      }
       return array;
     }
   };
