@@ -37,7 +37,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'users') {
         $pdo = new PDO($dsn, $username, $password, $options);
         
         // Récupérer tous les utilisateurs
-        $query = "SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs";
+        $query = "SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs_p71x6d_richard";
         $stmt = $pdo->prepare($query);
         $stmt->execute();
         $users = $stmt->fetchAll();
