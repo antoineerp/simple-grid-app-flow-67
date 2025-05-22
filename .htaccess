@@ -1,49 +1,41 @@
 
-# Activer le module de réécriture
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteBase /
-    
-    # Si le fichier demandé existe physiquement, l'utiliser directement
-    RewriteCond %{REQUEST_FILENAME} -f [OR]
-    RewriteCond %{REQUEST_FILENAME} -d
-    RewriteRule ^ - [L]
+# Activer le moteur de réécriture
+RewriteEngine On
 
-    # S'assurer que les requêtes vers /api/ sont traitées correctement
-    RewriteRule ^api/(.*)$ api/$1 [L,QSA]
+# Configuration de base
+Options -MultiViews
+Options +FollowSymLinks
 
-    # Rediriger toutes les autres requêtes vers index.html pour React Router
-    RewriteRule ^ index.html [L]
+# Définir le point d'entrée principal
+DirectoryIndex index.html index.php
+
+# Définir les types MIME sans les forcer
+AddType application/javascript .js
+AddType application/javascript .mjs
+AddType text/css .css
+
+# Permettre l'accès direct aux ressources statiques
+RewriteCond %{REQUEST_URI} \.(js|mjs|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?|json)$
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# IMPORTANT: Prévention des boucles de redirection
+# Pour les requêtes qui ne correspondent pas à des fichiers réels
+RewriteCond %{REQUEST_FILENAME} !-f
+# Pour les requêtes qui ne correspondent pas à des répertoires réels
+RewriteCond %{REQUEST_FILENAME} !-d
+# Et qui ne commencent pas par /api
+RewriteCond %{REQUEST_URI} !^/api/
+# Rediriger vers index.html UNIQUEMENT si nous n'avons pas déjà été redirigés
+RewriteCond %{ENV:REDIRECT_STATUS} ^$
+RewriteRule ^(.*)$ index.html [QSA,L]
+
+# Configuration CORS simplifiée
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type"
 </IfModule>
 
-# S'assurer que les fichiers PHP sont correctement interprétés
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
-# Forcer le type MIME pour les fichiers JavaScript et CSS
-<IfModule mod_mime.c>
-    AddType text/css .css
-    AddType application/javascript .js
-</IfModule>
-
-# Protection contre l'accès aux fichiers sensibles
-<FilesMatch "(\.env|\.gitignore|package\.json|package-lock\.json|composer\.json|composer\.lock)$">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
-
-# Activer la compression
-<IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json
-</IfModule>
-
-# Définir les en-têtes de cache
-<IfModule mod_expires.c>
-    ExpiresActive On
-    ExpiresByType text/css "access plus 1 month"
-    ExpiresByType application/javascript "access plus 1 month"
-    ExpiresByType image/jpeg "access plus 1 month"
-    ExpiresByType image/png "access plus 1 month"
-    ExpiresByType image/svg+xml "access plus 1 month"
-</IfModule>
+# Gestion des erreurs personnalisée
+ErrorDocument 404 /index.html

@@ -2,6 +2,29 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { randomBytes } from "crypto";
+
+// Polyfill for crypto.getRandomValues
+if (!globalThis.crypto) {
+  // Add crypto polyfill for Node environment
+  globalThis.crypto = {
+    getRandomValues: function(array) {
+      if (!array || !array.length) {
+        return array;
+      }
+      
+      // Generate random bytes
+      const bytes = randomBytes(array.length);
+      
+      // Copy bytes one by one to avoid type issues
+      for (let i = 0; i < array.length; i++) {
+        array[i] = bytes[i];
+      }
+      
+      return array;
+    }
+  };
+}
 
 export default defineConfig({
   plugins: [react()],
@@ -13,24 +36,6 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    cssCodeSplit: true,
-    minify: true,
-    sourcemap: false,
-    rollupOptions: {
-      output: {
-        assetFileNames: (assetInfo) => {
-          if (!assetInfo.name) {
-            return 'assets/[name].[hash].[ext]';
-          }
-          const info = assetInfo.name.split('.');
-          const ext = info.pop();
-          const name = info.join('.');
-          return `assets/${name}.${ext}`;
-        },
-        chunkFileNames: 'assets/[name].[hash].js',
-        entryFileNames: 'assets/[name].[hash].js',
-      }
-    }
   },
   server: {
     host: "0.0.0.0",
