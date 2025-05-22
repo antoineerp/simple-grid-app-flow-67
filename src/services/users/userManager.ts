@@ -26,7 +26,7 @@ export const UserManager = {
     try {
       const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
       if (!token) {
-        throw new Error("Utilisateur non authentifié");
+        console.log("Pas de token d'authentification trouvé, tentative de récupération sans authentification");
       }
       
       // Récupérer l'identifiant utilisateur courant
@@ -73,7 +73,7 @@ export const UserManager = {
       let data;
       try {
         data = JSON.parse(responseText);
-        console.log("Données utilisateurs brutes reçues:", data);
+        console.log("Données utilisateurs brutes reçues:", JSON.stringify(data, null, 2));
       } catch (parseError) {
         console.error("Erreur de parsing JSON:", parseError, "Réponse brute:", responseText.substring(0, 200));
         throw new Error(`Erreur de parsing JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
@@ -84,11 +84,16 @@ export const UserManager = {
       
       if (data && data.records && Array.isArray(data.records)) {
         users = data.records;
+      } else if (data && data.data && data.data.records && Array.isArray(data.data.records)) {
+        users = data.data.records;
       } else if (data && Array.isArray(data)) {
         users = data;
       } else {
+        console.error("Format de réponse inattendu:", JSON.stringify(data, null, 2));
         throw new Error("Format de données invalide: aucun utilisateur trouvé");
       }
+
+      console.log(`Utilisateurs récupérés: ${users.length}`);
       
       // Mettre à jour le cache mémoire
       usersCache = users;

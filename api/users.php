@@ -1,3 +1,4 @@
+
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -6,7 +7,7 @@ ob_start();
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, User-Agent");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
@@ -18,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Journaliser l'appel
 error_log("API users.php - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - Requête: " . $_SERVER['REQUEST_URI']);
+error_log("User-Agent: " . (isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : 'Non défini'));
 
 // Fonction pour générer un ID court et unique
 function generateShortId() {
@@ -33,7 +35,7 @@ function generateShortId() {
 // Configuration de la base de données
 $host = "p71x6d.myd.infomaniak.com";
 $dbname = "p71x6d_system";
-$username = "p71x6d_system";
+$username = "p71x6d_richard";
 $password = "Trottinette43!";
 
 try {
@@ -57,10 +59,7 @@ try {
         case 'GET':
             // Récupérer tous les utilisateurs ou un utilisateur spécifique
             if (isset($_GET['id'])) {
-                $id = filter_var($_GET['id'], FILTER_VALIDATE_INT);
-                if (!$id) {
-                    throw new Exception("ID d'utilisateur invalide");
-                }
+                $id = $_GET['id'];
                 
                 $query = "SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs WHERE id = :id";
                 $stmt = $pdo->prepare($query);
@@ -74,7 +73,7 @@ try {
                     exit;
                 }
                 
-                echo json_encode(['status' => 'success', 'data' => $user]);
+                echo json_encode(['status' => 'success', 'records' => [$user]]);
                 exit;
             } else {
                 // Récupérer tous les utilisateurs
@@ -83,7 +82,15 @@ try {
                 $stmt->execute();
                 $users = $stmt->fetchAll();
                 
-                echo json_encode(['status' => 'success', 'data' => ['records' => $users]]);
+                error_log("Utilisateurs récupérés: " . count($users));
+                
+                // Format de réponse uniforme
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => 'Liste des utilisateurs récupérée',
+                    'records' => $users,
+                    'count' => count($users)
+                ]);
                 exit;
             }
             break;
@@ -375,31 +382,34 @@ try {
 } catch (PDOException $e) {
     error_log("Erreur PDO dans users.php: " . $e->getMessage());
     
-    // Nettoyer le buffer en cas d'erreur
     if (ob_get_level()) ob_clean();
     
-    // Réponse d'erreur
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Erreur de base de données: ' . $e->getMessage()
+        'message' => 'Erreur de base de données: ' . $e->getMessage(),
+        'debug' => [
+            'code' => $e->getCode(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]
     ]);
     exit;
 } catch (Exception $e) {
     error_log("Exception dans users.php: " . $e->getMessage());
     
-    // Nettoyer le buffer en cas d'erreur
     if (ob_get_level()) ob_clean();
     
-    // Réponse d'erreur
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Erreur: ' . $e->getMessage()
+        'message' => 'Erreur serveur: ' . $e->getMessage(),
+        'debug' => [
+            'code' => $e->getCode(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]
     ]);
     exit;
-} finally {
-    // S'assurer que tout buffer est vidé
-    if (ob_get_level()) ob_end_flush();
 }
 ?>

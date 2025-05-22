@@ -80,22 +80,48 @@ export const useAdminUsers = () => {
       }
       
       if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+        console.error("Réponse PHP/HTML brute:", responseText.substring(0, 200));
         throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
       }
       
+      console.log("Réponse texte reçue:", responseText.substring(0, 200));
+      
       const data = JSON.parse(responseText);
+      console.log("Données utilisateurs brutes:", data);
       
       let users: Utilisateur[] = [];
       
+      // Vérification plus flexible des formats de réponse possibles
       if (data && data.records && Array.isArray(data.records)) {
+        console.log("Format détecté: data.records");
         users = data.records;
+      } else if (data && data.data && data.data.records && Array.isArray(data.data.records)) {
+        console.log("Format détecté: data.data.records");
+        users = data.data.records;
       } else if (data && Array.isArray(data)) {
+        console.log("Format détecté: data[] (tableau direct)");
         users = data;
+      } else if (data && data.status === "success" && data.data && Array.isArray(data.data)) {
+        console.log("Format détecté: data.data (tableau)");
+        users = data.data;
       } else {
-        throw new Error("Format de données invalide: aucun utilisateur trouvé");
+        // Solution de secours - tenter de trouver un tableau dans la réponse
+        console.log("Recherche de structure utilisateur dans la réponse...");
+        for (const key in data) {
+          if (Array.isArray(data[key]) && data[key].length > 0 && data[key][0].id && data[key][0].email) {
+            console.log(`Structure utilisateur trouvée dans data.${key}`);
+            users = data[key];
+            break;
+          }
+        }
+        
+        if (!users.length) {
+          console.error("Impossible de trouver une structure utilisateur valide dans:", data);
+          throw new Error("Format de données invalide: aucun utilisateur trouvé");
+        }
       }
       
-      console.log("Données utilisateurs récupérées:", users);
+      console.log("Utilisateurs traités:", users.length);
       
       setUtilisateurs(users);
       setError(null); // Réinitialiser l'erreur si réussite
@@ -103,6 +129,32 @@ export const useAdminUsers = () => {
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs", error);
       setError(error instanceof Error ? error.message : "Impossible de charger les utilisateurs.");
+      
+      // Essayons de faire une requête alternative à l'API
+      try {
+        console.log("Tentative de récupération via l'API alternative check-users.php");
+        const API_URL = getApiUrl();
+        const altResponse = await fetch(`${API_URL}/check-users.php`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+          }
+        });
+        
+        if (altResponse.ok) {
+          const altData = await altResponse.json();
+          if (altData && altData.records && Array.isArray(altData.records)) {
+            console.log("Récupération alternative réussie:", altData.records.length, "utilisateurs");
+            setUtilisateurs(altData.records);
+            setError(null);
+            return;
+          }
+        }
+      } catch (altError) {
+        console.error("Échec de la récupération alternative:", altError);
+      }
+      
       toast({
         title: "Erreur",
         description: "Impossible de charger les utilisateurs.",

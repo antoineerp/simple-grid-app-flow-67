@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -109,14 +110,14 @@ export function useUnifiedSync<T extends SyncItem>({
         return false;
       }
       
-      // Fix de l'erreur TS2367: Utiliser les conditions adéquates pour comparer des types string littéraux
+      // Comparaison correcte de type string littéral
       if (type === 'init' || type === 'manual') {
         const serverData = await fetchFromServer<T>(tableName, endpoint);
         if (serverData && serverData.length > 0) {
           setData(serverData);
           setLastSynced(new Date());
         }
-      } else if (type === 'auto') {
+      } else {
         // Pour les synchronisations de type 'auto', envoyer les données locales au serveur
         const result = await syncWithServer<T>(tableName, data, endpoint);
         if (result.success) {

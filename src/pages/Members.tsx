@@ -23,6 +23,8 @@ const Members = () => {
       const apiUrl = getApiUrl();
       const userId = getCurrentUser();
       
+      console.log(`Tentative de chargement des membres depuis ${apiUrl}/users.php`);
+      
       const response = await fetch(`${apiUrl}/users.php`, {
         method: 'GET',
         headers: {
@@ -37,25 +39,80 @@ const Members = () => {
         throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
       }
       
-      const data = await response.json();
+      const responseText = await response.text();
+      console.log(`Réponse brute (premiers 100 caractères): ${responseText.substring(0, 100)}`);
       
-      if (data.status === 'success' || data.records) {
-        setMembers(data.records || []);
+      // Vérifier si la réponse est du PHP ou HTML au lieu de JSON
+      if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+        throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
+      }
+      
+      const data = JSON.parse(responseText);
+      console.log("Données brutes:", data);
+      
+      let membersList = [];
+      
+      // Traitement flexible de différents formats de réponse
+      if (data.status === 'success' && data.records) {
+        membersList = data.records;
+      } else if (data.status === 'success' && data.data && data.data.records) {
+        membersList = data.data.records;
+      } else if (data.records) {
+        membersList = data.records;
+      } else if (Array.isArray(data)) {
+        membersList = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        membersList = data.data;
+      } else {
+        // Recherche d'un tableau d'utilisateurs dans la structure
+        for (const key in data) {
+          if (Array.isArray(data[key]) && data[key].length > 0 && data[key][0].email) {
+            membersList = data[key];
+            break;
+          }
+        }
+      }
+      
+      if (membersList && membersList.length > 0) {
+        console.log(`${membersList.length} membres récupérés.`);
+        setMembers(membersList);
         setLastSynced(new Date());
         
         // Sauvegarder en local
-        localStorage.setItem('members_data', JSON.stringify(data.records || []));
+        localStorage.setItem('members_data', JSON.stringify(membersList));
         localStorage.setItem('members_last_synced', new Date().toISOString());
         
         toast({
           title: 'Membres chargés avec succès',
-          description: `${data.records.length} membres récupérés.`
+          description: `${membersList.length} membres récupérés.`
         });
       } else {
-        throw new Error(data.message || "Erreur lors du chargement des membres");
+        throw new Error("Aucun membre trouvé dans la réponse");
       }
     } catch (error) {
       console.error('Erreur lors du chargement des membres:', error);
+      
+      // Essayer API alternative
+      try {
+        console.log("Tentative avec API alternative check-users.php");
+        const apiUrl = getApiUrl();
+        const altResponse = await fetch(`${apiUrl}/check-users.php`, {
+          method: 'GET',
+          headers: {'Accept': 'application/json'}
+        });
+        
+        if (altResponse.ok) {
+          const altData = await altResponse.json();
+          if (altData.records && Array.isArray(altData.records)) {
+            console.log(`Récupération alternative réussie: ${altData.records.length} membres`);
+            setMembers(altData.records);
+            setLastSynced(new Date());
+            return;
+          }
+        }
+      } catch (altError) {
+        console.error("Échec de la récupération alternative:", altError);
+      }
       
       // Essayer de récupérer depuis le stockage local
       const storedMembers = localStorage.getItem('members_data');
@@ -76,6 +133,11 @@ const Members = () => {
           });
         } catch (parseError) {
           console.error('Erreur lors du parsing des données locales:', parseError);
+          toast({
+            variant: 'destructive',
+            title: 'Erreur de chargement',
+            description: 'Impossible de charger les membres depuis le serveur ou les données locales.'
+          });
         }
       } else {
         toast({
