@@ -174,12 +174,63 @@ export const useAdminUsers = () => {
     }
   };
 
+  const deleteUser = async (userId: string): Promise<boolean> => {
+    const currentUserRole = localStorage.getItem('userRole') as UserRole;
+    
+    // Vérifier les permissions de suppression
+    if (!checkPermission(currentUserRole, 'isAdmin')) {
+      toast({
+        title: "Accès refusé",
+        description: "Vous n'avez pas les autorisations nécessaires pour supprimer un utilisateur.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    try {
+      console.log(`Tentative de suppression de l'utilisateur avec ID: ${userId}`);
+      
+      const API_URL = getApiUrl();
+      const response = await fetch(`${API_URL}/users.php`, {
+        method: 'DELETE',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
+        body: JSON.stringify({ id: userId })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        console.error('Erreur lors de la suppression:', result);
+        throw new Error(result.message || "Erreur lors de la suppression de l'utilisateur");
+      }
+      
+      console.log('Résultat de la suppression:', result);
+      
+      // Mettre à jour la liste des utilisateurs
+      clearUsersCache();
+      
+      // Filtrer l'utilisateur supprimé de la liste locale
+      setUtilisateurs(prev => prev.filter(user => user.id !== userId));
+      
+      return true;
+    } catch (error) {
+      console.error("Erreur lors de la suppression de l'utilisateur:", error);
+      throw error;
+    }
+  };
+
   return {
     utilisateurs,
     loading,
     error,
     loadUtilisateurs,
     handleConnectAsUser,
+    deleteUser,
     retryCount
   };
 };

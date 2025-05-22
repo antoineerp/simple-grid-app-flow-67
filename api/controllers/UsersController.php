@@ -9,6 +9,7 @@ require_once $baseDir . '/config/database.php';
 require_once $baseDir . '/middleware/RequestHandler.php';
 require_once $baseDir . '/utils/ResponseHandler.php';
 require_once $baseDir . '/operations/UserOperations.php';
+require_once $baseDir . '/operations/users/DeleteOperations.php';
 
 // Handle CORS and preflight requests
 RequestHandler::handleCORS();
@@ -28,6 +29,7 @@ try {
 
     // Initialize user operations
     $userOps = new UserOperations($db);
+    $userDeleteOps = new UserDeleteOperations($db);
 
     // Handle specific action if provided
     if (isset($_GET['action'])) {
@@ -98,7 +100,7 @@ try {
             break;
             
         case 'DELETE':
-            $userOps->handleDeleteRequest();
+            $userDeleteOps->handleDeleteRequest();
             break;
             
         default:

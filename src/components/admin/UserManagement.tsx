@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Download, Trash, Database } from 'lucide-react';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Download, Trash2, Database } from 'lucide-react';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import UserForm from './UserForm';
 import { getCurrentUser, getLastConnectionError, getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
@@ -26,12 +25,13 @@ interface UserManagementProps {
 
 const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementProps) => {
   const { toast } = useToast();
-  const { utilisateurs, loading, error, loadUtilisateurs, handleConnectAsUser } = useAdminUsers();
+  const { utilisateurs, loading, error, loadUtilisateurs, handleConnectAsUser, deleteUser } = useAdminUsers();
   const [newUserOpen, setNewUserOpen] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({});
   const [importingData, setImportingData] = useState(false);
-  const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [connectingUser, setConnectingUser] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
@@ -150,6 +150,45 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     setSelectedUser(identifiantTechnique);
   };
 
+  const handleDeleteUser = (userId: string) => {
+    setDeletingUserId(userId);
+    setConfirmDeleteOpen(true);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!deletingUserId) return;
+    
+    try {
+      const success = await deleteUser(deletingUserId);
+      
+      if (success) {
+        toast({
+          title: "Utilisateur supprimé",
+          description: "L'utilisateur a été supprimé avec succès.",
+          variant: "default"
+        });
+        
+        // Recharger la liste des utilisateurs
+        loadUtilisateurs();
+      } else {
+        toast({
+          title: "Erreur de suppression",
+          description: "Impossible de supprimer cet utilisateur.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur de suppression",
+        description: error instanceof Error ? error.message : "Une erreur s'est produite lors de la suppression",
+        variant: "destructive"
+      });
+    } finally {
+      setConfirmDeleteOpen(false);
+      setDeletingUserId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -253,6 +292,16 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                               )}
                               <span className="sr-only">Se connecter</span>
                             </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleDeleteUser(user.id)}
+                              disabled={currentDatabaseUser === user.identifiant_technique}
+                              className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Supprimer</span>
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -279,6 +328,26 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
           {selectedUser && <UserTables userId={selectedUser} />}
         </div>
       </div>
+
+      {/* Dialog de confirmation de suppression */}
+      <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end pt-4">
+            <Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteUser}>
+              Supprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

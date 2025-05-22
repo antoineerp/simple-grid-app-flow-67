@@ -54,13 +54,18 @@ export const deleteUser = async (userId: string) => {
   try {
     const API_URL = getApiUrl();
     
-    const response = await fetch(`${API_URL}/users/${userId}`, {
+    const response = await fetch(`${API_URL}/users.php`, {
       method: 'DELETE',
-      headers: getAuthHeaders()
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ id: userId })
     });
 
     if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
     }
 
     return await response.json();
