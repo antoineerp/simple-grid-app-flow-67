@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -110,7 +109,7 @@ export function useUnifiedSync<T extends SyncItem>({
         return false;
       }
       
-      // Correction du problème de comparaison de types - utiliser une condition strictement typée
+      // Fix de l'erreur TS2367: Utiliser les conditions adéquates pour comparer des types string littéraux
       if (type === 'init' || type === 'manual') {
         const serverData = await fetchFromServer<T>(tableName, endpoint);
         if (serverData && serverData.length > 0) {
