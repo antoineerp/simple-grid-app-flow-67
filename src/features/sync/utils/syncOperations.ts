@@ -1,4 +1,3 @@
-
 // syncOperations.ts - Fonctions utilitaires pour la synchronisation
 
 import { getDbUser } from "@/services/core/databaseConnectionManager";
@@ -111,17 +110,18 @@ export const updateLastSyncTime = (tableName: string): void => {
 
 /**
  * Crée un nouvel élément avec un ID unique
- * Correction de l'erreur TS2554: Expected 2 arguments, but got 3
+ * Correction de l'erreur TS2352: Ajout d'une conversion de type appropriée
  */
 export const createItemWithId = <T extends SyncableItem>(tableName: string, data: Partial<T>): T => {
   const id = data.id || uuidv4();
   
+  // Utilisation d'une conversion explicite vers unknown puis vers T pour satisfaire TypeScript
   const newItem = {
     id,
     date_creation: new Date(),
     date_modification: new Date(),
     ...data
-  } as T;
+  } as unknown as T;
   
   return newItem;
 };
@@ -176,4 +176,56 @@ export const mergeData = <T extends SyncableItem>(
   });
   
   return result;
+};
+
+/**
+ * Vérifie si une synchronisation est en cours pour une table spécifique
+ * Ajouté pour résoudre l'erreur dans useSync.ts
+ */
+export const isSynchronizing = (tableName: string): boolean => {
+  try {
+    const storageKey = generateStorageKey(tableName);
+    return localStorage.getItem(`${storageKey}_syncing`) === 'true';
+  } catch (error) {
+    return false;
+  }
+};
+
+/**
+ * Exécute une opération de synchronisation
+ * Ajouté pour résoudre l'erreur dans useSync.ts
+ */
+export const executeSyncOperation = async <T>(
+  tableName: string, 
+  data: T[], 
+  syncFn: (table: string, tableData: T[], operationId: string) => Promise<boolean>,
+  userId: string,
+  trigger: "auto" | "manual" | "initial" = "manual"
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const storageKey = generateStorageKey(tableName);
+    const operationId = uuidv4();
+    
+    // Marquer la synchronisation comme en cours
+    localStorage.setItem(`${storageKey}_syncing`, 'true');
+    
+    // Exécuter la fonction de synchronisation
+    const success = await syncFn(tableName, data, operationId);
+    
+    // Mettre à jour l'état de la synchronisation
+    if (success) {
+      localStorage.setItem(`${storageKey}_lastSynced`, Date.now().toString());
+      return { success: true, message: "Synchronisation réussie" };
+    } else {
+      return { success: false, message: "Échec de la synchronisation" };
+    }
+  } catch (error) {
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : "Erreur inconnue" 
+    };
+  } finally {
+    const storageKey = generateStorageKey(tableName);
+    localStorage.removeItem(`${storageKey}_syncing`);
+  }
 };
