@@ -2,7 +2,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 import { randomBytes } from "crypto";
 
 // Polyfill for crypto.getRandomValues
@@ -59,6 +58,7 @@ export default defineConfig(({ mode }) => {
       assetsDir: 'assets',
       minify: true,
       sourcemap: false,
+      cssCodeSplit: true, // Garantit que le CSS est extrait en fichiers séparés
       rollupOptions: {
         input: {
           main: path.resolve(__dirname, 'index.html'),
@@ -79,6 +79,15 @@ export default defineConfig(({ mode }) => {
         },
         // Configuration explicite des dépendances externes pour éviter les erreurs de compilation
         external: []
+      }
+    },
+    css: {
+      // Configuration pour l'extraction du CSS
+      devSourcemap: true,
+      modules: {
+        // Permet d'utiliser les modules CSS si nécessaire
+        scopeBehavior: 'local',
+        localsConvention: 'camelCaseOnly'
       }
     },
     optimizeDeps: {
