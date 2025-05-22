@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -118,8 +117,8 @@ export function useUnifiedSync<T extends SyncItem>({
           setLastSynced(new Date());
         }
       } 
-      // Pour les autres types de synchronisation (comme 'auto'), envoyer les données locales au serveur
-      else if (type === 'auto') {
+      // Pour les types de synchronisation 'auto', envoyer les données locales au serveur
+      else {
         const result = await syncWithServer<T>(tableName, data, endpoint);
         if (result.success) {
           setLastSynced(new Date());
