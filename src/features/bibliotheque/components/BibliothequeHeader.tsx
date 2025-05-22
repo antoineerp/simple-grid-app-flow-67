@@ -1,53 +1,53 @@
 
 import React from 'react';
-import { CloudSun, RefreshCw } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import SyncIndicator from '@/components/common/SyncIndicator';
 
 interface BibliothequeHeaderProps {
   onSync: () => Promise<void>;
-  syncFailed?: boolean;
-  isSyncing?: boolean;
-  isOnline?: boolean;
-  lastSynced?: Date | null;
+  isSyncing: boolean;
+  isOnline: boolean;
+  syncFailed: boolean;
+  lastSynced: Date | null;
+  onExport?: () => void;
 }
 
-export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
+export function BibliothequeHeader({
   onSync,
-  syncFailed = false,
-  isSyncing = false,
-  isOnline = navigator.onLine,
-  lastSynced = null
-}) => {
+  isSyncing,
+  isOnline,
+  syncFailed,
+  lastSynced,
+  onExport
+}: BibliothequeHeaderProps) {
   return (
     <div className="mb-6">
-      <div className="flex justify-between items-center mb-2">
-        <h1 className="text-3xl font-bold text-app-blue">Bibliothèque de documents</h1>
-        
-        {/* Bouton de synchronisation invisible mais fonctionnel */}
-        <Button
-          onClick={onSync}
-          variant="outline"
-          size="sm"
-          className="hidden"
-        >
-          <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-          Actualiser
-        </Button>
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h1 className="text-3xl font-bold text-app-blue">Collaboration</h1>
+        </div>
+        <div className="flex space-x-2">
+          {onExport && (
+            <button
+              onClick={onExport}
+              className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
+              title="Exporter en PDF"
+            >
+              <FileText className="h-6 w-6 stroke-[1.5]" />
+            </button>
+          )}
+        </div>
       </div>
-      
-      {/* Indicateur de synchronisation invisible */}
-      <div className="mb-4 hidden">
-        <SyncIndicator
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          syncFailed={syncFailed}
-          lastSynced={lastSynced}
-          onSync={onSync}
-          showOnlyErrors={true}
-        />
-      </div>
+
+      <SyncIndicator
+        isSyncing={isSyncing}
+        isOnline={isOnline}
+        syncFailed={syncFailed}
+        lastSynced={lastSynced}
+        onSync={onSync}
+        showOnlyErrors={true}
+      />
     </div>
   );
-};
+}

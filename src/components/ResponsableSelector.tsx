@@ -10,6 +10,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Membre } from '@/types/membres';
 
 interface ResponsableSelectorProps {
   selectedInitiales: string[];
@@ -38,7 +39,7 @@ const ResponsableSelector = ({
   };
 
   // S'assurer qu'on a des données par défaut si les membres sont vides ou en cours de chargement
-  const membresData = membres && membres.length > 0 ? membres : [
+  const membresData: Membre[] = membres && membres.length > 0 ? membres : [
     { id: '1', prenom: 'Jean', nom: 'Dupont', initiales: 'JD', fonction: 'Directeur', date_creation: new Date() },
     { id: '2', prenom: 'Marie', nom: 'Martin', initiales: 'MM', fonction: 'Responsable', date_creation: new Date() }
   ];

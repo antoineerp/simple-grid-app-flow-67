@@ -37,12 +37,13 @@ export const navigationItems: NavItem[] = [
   }
 ];
 
-// Navigation items réservés à l'administration
+// Navigation items réservés à l'administration - masqués par défaut
 export const adminNavigationItems: NavItem[] = [
-  {
-    path: '/administration',
-    icon: Settings,
-    label: 'Administration',
-    requiredPermission: 'isAdmin'
-  }
+  // Menu Administration masqué selon la demande
+  // {
+  //   path: '/administration',
+  //   icon: Settings,
+  //   label: 'Administration',
+  //   requiredPermission: 'isAdmin'
+  // }
 ];
