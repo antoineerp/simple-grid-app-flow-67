@@ -15,7 +15,7 @@ fi
 echo "Création des répertoires de déploiement..."
 mkdir -p deploy/assets
 
-# Copier les assets - IMPORTANT: directement dans deploy/assets, pas dans deploy/dist/assets
+# Copier les assets
 echo "Copie des assets compilés..."
 cp -r dist/assets/* deploy/assets/
 
@@ -46,11 +46,9 @@ else
     echo "Les fichiers sont prêts pour le déploiement."
     
     # Mise à jour du index.html si nécessaire
-    if [ -f "dist/index.html" ]; then
-        echo "Copie de index.html depuis dist..."
-        cp dist/index.html deploy/
-        
+    if [ -f "deploy/index.html" ]; then
         echo "Vérification des références dans index.html..."
+        
         # À ce stade, vous pourriez utiliser un script PHP pour mettre à jour index.html
         echo "Pour mettre à jour index.html, utilisez le script update-assets.php"
     fi

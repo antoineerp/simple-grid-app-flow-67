@@ -29,19 +29,14 @@ mkdir -p deploy/api/middleware
 mkdir -p deploy/api/operations
 mkdir -p deploy/api/utils
 mkdir -p deploy/public/lovable-uploads
+mkdir -p deploy/dist
 
-# IMPORTANT: Ne pas copier le répertoire dist complet pour éviter les chemins dist/dist
-# Copier les fichiers compilés vers la racine et les assets vers assets/
+# Copier les fichiers compilés si disponibles
 echo "Copie des fichiers compilés..."
-if [ -d "dist" ]; then    
-    # Copier index.html à la racine
-    if [ -f "dist/index.html" ]; then
-        cp dist/index.html deploy/
-    else
-        echo "ATTENTION: Le fichier dist/index.html n'existe pas."
-    fi
+if [ -d "dist" ]; then
+    cp -r dist/ deploy/dist/
     
-    # Copier les assets directement dans deploy/assets (pas dist/assets)
+    # IMPORTANT: Copie explicite des assets dans le dossier deploy/assets
     echo "Copie des assets vers le dossier de déploiement..."
     if [ -d "dist/assets" ]; then
         cp -r dist/assets/* deploy/assets/
@@ -51,6 +46,12 @@ if [ -d "dist" ]; then
         echo "Nombre de fichiers assets copiés: $ASSET_COUNT"
     else
         echo "ATTENTION: Le dossier dist/assets n'existe pas."
+    fi
+    
+    if [ -f "dist/index.html" ]; then
+        cp dist/index.html deploy/
+    else
+        echo "ATTENTION: Le fichier dist/index.html n'existe pas."
     fi
 else
     echo "ATTENTION: Le dossier dist n'existe pas. Aucun fichier compilé à copier."
