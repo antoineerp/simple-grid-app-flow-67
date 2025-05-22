@@ -1,76 +1,114 @@
 
 <?php
-// Diagnostic de la configuration PHP
-header('Content-Type: application/json; charset=UTF-8');
-header("Access-Control-Allow-Origin: *");
+// Définir explicitement l'encodage UTF-8
+header('Content-Type: application/json; charset=utf-8');
+mb_internal_encoding('UTF-8');
+
+// Désactiver la mise en cache
 header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
 
-$diagnostics = [
-    'php_running' => true,
-    'php_version' => PHP_VERSION,
-    'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Non disponible',
-    'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'Non disponible',
-    'script_filename' => $_SERVER['SCRIPT_FILENAME'] ?? 'Non disponible',
-    'http_host' => $_SERVER['HTTP_HOST'] ?? 'Non disponible',
-    'request_uri' => $_SERVER['REQUEST_URI'] ?? 'Non disponible',
-    'https' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
-    'modules' => function_exists('apache_get_modules') ? apache_get_modules() : 'Non disponible',
-    'extensions' => get_loaded_extensions(),
-    'date_time' => date('Y-m-d H:i:s'),
-    'timezone' => date_default_timezone_get(),
-    'pdo_drivers' => PDO::getAvailableDrivers(),
-    'headers_sent' => headers_sent(),
-    'output_buffering' => ob_get_level()
+// Autoriser l'accès CORS pour le débogage
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+
+// Journaliser l'accès
+error_log('Diagnostic API accessed from: ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+
+// Fonction pour obtenir une information sur le serveur de manière sécurisée
+function get_server_info($key) {
+    return isset($_SERVER[$key]) ? $_SERVER[$key] : 'non disponible';
+}
+
+// Vérifier l'environnement PHP
+$phpVersion = phpversion();
+$modules = get_loaded_extensions();
+$docRoot = get_server_info('DOCUMENT_ROOT');
+$scriptFilename = get_server_info('SCRIPT_FILENAME');
+$requestUri = get_server_info('REQUEST_URI');
+$httpHost = get_server_info('HTTP_HOST');
+
+// Vérifier l'existence de fichiers clés
+$indexHtml = file_exists('../index.html');
+$mainHtaccess = file_exists('../.htaccess');
+$apiHtaccess = file_exists('./.htaccess');
+$apiIndex = file_exists('./index.php');
+$assetsDir = is_dir('../assets');
+
+// Vérifier le fichier de configuration d'environnement
+$configExists = file_exists('./config/env.php');
+$configJson = file_exists('./config/app_config.json');
+
+// Préparation de la réponse
+$response = [
+    'status' => 200,
+    'message' => 'Diagnostic API fonctionnel',
+    'timestamp' => date('Y-m-d H:i:s'),
+    'server_info' => [
+        'php_version' => $phpVersion,
+        'loaded_modules' => count($modules),
+        'document_root' => $docRoot,
+        'script_filename' => $scriptFilename,
+        'request_uri' => $requestUri,
+        'http_host' => $httpHost
+    ],
+    'files_check' => [
+        'index_html' => $indexHtml,
+        'root_htaccess' => $mainHtaccess,
+        'api_htaccess' => $apiHtaccess,
+        'api_index' => $apiIndex,
+        'assets_directory' => $assetsDir,
+        'env_config' => $configExists,
+        'app_config_json' => $configJson
+    ]
 ];
 
-// Tester la création de fichier (permissions)
-$test_file = dirname(__FILE__) . '/test_write_permission.txt';
-$file_write_test = @file_put_contents($test_file, 'Test write: ' . date('Y-m-d H:i:s'));
-$diagnostics['can_write_files'] = $file_write_test !== false;
-if (file_exists($test_file)) {
-    @unlink($test_file);
-}
-
-// Vérifier si la connexion à la base de données fonctionne
-try {
-    $host = "p71x6d.myd.infomaniak.com";
-    $dbname = "p71x6d_system";
-    $username = "p71x6d_richard";
-    $password = "Trottinette43!";
+// Si l'API est configurée, inclure les informations de configuration
+if ($configExists) {
+    // Vérifier si la fonction env() existe déjà, sinon la définir
+    if (!function_exists('env')) {
+        function env($key, $default = null) {
+            // Fonction minimale de secours
+            return $default;
+        }
+    }
     
-    $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
-    $options = [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_TIMEOUT => 5,
-    ];
-    
-    $pdo = new PDO($dsn, $username, $password, $options);
-    $diagnostics['db_connection'] = [
-        'success' => true,
-        'server_version' => $pdo->getAttribute(PDO::ATTR_SERVER_VERSION),
-        'client_version' => $pdo->getAttribute(PDO::ATTR_CLIENT_VERSION)
-    ];
-} catch (PDOException $e) {
-    $diagnostics['db_connection'] = [
-        'success' => false,
-        'error' => $e->getMessage()
-    ];
+    // Essayer d'inclure le fichier de configuration sans planter
+    try {
+        include_once './config/env.php';
+        
+        // Récupérer les variables d'environnement en utilisant la fonction env()
+        $response['environment'] = env('APP_ENV', 'non défini');
+        $response['api_urls'] = [
+            'dev' => env('API_URL_DEV', 'non défini'),
+            'prod' => env('API_URL_PROD', 'non défini')
+        ];
+        $response['cors'] = [
+            'dev' => env('ALLOWED_ORIGIN_DEV', 'non défini'),
+            'prod' => env('ALLOWED_ORIGIN_PROD', 'non défini')
+        ];
+    } catch (Exception $e) {
+        $response['config_error'] = $e->getMessage();
+    }
 }
 
-// Vérifier les fichiers PHP clés
-$key_files = [
-    'test.php',
-    'check.php',
-    'users.php',
-    'check-users.php',
-    '.htaccess'
-];
-
-$diagnostics['files_exist'] = [];
-foreach ($key_files as $file) {
-    $diagnostics['files_exist'][$file] = file_exists(dirname(__FILE__) . '/' . $file);
+// Vérifier si le fichier app_config.json existe et est lisible
+if ($configJson) {
+    try {
+        $jsonContent = file_get_contents('./config/app_config.json');
+        $jsonData = json_decode($jsonContent, true);
+        if ($jsonData) {
+            $response['app_config'] = $jsonData;
+        } else {
+            $response['app_config_error'] = 'Format JSON invalide';
+        }
+    } catch (Exception $e) {
+        $response['app_config_error'] = $e->getMessage();
+    }
 }
 
-echo json_encode($diagnostics, JSON_PRETTY_PRINT);
+// Retourner la réponse en JSON
+echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 ?>

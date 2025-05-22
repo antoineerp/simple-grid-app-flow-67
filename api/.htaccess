@@ -2,9 +2,6 @@
 # Activer le moteur de réécriture
 RewriteEngine On
 
-# S'assurer que le serveur exécute les fichiers PHP
-AddHandler application/x-httpd-php .php
-
 # Définir le type MIME pour JavaScript et CSS
 AddType application/javascript .js
 AddType application/javascript .mjs
@@ -19,7 +16,7 @@ php_value error_reporting E_ALL
 <IfModule mod_headers.c>
     Header always set Access-Control-Allow-Origin "*"
     Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Forced-DB-User, X-User-Prefix"
+    Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
     
     # Caching headers for API endpoints
     <FilesMatch "\.(php)$">
@@ -27,9 +24,15 @@ php_value error_reporting E_ALL
         Header set Pragma "no-cache"
         Header set Expires 0
     </FilesMatch>
+    
+    # Cache for JS/CSS files
+    <FilesMatch "\.(js|css|mjs|es.js)$">
+        Header set Cache-Control "max-age=3600, public"
+    </FilesMatch>
 </IfModule>
 
 # Gérer la requête OPTIONS pour CORS preflight
+RewriteRule ^(.*)$ $1 [E=HTTP_ORIGIN:%{HTTP:ORIGIN}]
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ $1 [R=200,L]
 
@@ -39,10 +42,24 @@ RewriteRule ^(.*)$ $1 [R=200,L]
     Allow from all
 </Files>
 
-# Force PHP execution
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
+# Exclusion explicite pour diagnostic-complet.php - pas d'authentification requise
+<Files diagnostic-complet.php>
+    # Désactiver toutes les règles de réécriture pour ce fichier
+    RewriteEngine Off
+    # Assurer que l'accès est autorisé
+    Order Allow,Deny
+    Allow from all
+    # Ajouter des headers spécifiques
+    <IfModule mod_headers.c>
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Access-Control-Allow-Origin "*"
+    </IfModule>
+</Files>
 
 # Rediriger les erreurs 404 API vers index.php
 ErrorDocument 404 /api/index.php
+
+# Assurer que PHP est correctement interprété
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
