@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Table, TableBody } from "@/components/ui/table";
 import { Document } from '@/types/documents';
@@ -41,7 +42,10 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   const ungroupedDocuments = documents.filter(d => !d.groupId);
   
   const {
-    draggedItem,
+    draggedItemId,
+    draggedItemGroupId,
+    draggedItemIndex,
+    dropTargetId,
     handleDragStart,
     handleDragOver,
     handleDragLeave,

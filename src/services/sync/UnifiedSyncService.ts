@@ -17,6 +17,7 @@ export interface SyncItem {
   id: string;
   date_creation?: Date;
   date_modification?: Date;
+  ordre?: number;
   [key: string]: any;
 }
 
@@ -405,7 +406,9 @@ export const reorderItems = <T extends SyncItem>(
   
   // Mettre à jour l'ordre
   items.forEach((item, index) => {
-    item.ordre = index + 1;
+    if (item.ordre !== undefined) {
+      item.ordre = index + 1;
+    }
   });
   
   // Si un groupId est spécifié, mettre à jour uniquement les éléments de ce groupe

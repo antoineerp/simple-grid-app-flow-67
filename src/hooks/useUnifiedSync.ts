@@ -126,7 +126,7 @@ export function useUnifiedSync<T extends SyncItem>({
         toast({
           title: "Synchronisation impossible",
           description: "Vous êtes hors ligne. Les modifications seront synchronisées automatiquement une fois la connexion rétablie.",
-          variant: "warning"
+          variant: "destructive"
         });
       }
       return false;
@@ -183,7 +183,7 @@ export function useUnifiedSync<T extends SyncItem>({
   // Création d'un nouvel élément
   const createNewItem = useCallback((itemData: Partial<T> = {}) => {
     if (itemFactory) {
-      const newItem = itemFactory(itemData);
+      const newItem = itemFactory(itemData) as T;
       const updatedData = [...data, newItem];
       setData(updatedData);
       saveToCache(tableName, updatedData);

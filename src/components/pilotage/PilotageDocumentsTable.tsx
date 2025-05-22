@@ -37,6 +37,10 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
   const sortedDocuments = [...documents].sort((a, b) => a.ordre - b.ordre);
   
   const {
+    draggedItemId,
+    draggedItemGroupId,
+    draggedItemIndex,
+    dropTargetId,
     handleDragStart,
     handleDragOver,
     handleDragLeave,
