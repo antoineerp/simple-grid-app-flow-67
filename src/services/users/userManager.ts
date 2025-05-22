@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { Utilisateur } from '@/types/auth';
@@ -34,10 +33,10 @@ export const UserManager = {
       const userId = getCurrentUser();
       const currentApiUrl = getApiUrl();
       
-      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/test.php?action=users`);
+      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/users.php`);
       
-      // Utiliser le nouveau endpoint qui fonctionne
-      const response = await fetch(`${currentApiUrl}/test.php?action=users`, {
+      // Utiliser l'endpoint users.php
+      const response = await fetch(`${currentApiUrl}/users.php`, {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),

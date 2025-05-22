@@ -110,14 +110,14 @@ export function useUnifiedSync<T extends SyncItem>({
         return false;
       }
       
-      // Correction du problème de comparaison de types
+      // Correction du problème de comparaison de types - utiliser un test d'égalité stricte
       if (type === 'init' || type === 'manual') {
         const serverData = await fetchFromServer<T>(tableName, endpoint);
         if (serverData && serverData.length > 0) {
           setData(serverData);
           setLastSynced(new Date());
         }
-      } else if (type === 'auto') {
+      } else {
         // Pour les synchronisations de type 'auto', envoyer les données locales au serveur
         const result = await syncWithServer<T>(tableName, data, endpoint);
         if (result.success) {

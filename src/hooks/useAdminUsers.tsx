@@ -1,10 +1,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { connectAsUser, testDatabaseConnection, Utilisateur } from '@/services';
+import { connectAsUser, Utilisateur } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { checkPermission, UserRole } from '@/types/roles';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
-import { UserManager } from '@/services/users/userManager';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 
@@ -54,11 +53,11 @@ export const useAdminUsers = () => {
       console.log("Début du chargement des utilisateurs...");
       console.log(`Utilisateur base de données actuel: ${FIXED_USER_ID}`);
       
-      // Utiliser directement l'endpoint de test qui fonctionne
+      // Utiliser directement l'API des utilisateurs
       const API_URL = getApiUrl();
-      console.log(`Récupération des utilisateurs depuis: ${API_URL}/test.php?action=users`);
+      console.log(`Récupération des utilisateurs depuis: ${API_URL}/users.php`);
       
-      const response = await fetch(`${API_URL}/test.php?action=users`, {
+      const response = await fetch(`${API_URL}/users.php`, {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),

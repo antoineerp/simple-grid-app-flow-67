@@ -6,11 +6,14 @@ import { Loader2, RefreshCcw, UserPlus } from 'lucide-react';
 import { getApiUrl } from '@/config/apiConfig';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { toast } from '@/components/ui/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import AddUserForm from '@/components/users/AddUserForm';
 
 const Members = () => {
   const [members, setMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   // Fonction pour charger les membres depuis le serveur
   const loadMembersFromServer = async () => {
@@ -20,7 +23,7 @@ const Members = () => {
       const apiUrl = getApiUrl();
       const userId = getCurrentUser();
       
-      const response = await fetch(`${apiUrl}/test.php?action=users`, {
+      const response = await fetch(`${apiUrl}/users.php`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -36,7 +39,7 @@ const Members = () => {
       
       const data = await response.json();
       
-      if (data.status === 'success') {
+      if (data.status === 'success' || data.records) {
         setMembers(data.records || []);
         setLastSynced(new Date());
         
@@ -91,6 +94,16 @@ const Members = () => {
     loadMembersFromServer();
   }, []);
 
+  // Gestion de l'ajout d'un utilisateur
+  const handleAddUserSuccess = () => {
+    setIsAddDialogOpen(false);
+    loadMembersFromServer();
+    toast({
+      title: "Utilisateur ajouté",
+      description: "L'utilisateur a été ajouté avec succès."
+    });
+  };
+
   return (
     <div className="container px-4 py-6 space-y-6">
       <Card>
@@ -109,7 +122,11 @@ const Members = () => {
             >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
             </Button>
-            <Button size="sm" className="flex items-center gap-1">
+            <Button 
+              size="sm" 
+              className="flex items-center gap-1"
+              onClick={() => setIsAddDialogOpen(true)}
+            >
               <UserPlus className="h-4 w-4" />
               <span>Ajouter</span>
             </Button>
@@ -168,6 +185,16 @@ const Members = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialogue d'ajout d'utilisateur */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ajouter un utilisateur</DialogTitle>
+          </DialogHeader>
+          <AddUserForm onSuccess={handleAddUserSuccess} onCancel={() => setIsAddDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
