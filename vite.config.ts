@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { randomBytes } from "crypto";
+import { componentTagger } from "lovable-tagger";
 
 // Polyfill for crypto.getRandomValues
 if (!globalThis.crypto) {
@@ -44,7 +45,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
-      // Removed the componentTagger reference that was causing the error
+      mode === 'development' && componentTagger(),
     ].filter(Boolean),
     resolve: {
       alias: {
