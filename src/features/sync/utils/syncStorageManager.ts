@@ -1,5 +1,7 @@
+
 /**
  * Gestionnaire de stockage local pour la synchronisation
+ * Assure une segmentation stricte des données par utilisateur
  */
 
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
@@ -19,18 +21,34 @@ const isValidUserId = (userId: string | null | undefined): boolean => {
   return true;
 };
 
-// Génère une clé de stockage unique pour une table et un utilisateur
+/**
+ * Génère une clé de stockage unique pour chaque utilisateur
+ * Utilise toujours p71x6d_richard comme base pour la BD,
+ * mais ajoute un préfixe pour l'isolation des données par utilisateur
+ */
 export const getStorageKey = (tableName: string, userId?: string | null): string => {
-  // Utiliser l'ID utilisateur fixe pour la base de données mais ajouter un préfixe utilisateur
-  // pour la séparation des données entre utilisateurs
-  const currentUserId = userId || getCurrentUser();
+  // Utiliser l'ID utilisateur fixe pour la base de données
+  const databaseId = BASE_DB_USER;
   
-  // Préfixe pour garantir que la table appartient à l'utilisateur actuel
-  const userPrefix = localStorage.getItem('userPrefix') || 'u1';
+  // Récupérer le préfixe utilisateur pour l'isolation des données
+  let userPrefix = '';
   
-  // Construire la clé avec l'utilisateur de BDD fixe mais le préfixe utilisateur local
-  console.log(`syncStorageManager: Génération de clé pour ${tableName} - Base: ${BASE_DB_USER}, Préfixe: ${userPrefix}`);
-  return `${tableName}_${BASE_DB_USER}_${userPrefix}`;
+  // Si un ID spécifique est fourni, l'utiliser comme préfixe
+  if (userId && isValidUserId(userId)) {
+    userPrefix = userId.replace(/^p71x6d_/, ''); // Enlever le préfixe p71x6d_ si présent
+  } else {
+    // Sinon utiliser l'ID de l'utilisateur actuellement connecté
+    const currentUserEmail = localStorage.getItem('userEmail');
+    if (currentUserEmail === 'antcirier@gmail.com') {
+      userPrefix = 'admin'; // Préfixe spécial pour l'administrateur
+    } else {
+      // Pour les autres utilisateurs, utiliser leur préfixe stocké
+      userPrefix = localStorage.getItem('userPrefix') || 'default';
+    }
+  }
+  
+  // Construire la clé avec l'utilisateur de BDD fixe mais le préfixe utilisateur
+  return `${tableName}_${databaseId}_${userPrefix}`;
 };
 
 // Sauvegarde des données dans le localStorage
@@ -38,11 +56,11 @@ export const saveLocalData = <T>(tableName: string, data: T[], userId?: string):
   try {
     const storageKey = getStorageKey(tableName, userId);
     
-    console.log(`syncStorageManager: Sauvegarde des données pour ${tableName} dans la base ${BASE_DB_USER}`);
+    console.log(`syncStorageManager: Sauvegarde des données pour ${tableName} avec clé ${storageKey}`);
     
     localStorage.setItem(storageKey, JSON.stringify(data));
     localStorage.setItem(`${storageKey}_last_modified`, Date.now().toString());
-    console.log(`syncStorageManager: Données ${tableName} sauvegardées avec succès (${data.length} éléments) avec clé ${storageKey}`);
+    console.log(`syncStorageManager: Données ${tableName} sauvegardées avec succès (${data.length} éléments)`);
   } catch (e) {
     console.error(`syncStorageManager: Erreur lors de la sauvegarde ${tableName}:`, e);
   }
@@ -53,7 +71,7 @@ export const loadLocalData = <T>(tableName: string, userId?: string): T[] => {
   try {
     const storageKey = getStorageKey(tableName, userId);
     
-    console.log(`syncStorageManager: Chargement des données pour ${tableName} depuis la base ${BASE_DB_USER}`);
+    console.log(`syncStorageManager: Chargement des données pour ${tableName} avec clé ${storageKey}`);
     
     const data = localStorage.getItem(storageKey);
     if (!data) {
@@ -62,7 +80,7 @@ export const loadLocalData = <T>(tableName: string, userId?: string): T[] => {
     }
     
     const parsedData = JSON.parse(data) as T[];
-    console.log(`syncStorageManager: Données ${tableName} chargées avec succès (${parsedData.length} éléments) depuis clé ${storageKey}`);
+    console.log(`syncStorageManager: Données ${tableName} chargées avec succès (${parsedData.length} éléments)`);
     return parsedData;
   } catch (e) {
     console.error(`syncStorageManager: Erreur lors du chargement ${tableName}:`, e);
@@ -77,7 +95,7 @@ export const getLastModified = (tableName: string, userId?: string): Date | null
     const lastModified = localStorage.getItem(`${storageKey}_last_modified`);
     return lastModified ? new Date(parseInt(lastModified, 10)) : null;
   } catch (e) {
-    console.error(`syncStorageManager: Erreur lors de la récupération de last_modified ${tableName}:`, e);
+    console.error(`syncStorageManager: Erreur récupération last_modified ${tableName}:`, e);
     return null;
   }
 };
@@ -89,7 +107,7 @@ export const getLastSynced = (tableName: string, userId?: string): Date | null =
     const lastSynced = localStorage.getItem(`${storageKey}_last_synced`);
     return lastSynced ? new Date(parseInt(lastSynced, 10)) : null;
   } catch (e) {
-    console.error(`syncStorageManager: Erreur lors de la récupération de last_synced ${tableName}:`, e);
+    console.error(`syncStorageManager: Erreur récupération last_synced ${tableName}:`, e);
     return null;
   }
 };
@@ -99,9 +117,9 @@ export const updateLastSynced = (tableName: string, userId?: string): void => {
   try {
     const storageKey = getStorageKey(tableName, userId);
     localStorage.setItem(`${storageKey}_last_synced`, Date.now().toString());
-    console.log(`syncStorageManager: Last synced mis à jour pour ${tableName} (utilisateur: ${userId || getCurrentUser()})`);
+    console.log(`syncStorageManager: Last synced mis à jour pour ${tableName}`);
   } catch (e) {
-    console.error(`syncStorageManager: Erreur lors de la mise à jour de last_synced ${tableName}:`, e);
+    console.error(`syncStorageManager: Erreur mise à jour last_synced ${tableName}:`, e);
   }
 };
 
@@ -122,14 +140,14 @@ export const cleanupStorage = (): void => {
       const hasInvalidFormat = key.includes('[object Object]') || key.includes('undefined') || key.includes('null');
       
       if (hasRestrictedId || hasInvalidFormat) {
-        console.log(`SyncStorageManager: Suppression de l'entrée malformée dans localStorage: ${key}`);
+        console.log(`SyncStorageManager: Suppression de l'entrée malformée: ${key}`);
         localStorage.removeItem(key);
         entriesRemoved++;
         i--; // Ajuster l'index car la longueur du localStorage a changé
       }
     }
     
-    console.log(`SyncStorageManager: Nettoyage de localStorage terminé - ${entriesRemoved} entrées supprimées`);
+    console.log(`SyncStorageManager: Nettoyage terminé - ${entriesRemoved} entrées supprimées`);
   } catch (e) {
     console.error("SyncStorageManager: Erreur lors du nettoyage du localStorage:", e);
   }
@@ -140,7 +158,7 @@ export const cleanupUserData = (userId: string): void => {
   console.log(`SyncStorageManager: Nettoyage des données pour l'utilisateur ${userId}`);
   
   if (!isValidUserId(userId)) {
-    console.warn(`SyncStorageManager: Tentative de nettoyage avec ID invalide: ${userId}, opération annulée`);
+    console.warn(`SyncStorageManager: Tentative de nettoyage avec ID invalide: ${userId}`);
     return;
   }
   
@@ -158,7 +176,7 @@ export const cleanupUserData = (userId: string): void => {
       }
     }
     
-    console.log(`SyncStorageManager: Nettoyage terminé - ${entriesRemoved} entrées supprimées pour l'utilisateur ${userId}`);
+    console.log(`SyncStorageManager: Nettoyage terminé - ${entriesRemoved} entrées supprimées pour ${userId}`);
   } catch (e) {
     console.error(`SyncStorageManager: Erreur lors du nettoyage des données utilisateur:`, e);
   }

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useMembres } from '@/contexts/MembresContext';
 import { Membre } from '@/types/membres';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface ResponsabiliteCount {
   r: number;
@@ -18,23 +19,33 @@ export interface MembreResponsabilite extends Membre {
 export const useResponsabilityMatrix = () => {
   const { membres } = useMembres();
   const [membreResponsabilites, setMembreResponsabilites] = useState<MembreResponsabilite[]>([]);
-  const currentUser = localStorage.getItem('currentUser') || 'default';
-
+  const userId = getCurrentUser(); // Utilisateur fixe: p71x6d_richard
+  
   useEffect(() => {
     const calculateResponsabilites = () => {
-      // Charger les exigences et documents depuis le localStorage spécifiques à l'utilisateur actuel
-      const storedExigences = localStorage.getItem(`exigences_${currentUser}`);
-      const storedDocuments = localStorage.getItem(`documents_${currentUser}`);
+      // Charger les exigences et documents depuis le localStorage pour l'utilisateur actuel
+      const storagePrefix = `${userId}_`;
+      const storedExigences = localStorage.getItem(`exigences_${storagePrefix}`);
+      const storedDocuments = localStorage.getItem(`documents_${storagePrefix}`);
       
       const exigences = storedExigences ? JSON.parse(storedExigences) : [];
       const documents = storedDocuments ? JSON.parse(storedDocuments) : [];
       
-      console.log("Exigences chargées:", exigences.length);
-      console.log("Documents chargés:", documents.length);
+      console.log(`Données chargées pour ${userId}: ${exigences.length} exigences, ${documents.length} documents`);
 
       // Calculer les responsabilités pour chaque membre
       const membresWithResponsabilites = membres.map(membre => {
         const initiales = membre.initiales;
+        
+        if (!initiales) {
+          console.warn(`Membre sans initiales: ${membre.prenom} ${membre.nom}`);
+          return {
+            ...membre,
+            exigences: { r: 0, a: 0, c: 0, i: 0 },
+            documents: { r: 0, a: 0, c: 0, i: 0 }
+          } as MembreResponsabilite;
+        }
+        
         console.log(`Calcul des responsabilités pour ${membre.prenom} ${membre.nom} (${initiales})`);
         
         // Initialiser les compteurs
@@ -48,18 +59,10 @@ export const useResponsabilityMatrix = () => {
             .forEach((exigence: any) => {
               if (exigence.responsabilites) {
                 // Vérifier si les initiales du membre sont dans chaque type de responsabilité
-                if (exigence.responsabilites.r && Array.isArray(exigence.responsabilites.r) && exigence.responsabilites.r.includes(initiales)) {
-                  exigencesCount.r++;
-                }
-                if (exigence.responsabilites.a && Array.isArray(exigence.responsabilites.a) && exigence.responsabilites.a.includes(initiales)) {
-                  exigencesCount.a++;
-                }
-                if (exigence.responsabilites.c && Array.isArray(exigence.responsabilites.c) && exigence.responsabilites.c.includes(initiales)) {
-                  exigencesCount.c++;
-                }
-                if (exigence.responsabilites.i && Array.isArray(exigence.responsabilites.i) && exigence.responsabilites.i.includes(initiales)) {
-                  exigencesCount.i++;
-                }
+                if (exigence.responsabilites.r?.includes(initiales)) exigencesCount.r++;
+                if (exigence.responsabilites.a?.includes(initiales)) exigencesCount.a++;
+                if (exigence.responsabilites.c?.includes(initiales)) exigencesCount.c++;
+                if (exigence.responsabilites.i?.includes(initiales)) exigencesCount.i++;
               }
             });
         }
@@ -71,18 +74,10 @@ export const useResponsabilityMatrix = () => {
             .forEach((document: any) => {
               if (document.responsabilites) {
                 // Vérifier si les initiales du membre sont dans chaque type de responsabilité
-                if (document.responsabilites.r && Array.isArray(document.responsabilites.r) && document.responsabilites.r.includes(initiales)) {
-                  documentsCount.r++;
-                }
-                if (document.responsabilites.a && Array.isArray(document.responsabilites.a) && document.responsabilites.a.includes(initiales)) {
-                  documentsCount.a++;
-                }
-                if (document.responsabilites.c && Array.isArray(document.responsabilites.c) && document.responsabilites.c.includes(initiales)) {
-                  documentsCount.c++;
-                }
-                if (document.responsabilites.i && Array.isArray(document.responsabilites.i) && document.responsabilites.i.includes(initiales)) {
-                  documentsCount.i++;
-                }
+                if (document.responsabilites.r?.includes(initiales)) documentsCount.r++;
+                if (document.responsabilites.a?.includes(initiales)) documentsCount.a++;
+                if (document.responsabilites.c?.includes(initiales)) documentsCount.c++;
+                if (document.responsabilites.i?.includes(initiales)) documentsCount.i++;
               }
             });
         }
@@ -114,7 +109,7 @@ export const useResponsabilityMatrix = () => {
       window.removeEventListener('documentUpdate', calculateResponsabilites);
       window.removeEventListener('storage', calculateResponsabilites);
     };
-  }, [membres, currentUser]);
+  }, [membres, userId]);
 
   return { membreResponsabilites };
 };
