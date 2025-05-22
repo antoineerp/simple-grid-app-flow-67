@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -295,7 +296,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => handleDeleteUser(user.id)}
+                              onClick={() => handleDeleteUser(user.id.toString())}
                               disabled={currentDatabaseUser === user.identifiant_technique}
                               className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
                             >
