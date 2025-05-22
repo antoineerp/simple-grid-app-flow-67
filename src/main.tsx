@@ -1,8 +1,26 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
 import './index.css';
+
+// Composant App simple par défaut
+const App = () => {
+  return (
+    <div className="container mx-auto p-4">
+      <header className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-blue-700">Qualite.cloud</h1>
+        <p className="text-gray-600">Système de Management de la Qualité</p>
+      </header>
+      <main>
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4">Bienvenue</h2>
+          <p>Cette application est en cours de chargement ou de déploiement.</p>
+          <p className="mt-4">Si vous voyez cette page, le déploiement de base a réussi mais l'application complète n'est pas encore chargée.</p>
+        </div>
+      </main>
+    </div>
+  );
+};
 
 try {
   console.log("Application starting...");

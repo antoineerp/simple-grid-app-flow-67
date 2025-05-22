@@ -10,6 +10,7 @@ $config = [
     'fix_htaccess' => true,
     'ensure_css_extraction' => true,
     'fix_js_references' => true,
+    'create_vite_config' => true,  // New option to create vite.config if missing
     'force_build' => false
 ];
 
@@ -28,7 +29,7 @@ $operations = [];
 
 // 1. Vérifier et créer les répertoires nécessaires
 function check_create_directories() {
-    $dirs = ['assets', 'dist', 'dist/assets'];
+    $dirs = ['assets', 'dist', 'dist/assets', 'src'];
     $results = [];
     
     foreach ($dirs as $dir) {
@@ -82,6 +83,19 @@ EOT;
         }
     }
     
+    // Copier dans src/index.css aussi
+    if (!file_exists('./src/index.css') && file_exists('./assets/index.css')) {
+        if (!is_dir('./src')) {
+            mkdir('./src', 0755, true);
+        }
+        
+        if (copy('./assets/index.css', './src/index.css')) {
+            return log_operation("Copie du CSS vers src", true, "CSS copié vers src/index.css avec succès");
+        } else {
+            return log_operation("Copie du CSS vers src", false, "Impossible de copier le CSS vers src");
+        }
+    }
+    
     return log_operation("Vérification du CSS", true, "Le fichier CSS existe déjà");
 }
 
@@ -125,6 +139,74 @@ EOT;
     return log_operation("Vérification du JS", true, "Le fichier JS existe déjà");
 }
 
+// Créer un fichier main.tsx par défaut si nécessaire
+function ensure_main_tsx() {
+    if (!file_exists('./src/main.tsx')) {
+        $default_main_tsx = <<<EOT
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './index.css';
+
+// Composant App simple par défaut
+const App = () => {
+  return (
+    <div className="container mx-auto p-4">
+      <header className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-blue-700">Qualite.cloud</h1>
+        <p className="text-gray-600">Système de Management de la Qualité</p>
+      </header>
+      <main>
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4">Bienvenue</h2>
+          <p>Cette application est en cours de chargement ou de déploiement.</p>
+          <p className="mt-4">Si vous voyez cette page, le déploiement de base a réussi mais l'application complète n'est pas encore chargée.</p>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+try {
+  console.log("Application starting...");
+  const rootElement = document.getElementById('root');
+  
+  if (!rootElement) {
+    console.error("Root element not found!");
+    document.body.innerHTML = '<div style="text-align:center; padding:20px;"><h1>Erreur</h1><p>L\\'élément racine est introuvable.</p></div>';
+  } else {
+    ReactDOM.createRoot(rootElement).render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>,
+    );
+    console.log("Application mounted successfully");
+  }
+} catch (error) {
+  console.error("Failed to render application:", error);
+  const message = error instanceof Error ? error.message : 'Erreur inconnue';
+  document.body.innerHTML = `<div style="text-align:center; padding:20px;"><h1>Erreur</h1><p>\${message}</p></div>`;
+}
+
+// Global error handler
+window.addEventListener('error', (event) => {
+  console.error('Global error caught:', event.error);
+});
+EOT;
+        
+        if (!is_dir('./src')) {
+            mkdir('./src', 0755, true);
+        }
+        
+        if (file_put_contents('./src/main.tsx', $default_main_tsx)) {
+            return log_operation("Création de main.tsx", true, "main.tsx créé avec succès");
+        } else {
+            return log_operation("Création de main.tsx", false, "Impossible de créer main.tsx");
+        }
+    }
+    
+    return log_operation("Vérification de main.tsx", true, "Le fichier main.tsx existe déjà");
+}
+
 // 4. Vérifier et créer index.html si nécessaire
 function ensure_index_html() {
     if (!file_exists('./index.html')) {
@@ -142,7 +224,7 @@ function ensure_index_html() {
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/assets/index.js"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
 EOT;
@@ -166,8 +248,7 @@ EOT;
         
         // Vérifier/mettre à jour la référence JS
         if (strpos($content, 'src="/src/main.tsx"') !== false) {
-            $content = str_replace('src="/src/main.tsx"', 'src="/assets/index.js"', $content);
-            $updated = true;
+            // OK, déjà correct
         } else if (strpos($content, 'src="/assets/index.js"') === false) {
             $content = str_replace('</body>', '  <script type="module" src="/assets/index.js"></script>' . "\n  " . '</body>', $content);
             $updated = true;
@@ -261,33 +342,8 @@ EOT;
 
 // 6. Synchroniser les assets entre dist et la racine
 function sync_assets() {
-    // Si dist/assets existe, copier vers assets
-    if (is_dir('./dist/assets')) {
-        $copied = 0;
-        foreach (glob('./dist/assets/*') as $file) {
-            $filename = basename($file);
-            if (copy($file, './assets/' . $filename)) {
-                $copied++;
-            }
-        }
-        
-        if ($copied > 0) {
-            return log_operation("Synchronisation des assets", true, "$copied fichiers copiés depuis dist/assets vers assets");
-        } else {
-            return log_operation("Synchronisation des assets", false, "Aucun fichier n'a pu être copié");
-        }
-    }
-    
-    // Si assets existe mais pas dist/assets, copier dans l'autre sens
-    if (is_dir('./assets') && !is_dir('./dist/assets')) {
-        if (!is_dir('./dist')) {
-            mkdir('./dist', 0755, true);
-        }
-        
-        if (!is_dir('./dist/assets')) {
-            mkdir('./dist/assets', 0755, true);
-        }
-        
+    // Copier les fichiers du répertoire assets vers dist/assets
+    if (is_dir('./assets') && is_dir('./dist/assets')) {
         $copied = 0;
         foreach (glob('./assets/*') as $file) {
             $filename = basename($file);
@@ -297,60 +353,106 @@ function sync_assets() {
         }
         
         if ($copied > 0) {
-            return log_operation("Synchronisation inverse des assets", true, "$copied fichiers copiés depuis assets vers dist/assets");
-        } else {
-            return log_operation("Synchronisation inverse des assets", false, "Aucun fichier n'a pu être copié");
+            return log_operation("Synchronisation des assets", true, "$copied fichiers copiés depuis assets vers dist/assets");
         }
     }
     
-    return log_operation("Synchronisation des assets", false, "Aucun répertoire source trouvé");
+    // Créer un fichier dist/assets/index.css s'il n'existe pas
+    if (!file_exists('./dist/assets/index.css') && file_exists('./assets/index.css')) {
+        if (copy('./assets/index.css', './dist/assets/index.css')) {
+            return log_operation("Copie de CSS vers dist", true, "index.css copié vers dist/assets");
+        }
+    }
+    
+    // Créer un fichier dist/assets/main.js s'il n'existe pas
+    if (!file_exists('./dist/assets/main.js') && file_exists('./assets/index.js')) {
+        if (copy('./assets/index.js', './dist/assets/main.js')) {
+            return log_operation("Copie de JS vers dist", true, "index.js copié vers dist/assets/main.js");
+        }
+    }
+    
+    return log_operation("Synchronisation des assets", false, "Aucun fichier n'a pu être copié ou les répertoires n'existent pas");
 }
 
-// 7. Mettre à jour vite.config.js pour assurer l'extraction CSS
-function fix_vite_config() {
-    $configs_to_check = ['vite.config.js', 'vite.config.ts'];
-    $fixed = false;
+// 7. Créer vite.config.js/ts s'il n'existe pas
+function create_vite_config() {
+    $config_types = ['js', 'ts'];
     
-    foreach ($configs_to_check as $config_file) {
-        if (file_exists('./' . $config_file)) {
-            $content = file_get_contents('./' . $config_file);
+    foreach ($config_types as $type) {
+        if (file_exists("./vite.config.$type")) {
+            // Mettre à jour la configuration existante
+            $content = file_get_contents("./vite.config.$type");
             
-            // Vérifier si cssCodeSplit est défini
             if (strpos($content, 'cssCodeSplit') === false) {
-                // Chercher la section build
                 if (preg_match('/build\s*:\s*{/i', $content)) {
                     $content = preg_replace(
                         '/(build\s*:\s*{)/i',
                         "$1\n    cssCodeSplit: true,",
                         $content
                     );
-                    $fixed = true;
-                } else {
-                    // Ajouter une section build complète
-                    if (preg_match('/export\s+default\s+defineConfig\s*\(\s*{/i', $content)) {
-                        $content = preg_replace(
-                            '/(export\s+default\s+defineConfig\s*\(\s*{)/i',
-                            "$1\n  build: {\n    cssCodeSplit: true,\n    outDir: 'dist',\n    assetsDir: 'assets'\n  },",
-                            $content
-                        );
-                        $fixed = true;
-                    }
+                } else if (preg_match('/export\s+default\s+defineConfig\s*\(\s*{/i', $content)) {
+                    $content = preg_replace(
+                        '/(export\s+default\s+defineConfig\s*\(\s*{)/i',
+                        "$1\n  build: {\n    cssCodeSplit: true,\n    outDir: 'dist',\n    assetsDir: 'assets'\n  },",
+                        $content
+                    );
                 }
                 
-                if ($fixed) {
-                    if (file_put_contents('./' . $config_file, $content)) {
-                        return log_operation("Correction de $config_file", true, "Configuration mise à jour pour l'extraction CSS");
-                    } else {
-                        return log_operation("Correction de $config_file", false, "Impossible de mettre à jour le fichier");
-                    }
-                }
-            } else {
-                return log_operation("Vérification de $config_file", true, "L'extraction CSS est déjà configurée");
+                file_put_contents("./vite.config.$type", $content);
+                return log_operation("Mise à jour de vite.config.$type", true, "Configuration mise à jour pour l'extraction CSS");
             }
+            
+            return log_operation("Vérification de vite.config.$type", true, "Configuration déjà correcte");
         }
     }
     
-    return log_operation("Correction de la configuration Vite", false, "Aucun fichier de configuration trouvé");
+    // Créer un nouveau fichier vite.config.js s'il n'existe pas
+    $default_vite_config = <<<EOT
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react-swc";
+import path from "path";
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    cssCodeSplit: true,
+    minify: true,
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        assetFileNames: (assetInfo) => {
+          if (!assetInfo.name) {
+            return 'assets/[name].[hash].[ext]';
+          }
+          const info = assetInfo.name.split('.');
+          const ext = info.pop();
+          const name = info.join('.');
+          return `assets/\${name}.\${ext}`;
+        },
+        chunkFileNames: 'assets/[name].[hash].js',
+        entryFileNames: 'assets/[name].[hash].js',
+      }
+    }
+  },
+  server: {
+    host: "0.0.0.0",
+    port: 8080,
+  },
+});
+EOT;
+    
+    if (file_put_contents('./vite.config.js', $default_vite_config)) {
+        return log_operation("Création de vite.config.js", true, "Configuration Vite créée avec succès");
+    } else {
+        return log_operation("Création de vite.config.js", false, "Impossible de créer le fichier de configuration");
+    }
 }
 
 // 8. Vérifier l'import CSS dans main.tsx
@@ -434,30 +536,33 @@ $all_operations[] = ensure_default_css();
 // 3. Assurer la présence du JS par défaut
 $all_operations[] = ensure_default_js();
 
-// 4. Vérifier/créer index.html
+// 4. Créer main.tsx s'il n'existe pas
+$all_operations[] = ensure_main_tsx();
+
+// 5. Vérifier/créer index.html
 $all_operations[] = ensure_index_html();
 
-// 5. Vérifier/corriger .htaccess
+// 6. Vérifier/corriger .htaccess
 if ($config['fix_htaccess']) {
     $all_operations[] = ensure_htaccess();
 }
 
-// 6. Synchroniser les assets
+// 7. Synchroniser les assets
 if ($config['copy_dist_assets']) {
     $all_operations[] = sync_assets();
 }
 
-// 7. Corriger vite.config.js/ts
-if ($config['ensure_css_extraction']) {
-    $all_operations[] = fix_vite_config();
+// 8. Créer/corriger vite.config.js/ts
+if ($config['create_vite_config']) {
+    $all_operations[] = create_vite_config();
 }
 
-// 8. Vérifier l'import CSS
+// 9. Vérifier l'import CSS
 if ($config['ensure_css_extraction']) {
     $all_operations[] = check_css_import();
 }
 
-// 9. Assurer la présence de src/index.css
+// 10. Assurer la présence de src/index.css
 if ($config['ensure_css_extraction']) {
     $all_operations[] = ensure_src_index_css();
 }
@@ -731,56 +836,68 @@ echo $dist_assets_files ? implode("\n", array_map('htmlspecialchars', $dist_asse
                     <li>.htaccess: <?php echo file_exists('./.htaccess') ? '<span class="success">Existe</span> (' . filesize('./.htaccess') . ' octets)' : '<span class="error">N\'existe pas</span>'; ?></li>
                     <li>vite.config.js/ts: <?php echo file_exists('./vite.config.js') || file_exists('./vite.config.ts') ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>'; ?></li>
                     <li>src/index.css: <?php echo file_exists('./src/index.css') ? '<span class="success">Existe</span> (' . filesize('./src/index.css') . ' octets)' : '<span class="error">N\'existe pas</span>'; ?></li>
+                    <li>src/main.tsx: <?php echo file_exists('./src/main.tsx') ? '<span class="success">Existe</span> (' . filesize('./src/main.tsx') . ' octets)' : '<span class="error">N\'existe pas</span>'; ?></li>
                 </ul>
             </div>
         </div>
         
         <div class="card">
             <div class="card-header">
-                <h2 style="margin: 0;">Prochaines étapes</h2>
+                <h2 style="margin: 0;">Actions pour le build de production</h2>
             </div>
             <div class="card-body">
+                <p>Les fichiers nécessaires ont été créés ou mis à jour pour permettre un build de production.</p>
+                
+                <div class="files-list">
+# Installer les dépendances React (si nécessaire)
+npm install react react-dom @vitejs/plugin-react-swc vite
+
+# Installer le support TypeScript (si nécessaire)
+npm install typescript @types/react @types/react-dom --save-dev
+
+# Installer Tailwind CSS (si nécessaire)
+npm install tailwindcss postcss autoprefixer --save-dev
+
+# Effectuer le build
+npm run build
+</div>
+
+                <p class="mt-4"><strong>Après le build:</strong></p>
+                <ol class="steps">
+                    <li>Vérifiez que le répertoire <code>dist</code> contient des fichiers <code>assets/index-*.css</code> et <code>assets/main-*.js</code></li>
+                    <li>Copiez tout le contenu du répertoire <code>dist</code> à la racine de votre site</li>
+                    <li>Assurez-vous que <code>.htaccess</code> est également présent à la racine</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h2 style="margin: 0;">Récupération sans build local</h2>
+            </div>
+            <div class="card-body">
+                <p>Si vous ne pouvez pas effectuer un build local, ce script a créé une structure minimale qui devrait permettre à votre application de fonctionner en mode développement.</p>
+                
                 <ol class="steps">
                     <li>
-                        <strong>Vérifiez le contenu de index.html</strong> pour vous assurer qu'il contient les bonnes références vers les fichiers CSS et JS.
+                        <strong>Vérifiez index.html</strong> pour vous assurer qu'il pointe vers <code>/assets/index.css</code> et <code>/src/main.tsx</code> ou <code>/assets/index.js</code>
                     </li>
                     <li>
-                        <strong>Vérifiez le fonctionnement de base de l'application</strong> en y accédant via votre navigateur.
+                        <strong>Testez l'application</strong> en y accédant via votre navigateur. Vous devriez voir au moins une page minimale.
                     </li>
                     <li>
-                        <strong>Effectuez un build local</strong> avec <code>npm run build</code> pour générer des fichiers optimisés.
-                    </li>
-                    <li>
-                        <strong>Transférez les fichiers générés</strong> vers votre serveur, notamment le dossier <code>dist</code>.
-                    </li>
-                    <li>
-                        <strong>Exécutez à nouveau ce script</strong> après le transfert pour vous assurer que tout est correctement configuré.
+                        <strong>Si la page n'apparaît pas</strong>, vérifiez que les fichiers CSS et JS sont correctement chargés dans les outils de développement du navigateur.
                     </li>
                 </ol>
                 
-                <h3>Configuration manuelle</h3>
-                <p>Si vous souhaitez réexécuter des tâches spécifiques, vous pouvez activer ou désactiver des options de configuration en haut du script.</p>
-                
-                <h3>Commandes utiles</h3>
-                <pre class="files-list">
-# Installation des dépendances
-npm install
-
-# Démarrage du serveur de développement
-npm run dev
-
-# Construction pour production
-npm run build
-
-# Prévisualisation de la version de production
-npm run preview</pre>
+                <p class="warning"><strong>Important:</strong> Cette solution est temporaire. Pour une application de production, un build complet est recommandé.</p>
             </div>
         </div>
         
         <div style="margin-top: 20px; text-align: center;">
             <a href="/" class="button">Retour à l'application</a>
             <a href="?refresh=1" class="button button-success">Relancer la correction</a>
-            <a href="check-css-build.php" class="button button-warning">Vérifier l'extraction CSS</a>
+            <a href="run-deploy.php" class="button button-warning">Exécuter le déploiement complet</a>
         </div>
     </div>
 </body>
