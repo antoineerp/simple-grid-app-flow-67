@@ -47,13 +47,13 @@ jobs:
         mkdir -p deploy/api/operations
         mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
-        mkdir -p deploy/dist
         
-        # Copie du dossier dist complet
-        echo "Copie du dossier dist complet..."
-        cp -r dist/ deploy/dist/
+        # IMPORTANT: Ne pas copier le dossier dist complet pour éviter les chemins dist/dist
+        # Copie des fichiers compilés directement à la racine du déploiement
+        echo "Copie des fichiers HTML à la racine..."
+        cp dist/index.html deploy/
         
-        # Copie des fichiers compilés directement dans assets
+        # Copie des assets vers le dossier assets (pas dist/assets)
         echo "Copie des assets vers le dossier deploy/assets..."
         cp -r dist/assets/* deploy/assets/
         
@@ -62,7 +62,6 @@ jobs:
         find deploy/assets -type f | wc -l
         
         # Copie des autres fichiers nécessaires
-        cp dist/index.html deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         
         # Copie des fichiers de l'API
