@@ -37,7 +37,15 @@ mkdir -p deploy/dist
 # Copier les fichiers compilés
 echo "Copie des fichiers compilés..."
 cp -r dist/ deploy/dist/
+
+# IMPORTANT: Copie explicite des assets dans le dossier deploy/assets
+echo "Copie des assets vers le dossier de déploiement..."
 cp -r dist/assets/* deploy/assets/
+
+# Vérifier le nombre de fichiers copiés
+ASSET_COUNT=$(find deploy/assets -type f | wc -l)
+echo "Nombre de fichiers assets copiés: $ASSET_COUNT"
+
 cp dist/index.html deploy/
 cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
 
