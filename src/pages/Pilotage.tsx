@@ -11,9 +11,10 @@ import DocumentDialog from '@/components/pilotage/DocumentDialog';
 import ExigenceSummary from '@/components/pilotage/ExigenceSummary';
 import DocumentSummary from '@/components/pilotage/DocumentSummary';
 import ResponsabilityMatrix from '@/components/pilotage/ResponsabilityMatrix';
+import { SyncItem } from '@/services/sync/UnifiedSyncService';
 
 // Interface pour les documents de pilotage
-interface PilotageDocument {
+interface PilotageDocument extends SyncItem {
   id: string;
   nom: string;
   fichier_path: string | null;
@@ -98,7 +99,7 @@ const Pilotage = () => {
       excluded: data?.excluded || false,
       groupId: data?.groupId || undefined,
       ordre: data?.ordre || 0
-    })
+    }) as PilotageDocument // Add explicit type cast here
   });
 
   // Convertir les documents pour l'affichage dans le composant de table existant
