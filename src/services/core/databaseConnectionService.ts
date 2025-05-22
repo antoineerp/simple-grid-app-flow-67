@@ -9,8 +9,9 @@ let lastConnectionError: string | null = null;
 
 // Constantes pour la validation
 const RESTRICTED_IDS = ['system', 'admin', 'root', 'p71x6d_system', 'p71x6d_system2', '[object Object]', 'null', 'undefined'];
-const DEFAULT_DB_USER = 'p71x6d_richard'; // Utilisateur fixe pour la base de données
-const DEFAULT_DB_NAME = 'p71x6d_richard'; // Nom de la base de données fixe
+// Utilisation OBLIGATOIRE de cette constante pour TOUTES les connexions à la base de données
+const ENFORCE_DB_USER = 'p71x6d_richard';
+const ENFORCE_DB_NAME = 'p71x6d_richard';
 
 /**
  * Vérifie si un ID est restreint/système
@@ -32,55 +33,33 @@ const isEmail = (input: string): boolean => {
  * TOUJOURS retourne p71x6d_richard
  */
 export const getCurrentUser = (): string => {
-  // Vérifier si c'est l'administrateur antcirier@gmail.com
-  const storedEmail = localStorage.getItem('userEmail');
-  if (storedEmail === 'antcirier@gmail.com') {
-    console.log("Email administrateur détecté: antcirier@gmail.com - Utilisation de p71x6d_richard");
-    return DEFAULT_DB_USER;
-  }
-  
-  console.log("Demande d'utilisateur actuel, forcé à utiliser la base de données:", DEFAULT_DB_NAME);
-  
-  // TOUJOURS utiliser p71x6d_richard
-  return DEFAULT_DB_USER;
+  console.log("Demande d'utilisateur actuel, forcé à utiliser la base de données:", ENFORCE_DB_NAME);
+  // TOUJOURS utiliser p71x6d_richard pour TOUTES les opérations
+  return ENFORCE_DB_USER;
 };
 
 /**
  * Définit l'identifiant de l'utilisateur actuellement connecté
- * Note: L'identifiant est stocké mais on continue d'utiliser p71x6d_richard comme base
+ * Note: L'identifiant original est stocké mais on FORCE l'utilisation de p71x6d_richard comme base
  */
 export const setCurrentUser = (userId: string): void => {
-  // Vérifier si c'est l'administrateur antcirier@gmail.com
-  const storedEmail = localStorage.getItem('userEmail');
-  if (storedEmail === 'antcirier@gmail.com') {
-    console.log("Email administrateur détecté lors de setCurrentUser - Utilisation de p71x6d_richard");
-    currentUser = DEFAULT_DB_USER;
-    localStorage.setItem('userId', DEFAULT_DB_USER);
-    localStorage.setItem('user_id', DEFAULT_DB_USER);
-    return;
-  }
-  
-  if (!userId || isRestrictedId(userId)) {
-    console.error("Tentative de définir un identifiant invalide:", userId);
-    userId = DEFAULT_DB_USER;
-  }
-  
   try {
-    // Stocker l'ID original pour référence
-    localStorage.setItem('originalUserId', userId);
+    // Stocker l'ID original pour référence uniquement
+    const originalId = userId || 'default';
+    localStorage.setItem('originalUserId', originalId);
     
-    // Mais toujours utiliser p71x6d_richard pour la base de données
-    currentUser = DEFAULT_DB_USER;
+    // TOUJOURS forcer l'utilisation de p71x6d_richard pour la base de données
+    currentUser = ENFORCE_DB_USER;
     
     // Stocker l'ID utilisateur sécurisé
-    localStorage.setItem('userId', DEFAULT_DB_USER);
-    localStorage.setItem('user_id', DEFAULT_DB_USER);
+    localStorage.setItem('userId', ENFORCE_DB_USER);
+    localStorage.setItem('user_id', ENFORCE_DB_USER);
     
-    // Stocker également le préfixe utilisateur pour distinguer les données
-    const userPrefix = userId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 10);
+    // Stocker également un préfixe utilisateur pour distinguer les données
+    const userPrefix = originalId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 10);
     localStorage.setItem('userPrefix', userPrefix);
     
-    console.log(`Identifiant utilisateur défini: ${userId} (base: ${DEFAULT_DB_NAME}, préfixe: ${userPrefix})`);
+    console.log(`Identifiant utilisateur défini: ${userId} (forcé vers: ${ENFORCE_DB_USER}, préfixe: ${userPrefix})`);
   } catch (error) {
     console.error("Erreur lors de la définition de l'identifiant utilisateur:", error);
   }
@@ -122,7 +101,8 @@ export const testDatabaseConnection = async (): Promise<{ success: boolean; mess
       method: 'GET',
       headers: {
         ...getAuthHeaders(),
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'X-Database-Force': ENFORCE_DB_USER // Ajouter un en-tête pour forcer l'utilisation de p71x6d_richard
       }
     });
 
@@ -132,9 +112,18 @@ export const testDatabaseConnection = async (): Promise<{ success: boolean; mess
 
     const data = await response.json();
     
+    // Vérifier que la bonne base est utilisée
+    if (data.config && data.config.db_name !== ENFORCE_DB_NAME) {
+      console.error(`ERREUR: Tentative d'utilisation d'une base non autorisée: ${data.config.db_name}`);
+      return { 
+        success: false, 
+        message: `Seule la base ${ENFORCE_DB_NAME} est autorisée. Tentative d'utiliser: ${data.config.db_name}` 
+      };
+    }
+    
     if (data.connection && data.connection.is_connected) {
       console.log("Connexion à la base de données réussie:", data.config);
-      return { success: true, message: "Connecté à la base de données" };
+      return { success: true, message: `Connecté à la base de données ${ENFORCE_DB_NAME}` };
     } else {
       const errorMsg = data.connection.error || "Impossible de se connecter à la base de données";
       console.error("Erreur de connexion:", errorMsg);
@@ -151,16 +140,16 @@ export const testDatabaseConnection = async (): Promise<{ success: boolean; mess
 
 /**
  * Se connecte avec un identifiant utilisateur spécifique
- * Toujours utilise p71x6d_richard
+ * Toujours force p71x6d_richard
  */
 export const connectAsUser = async (userId: string): Promise<boolean> => {
   try {
-    // Toujours utiliser p71x6d_richard comme base, mais stocker l'ID original
+    // TOUJOURS utiliser p71x6d_richard comme base, mais stocker l'ID original pour référence
     setCurrentUser(userId);
     
     toast({
       title: "Connexion réussie",
-      description: `Connecté à la base de données en tant que ${DEFAULT_DB_NAME}`,
+      description: `Connecté à la base de données ${ENFORCE_DB_NAME}`,
     });
     
     return true;
@@ -183,7 +172,7 @@ export const connectAsUser = async (userId: string): Promise<boolean> => {
 export const disconnectUser = async (): Promise<boolean> => {
   try {
     // Reset to default user
-    currentUser = DEFAULT_DB_USER;
+    currentUser = ENFORCE_DB_USER;
     localStorage.removeItem('originalUserId');
     localStorage.removeItem('userPrefix');
     
@@ -205,7 +194,7 @@ export const isSystemUser = (userId: string): boolean => {
  * Force l'utilisation d'un utilisateur sécurisé (pour compatibilité)
  */
 export const forceSafeUser = (): string => {
-  return DEFAULT_DB_USER;
+  return ENFORCE_DB_USER;
 };
 
 /**
@@ -237,24 +226,13 @@ export const getDatabaseInfo = async (): Promise<any> => {
  */
 export const getDatabaseConnectionCurrentUser = getCurrentUser;
 
-// Initialiser l'utilisateur au démarrage si nécessaire
+// Initialiser l'utilisateur au démarrage
 export const initializeUser = () => {
-  // Vérifier si c'est l'administrateur antcirier@gmail.com
-  const storedEmail = localStorage.getItem('userEmail');
-  if (storedEmail === 'antcirier@gmail.com') {
-    console.log("Email administrateur détecté lors de l'initialisation - Utilisation de p71x6d_richard");
-    currentUser = DEFAULT_DB_USER;
-    localStorage.setItem('userId', DEFAULT_DB_USER);
-    localStorage.setItem('user_id', DEFAULT_DB_USER);
-    console.log(`Utilisateur administrateur initialisé avec ${DEFAULT_DB_USER}`);
-    return;
-  }
-  
-  // Pour tous les autres utilisateurs, utiliser également p71x6d_richard
-  if (!currentUser) {
-    currentUser = DEFAULT_DB_USER;
-    console.log(`Utilisateur standard initialisé avec ${DEFAULT_DB_USER}`);
-  }
+  // TOUJOURS forcer p71x6d_richard comme base de données
+  currentUser = ENFORCE_DB_USER;
+  localStorage.setItem('userId', ENFORCE_DB_USER);
+  localStorage.setItem('user_id', ENFORCE_DB_USER);
+  console.log(`Utilisateur initialisé avec ${ENFORCE_DB_USER}`);
 };
 
 // Initialisation automatique
