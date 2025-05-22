@@ -117,7 +117,7 @@ export function useUnifiedSync<T extends SyncItem>({
           setLastSynced(new Date());
         }
       } 
-      // Pour tous les types de synchronisation autres que init ou manual, envoyer les données locales au serveur
+      // Pour les autres types de synchronisation (comme 'auto'), envoyer les données locales au serveur
       else {
         const result = await syncWithServer<T>(tableName, data, endpoint);
         if (result.success) {
