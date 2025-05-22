@@ -9,13 +9,20 @@ import { randomBytes } from "crypto";
 if (!globalThis.crypto) {
   // @ts-ignore - Add crypto polyfill for Node environment
   globalThis.crypto = {
+    // Implémentation générique qui fonctionne avec n'importe quel TypedArray
     getRandomValues: function(array) {
-      // Implementation that works with any TypedArray
+      if (!array || !array.length) {
+        return array;
+      }
+      
+      // Générer des octets aléatoires
       const bytes = randomBytes(array.length);
-      // Copy the random bytes into the array
-      for (let i = 0; i < bytes.length; i++) {
+      
+      // Copie octet par octet pour éviter les problèmes de typage
+      for (let i = 0; i < array.length; i++) {
         array[i] = bytes[i];
       }
+      
       return array;
     }
   };
