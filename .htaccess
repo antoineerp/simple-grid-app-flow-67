@@ -9,7 +9,7 @@ Options +FollowSymLinks
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
-# Forcer l'exécution des fichiers PHP
+# Forcer l'exécution des fichiers PHP - IMPORTANT
 AddHandler application/x-httpd-php .php
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php

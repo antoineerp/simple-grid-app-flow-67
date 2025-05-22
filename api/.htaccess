@@ -8,9 +8,15 @@ AddType application/javascript .mjs
 AddType application/javascript .es.js
 AddType text/css .css
 
-# Force PHP errors to show
+# Force PHP errors to show - CRITICAL
 php_flag display_errors on
 php_value error_reporting E_ALL
+
+# Force PHP execution - IMPORTANT
+AddHandler application/x-httpd-php .php
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
 
 # CORS Headers
 <IfModule mod_headers.c>
@@ -55,11 +61,3 @@ RewriteRule ^(.*)$ $1 [R=200,L]
         Header set Access-Control-Allow-Origin "*"
     </IfModule>
 </Files>
-
-# Rediriger les erreurs 404 API vers index.php
-ErrorDocument 404 /api/index.php
-
-# Assurer que PHP est correctement interprété
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
