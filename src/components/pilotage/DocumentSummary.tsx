@@ -24,20 +24,8 @@ const DocumentSummary: React.FC = () => {
       
       <Card className="p-6">
         <CardContent className="p-0">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold"></h3>
-            <div className="flex items-center text-blue-600">
-              <FileText className="mr-2 h-5 w-5" />
-            </div>
-          </div>
-          
           {/* Status cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-[#F5F5F5] rounded-md p-4 text-center">
-              <div className="text-2xl font-bold text-gray-800">{exclusion}</div>
-              <div className="text-sm text-gray-800">Exclusion</div>
-            </div>
-            
             <div className="bg-[#FFDEE2] rounded-md p-4 text-center">
               <div className="text-2xl font-bold text-red-600">{nonConforme}</div>
               <div className="text-sm text-red-600">Non Conforme</div>
@@ -51,6 +39,11 @@ const DocumentSummary: React.FC = () => {
             <div className="bg-[#F2FCE2] rounded-md p-4 text-center">
               <div className="text-2xl font-bold text-green-600">{conforme}</div>
               <div className="text-sm text-green-600">Conforme</div>
+            </div>
+            
+            <div className="bg-[#D3E4FD] rounded-md p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">{total}</div>
+              <div className="text-sm text-blue-600">Total (sans exclusion)</div>
             </div>
           </div>
           
@@ -141,4 +134,3 @@ const DocumentSummary: React.FC = () => {
 };
 
 export default DocumentSummary;
-

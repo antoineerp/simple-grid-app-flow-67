@@ -110,16 +110,15 @@ export function useUnifiedSync<T extends SyncItem>({
         return false;
       }
       
-      // Correction de la condition pour résoudre l'erreur TS2367
+      // Correction du problème de comparaison de types
       if (type === 'init' || type === 'manual') {
         const serverData = await fetchFromServer<T>(tableName, endpoint);
         if (serverData && serverData.length > 0) {
           setData(serverData);
           setLastSynced(new Date());
         }
-      } 
-      // Pour les synchronisations de type 'auto', envoyer les données locales au serveur
-      else {
+      } else if (type === 'auto') {
+        // Pour les synchronisations de type 'auto', envoyer les données locales au serveur
         const result = await syncWithServer<T>(tableName, data, endpoint);
         if (result.success) {
           setLastSynced(new Date());

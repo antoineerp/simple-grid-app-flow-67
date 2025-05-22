@@ -34,7 +34,12 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
   onReorder
 }) => {
   const { toast } = useToast();
-  const sortedDocuments = [...documents].sort((a, b) => a.ordre - b.ordre);
+  // Vérifier et filtrer les doublons potentiels sur la base de l'ID
+  const uniqueDocuments = documents.filter((doc, index, self) => 
+    index === self.findIndex((d) => d.id === doc.id)
+  );
+  
+  const sortedDocuments = [...uniqueDocuments].sort((a, b) => a.ordre - b.ordre);
   
   const {
     draggedItemId,
@@ -53,6 +58,13 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
       window.open(`https://${lien}`, '_blank');
     } else {
       window.open(lien, '_blank');
+    }
+  };
+
+  const handleDeleteClick = (id: number) => {
+    // Confirmer avant de supprimer
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce document ?")) {
+      onDeleteDocument(id);
     }
   };
 
@@ -107,7 +119,7 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
                   variant="ghost" 
                   size="icon" 
                   className="text-gray-600 hover:text-red-500"
-                  onClick={() => onDeleteDocument(doc.id)}
+                  onClick={() => handleDeleteClick(doc.id)}
                 >
                   <Trash className="h-5 w-5" />
                 </Button>

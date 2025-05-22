@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MembresProvider } from '@/contexts/MembresContext';
 import { exportPilotageToOdf } from "@/services/pdfExport";
 import { useUnifiedSync } from '@/hooks/useUnifiedSync';
+import { syncEvents } from '@/services/sync/UnifiedSyncService';
 import PilotageHeader from '@/components/pilotage/PilotageHeader';
 import PilotageActions from '@/components/pilotage/PilotageActions';
 import PilotageDocumentsTable from '@/components/pilotage/PilotageDocumentsTable';
@@ -43,7 +44,7 @@ interface DialogDocument {
 // Fonction de conversion de PilotageDocument à DialogDocument
 const convertToDialogDocument = (doc: PilotageDocument): DialogDocument => {
   return {
-    id: parseInt(doc.id) || Math.floor(Math.random() * 1000),
+    id: parseInt(doc.id) || Math.floor(Math.random() * 10000),
     ordre: doc.ordre || 0,
     nom: doc.nom,
     lien: doc.fichier_path
@@ -71,7 +72,7 @@ const Pilotage = () => {
     lien: null
   });
 
-  // Utiliser notre nouveau hook unifié
+  // Utiliser notre hook unifié
   const {
     data: documents,
     isSyncing,
@@ -89,7 +90,7 @@ const Pilotage = () => {
     syncInterval: 30000,  // 30 secondes
     endpoint: 'documents-sync.php',
     itemFactory: (data) => ({
-      id: '',
+      id: data?.id || '',
       nom: data?.nom || 'Nouveau document',
       fichier_path: data?.fichier_path || null,
       responsabilites: data?.responsabilites || { r: [], a: [], c: [], i: [] },
@@ -99,8 +100,43 @@ const Pilotage = () => {
       excluded: data?.excluded || false,
       groupId: data?.groupId || undefined,
       ordre: data?.ordre || 0
-    }) as PilotageDocument // Add explicit type cast here
+    }) as PilotageDocument
   });
+
+  // Écouter les événements de synchronisation pour les documents et exigences
+  useEffect(() => {
+    // Fonction pour forcer la mise à jour lorsque des données sont modifiées ailleurs
+    const handleDocumentUpdate = () => {
+      console.log("Pilotage: Événement de mise à jour des documents détecté, synchronisation...");
+      syncData('manual').catch(console.error);
+    };
+    
+    const handleExigenceUpdate = () => {
+      console.log("Pilotage: Événement de mise à jour des exigences détecté");
+      // Mettre à jour les synthèses, pas besoin de synchroniser les documents
+      // Ce sera géré par les composants de synthèse
+    };
+    
+    // S'abonner aux événements
+    const unsubscribeDocuments = syncEvents.subscribe('pilotage_documents', handleDocumentUpdate);
+    const unsubscribeExigences = syncEvents.subscribe('exigences', handleExigenceUpdate);
+    
+    // Écouter également les changements dans le localStorage
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key && (e.key.includes('documents_') || e.key.includes('exigences_'))) {
+        console.log(`Pilotage: Changement détecté dans le storage pour ${e.key}`);
+        syncData('manual').catch(console.error);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      unsubscribeDocuments();
+      unsubscribeExigences();
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [syncData]);
 
   // Convertir les documents pour l'affichage dans le composant de table existant
   const convertedDocuments = documents.map(doc => convertToDialogDocument(doc));
@@ -111,15 +147,21 @@ const Pilotage = () => {
       ? Math.max(...documents.map(doc => doc.ordre || 0)) + 1 
       : 1;
       
+    // Générer un ID unique pour éviter les doublons
+    const newId = `doc_${Date.now().toString()}`;
+    
     const newDocData: Partial<PilotageDocument> = { 
+      id: newId,
       nom: 'Nouveau document',
-      ordre: newOrderValue
+      ordre: newOrderValue,
+      etat: null
     };
     
     const newDocument = createItem(newDocData);
     
     // Convertir pour l'affichage dans le dialogue
-    setCurrentDialogDocument(convertToDialogDocument(newDocument));
+    const dialogDoc = convertToDialogDocument(newDocument);
+    setCurrentDialogDocument(dialogDoc);
     
     setIsEditing(false);
     setIsDialogOpen(true);
@@ -133,12 +175,27 @@ const Pilotage = () => {
 
   const handleDeleteDocument = (id: number) => {
     // Trouver l'ID correspondant dans notre liste de documents
-    const docToDelete = documents.find(d => parseInt(d.id) === id);
+    const docToDelete = documents.find(d => parseInt(d.id) === id || d.id === id.toString());
     if (docToDelete) {
-      deleteItem(docToDelete.id);
+      const success = deleteItem(docToDelete.id);
+      if (success) {
+        toast({
+          title: "Document supprimé",
+          description: "Le document a été supprimé avec succès"
+        });
+      } else {
+        toast({
+          title: "Erreur",
+          description: "Impossible de supprimer le document",
+          variant: "destructive"
+        });
+      }
+    } else {
+      console.error(`Document avec ID ${id} introuvable pour suppression`);
       toast({
-        title: "Document supprimé",
-        description: "Le document a été supprimé avec succès"
+        title: "Erreur",
+        description: "Document introuvable",
+        variant: "destructive"
       });
     }
   };
@@ -156,22 +213,39 @@ const Pilotage = () => {
       // Convertir en format PilotageDocument
       const docData = convertToPartialPilotageDocument(currentDialogDocument);
       
-      // Trouver le document correspondant dans notre liste
-      const docToUpdate = documents.find(d => parseInt(d.id) === currentDialogDocument.id);
-      
-      if (docToUpdate) {
-        // Mettre à jour le document existant
-        updateItem(docToUpdate.id, docData);
+      if (isEditing) {
+        // Trouver le document correspondant dans notre liste
+        const docToUpdate = documents.find(d => 
+          parseInt(d.id) === currentDialogDocument.id || 
+          d.id === currentDialogDocument.id.toString()
+        );
+        
+        if (docToUpdate) {
+          // Mettre à jour le document existant
+          updateItem(docToUpdate.id, docData);
+          toast({
+            title: "Document mis à jour",
+            description: "Le document a été mis à jour avec succès"
+          });
+        } else {
+          toast({
+            title: "Erreur",
+            description: "Document introuvable",
+            variant: "destructive"
+          });
+        }
       } else {
-        // Créer un nouveau document si non trouvé (fallback)
-        createItem(docData);
+        // Créer un nouveau document
+        const newDoc = createItem(docData);
+        if (newDoc) {
+          toast({
+            title: "Document créé",
+            description: "Le nouveau document a été créé avec succès"
+          });
+        }
       }
       
       setIsDialogOpen(false);
-      toast({
-        title: isEditing ? "Document mis à jour" : "Document créé",
-        description: `Le document a été ${isEditing ? 'mis à jour' : 'créé'} avec succès`
-      });
     }
   };
 
@@ -196,18 +270,17 @@ const Pilotage = () => {
   // Fonction pour déclencher la synchronisation manuelle
   const handleSync = async () => {
     try {
-      if (documents && documents.length > 0) {
-        const success = await syncData("manual");
-        if (success) {
-          toast({
-            title: "Synchronisation",
-            description: "Les documents ont été synchronisés avec succès",
-          });
-        }
+      const success = await syncData("manual");
+      if (success) {
+        toast({
+          title: "Synchronisation",
+          description: "Les documents ont été synchronisés avec succès",
+        });
       } else {
         toast({
           title: "Synchronisation",
-          description: "Aucun document à synchroniser",
+          description: "Aucun document à synchroniser ou erreur de synchronisation",
+          variant: "destructive"
         });
       }
     } catch (error) {
