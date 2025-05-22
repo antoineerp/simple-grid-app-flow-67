@@ -44,7 +44,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
-      mode === 'development' && componentTagger(),
+      // Removed the componentTagger reference that was causing the error
     ].filter(Boolean),
     resolve: {
       alias: {
