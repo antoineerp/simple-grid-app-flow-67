@@ -4,8 +4,9 @@
  * Utilise UNIQUEMENT la base de données p71x6d_richard
  */
 
-import { toast } from '@/components/ui/use-toast';
-import { createDbUser } from '../core/databaseConnectionManager';
+import { toast } from '@/hooks/use-toast';
+import { getApiUrl } from '@/config/apiConfig';
+import { getAuthHeaders } from '../auth/authService';
 
 // Interface pour les données utilisateur
 interface UserData {
@@ -29,27 +30,56 @@ interface CreateUserResult {
  */
 export const createUser = async (userData: UserData): Promise<CreateUserResult> => {
   try {
-    console.log('Création d\'un nouvel utilisateur avec la base fixe p71x6d_richard:', userData.prenom, userData.nom);
+    console.log('Création d\'un nouvel utilisateur:', userData.prenom, userData.nom);
     
-    // Appel au service centralisé qui garantit l'utilisation de p71x6d_richard
-    const response = await createDbUser(userData);
+    // Appel à l'API pour créer l'utilisateur
+    const apiUrl = getApiUrl();
+    const response = await fetch(`${apiUrl}/users.php`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+        'X-Forced-DB-User': 'p71x6d_richard', // Forcer l'utilisation de p71x6d_richard
+        'X-User-Prefix': 'p71x6d_richard' // Préfixe utilisateur pour l'isolation des données
+      },
+      body: JSON.stringify(userData)
+    });
     
-    if (!response) {
-      throw new Error('Aucune réponse du serveur');
+    // Vérifier si la requête a réussi
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Réponse serveur non-OK:', response.status, errorText);
+      
+      // Tenter de parser l'erreur comme JSON
+      try {
+        const errorJson = JSON.parse(errorText);
+        throw new Error(errorJson.message || `Erreur ${response.status}: ${errorJson.status || 'Échec de la création'}`);
+      } catch (parseError) {
+        throw new Error(`Erreur ${response.status}: ${errorText || 'Échec de la création de l\'utilisateur'}`);
+      }
     }
+    
+    // Parser la réponse JSON
+    const data = await response.json();
     
     // Vérifier si la réponse contient des erreurs
-    if (response.error || !response.success) {
-      throw new Error(response.message || 'Échec de la création de l\'utilisateur');
+    if (data.status === 'error' || !data.success) {
+      throw new Error(data.message || 'Échec de la création de l\'utilisateur');
     }
     
-    console.log('Utilisateur créé avec succès dans la table utilisateurs_p71x6d_richard');
+    console.log('Utilisateur créé avec succès:', data);
+    
+    // Notifier le succès
+    toast({
+      title: "Utilisateur créé",
+      description: `${userData.prenom} ${userData.nom} a été créé avec succès.`
+    });
     
     // Retourner le résultat avec l'identifiant technique
     return {
       success: true,
       message: 'Utilisateur créé avec succès',
-      identifiant_technique: response.user?.identifiant_technique || response.identifiant_technique
+      identifiant_technique: data.user?.identifiant_technique || data.identifiant_technique
     };
     
   } catch (error) {

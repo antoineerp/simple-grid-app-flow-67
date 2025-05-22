@@ -4,261 +4,316 @@ if (!defined('DIRECT_ACCESS_CHECK')) {
     define('DIRECT_ACCESS_CHECK', true);
 }
 
+require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/utils/ResponseHandler.php';
-require_once dirname(__DIR__) . '/operations/users/GetOperations.php';
-require_once dirname(__DIR__) . '/operations/users/PostOperations.php';
-require_once dirname(__DIR__) . '/operations/users/PutOperations.php';
-require_once dirname(__DIR__) . '/operations/users/DeleteOperations.php';
 require_once dirname(__DIR__) . '/models/User.php';
+require_once dirname(__DIR__) . '/operations/users/PostOperations.php';
+require_once dirname(__DIR__) . '/operations/users/GetOperations.php';
+require_once dirname(__DIR__) . '/operations/users/PutOperations.php';
 
 class UserOperations {
-    protected $conn;
+    protected $connection;
     protected $model;
+    protected $postOperations;
+    protected $getOperations;
+    protected $putOperations;
+    public $is_connected = false;
     
-    public function __construct($db) {
-        $this->conn = $db;
+    public function __construct($db = null) {
+        if (!$db) {
+            try {
+                $database = new Database();
+                $db = $database->getConnection();
+                $this->is_connected = $database->testConnection();
+            } catch (Exception $e) {
+                error_log("UserOperations: Erreur de connexion à la base: " . $e->getMessage());
+                $this->is_connected = false;
+            }
+        } else {
+            $this->is_connected = true;
+        }
+        
+        $this->connection = $db;
         $this->model = new User($db);
         
-        // Force l'utilisation de la table utilisateurs_p71x6d_richard
-        $this->model->table = 'utilisateurs_p71x6d_richard';
-        error_log("UserOperations: Utilisation forcée de la table {$this->model->table}");
-        
-        // Vérifier que la table principale existe
-        $this->ensureUserTableExists();
+        // Initialiser les classes pour les différentes opérations
+        $this->postOperations = new UserPostOperations($db, $this->model);
+        $this->getOperations = new UserGetOperations($db, $this->model);
+        $this->putOperations = new UserPutOperations($db, $this->model);
     }
     
     public function handleGetRequest() {
-        $getOps = new UserGetOperations();
-        $getOps->model = $this->model;
-        $getOps->conn = $this->conn;
-        $getOps->handleGetRequest();
+        $this->getOperations->handleGetRequest();
     }
     
     public function handlePostRequest() {
-        $postOps = new UserPostOperations();
-        $postOps->model = $this->model;
-        $postOps->conn = $this->conn;
-        $postOps->handlePostRequest();
-        
-        // Après création d'un utilisateur, s'assurer que toutes ses tables sont créées
-        if (isset($_POST['action']) && $_POST['action'] === 'create') {
-            $userId = $postOps->getLastInsertedUserId();
-            if ($userId) {
-                $this->createUserTables($userId);
-            }
-        }
+        $this->postOperations->handlePostRequest();
     }
     
     public function handlePutRequest() {
-        $putOps = new UserPutOperations();
-        $putOps->model = $this->model;
-        $putOps->conn = $this->conn;
-        $putOps->handlePutRequest();
+        $this->putOperations->handlePutRequest();
     }
     
-    public function handleDeleteRequest() {
-        $deleteOps = new UserDeleteOperations();
-        $deleteOps->model = $this->model;
-        $deleteOps->conn = $this->conn;
-        $deleteOps->handleDeleteRequest();
-    }
-    
-    /**
-     * S'assure que la table des utilisateurs existe
-     */
-    private function ensureUserTableExists() {
-        try {
-            $query = "SHOW TABLES LIKE '{$this->model->table}'";
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute();
-            
-            if ($stmt->rowCount() === 0) {
-                // La table n'existe pas, la créer
-                $createTableQuery = "CREATE TABLE IF NOT EXISTS `{$this->model->table}` (
-                    `id` INT AUTO_INCREMENT PRIMARY KEY,
-                    `nom` VARCHAR(100) NOT NULL,
-                    `prenom` VARCHAR(100) NOT NULL,
-                    `email` VARCHAR(100) NOT NULL UNIQUE,
-                    `mot_de_passe` VARCHAR(255) NOT NULL,
-                    `identifiant_technique` VARCHAR(100) NOT NULL UNIQUE,
-                    `role` VARCHAR(20) NOT NULL DEFAULT 'utilisateur',
-                    `date_creation` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-                
-                $this->conn->exec($createTableQuery);
-                error_log("Table utilisateurs créée avec succès: {$this->model->table}");
-                
-                // Ajouter un utilisateur administrateur par défaut
-                $this->createDefaultAdmin();
-            }
-        } catch (PDOException $e) {
-            error_log("Erreur lors de la vérification/création de la table utilisateurs: " . $e->getMessage());
-            throw $e;
-        }
-    }
-    
-    /**
-     * Crée un utilisateur administrateur par défaut
-     */
-    private function createDefaultAdmin() {
-        try {
-            $query = "INSERT INTO `{$this->model->table}` 
-                (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
-                VALUES ('Admin', 'Système', 'admin@system.local', :password, 'p71x6d_richard', 'admin')";
-            
-            $stmt = $this->conn->prepare($query);
-            $password = password_hash('admin123', PASSWORD_BCRYPT);
-            $stmt->bindParam(':password', $password);
-            $stmt->execute();
-            
-            error_log("Utilisateur administrateur par défaut créé");
-            
-            // Créer les tables pour l'admin
-            $this->createUserTables('p71x6d_richard');
-        } catch (PDOException $e) {
-            error_log("Erreur lors de la création de l'utilisateur admin par défaut: " . $e->getMessage());
-        }
-    }
-    
-    /**
-     * Crée toutes les tables nécessaires pour un utilisateur
-     */
     public function createUserTables($userId) {
+        if (!$this->connection || !$this->is_connected) {
+            error_log("createUserTables: Pas de connexion à la base de données");
+            return false;
+        }
+        
         try {
-            // Liste des tables à créer avec leur structure
-            $tables = [
-                "bibliotheque" => [
-                    "id" => "VARCHAR(36) PRIMARY KEY",
-                    "nom" => "VARCHAR(255) NOT NULL",
-                    "description" => "TEXT NULL",
-                    "link" => "VARCHAR(255) NULL",
-                    "groupId" => "VARCHAR(36) NULL",
-                    "date_creation" => "DATETIME DEFAULT CURRENT_TIMESTAMP",
-                    "date_modification" => "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-                ],
-                "exigences" => [
-                    "id" => "VARCHAR(36) PRIMARY KEY",
-                    "nom" => "VARCHAR(255) NOT NULL",
-                    "responsabilites" => "TEXT NULL",
-                    "exclusion" => "TINYINT(1) DEFAULT 0",
-                    "atteinte" => "ENUM('NC', 'PC', 'C') NULL",
-                    "groupId" => "VARCHAR(36) NULL",
-                    "date_creation" => "DATETIME DEFAULT CURRENT_TIMESTAMP",
-                    "date_modification" => "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-                ],
-                "membres" => [
-                    "id" => "VARCHAR(36) PRIMARY KEY",
-                    "nom" => "VARCHAR(100) NOT NULL",
-                    "prenom" => "VARCHAR(100) NOT NULL",
-                    "email" => "VARCHAR(255) NULL",
-                    "telephone" => "VARCHAR(20) NULL",
-                    "fonction" => "VARCHAR(100) NULL",
-                    "organisation" => "VARCHAR(255) NULL",
-                    "notes" => "TEXT NULL",
-                    "date_creation" => "DATETIME DEFAULT CURRENT_TIMESTAMP",
-                    "date_modification" => "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-                ],
-                "documents" => [
-                    "id" => "VARCHAR(36) PRIMARY KEY",
-                    "nom" => "VARCHAR(255) NOT NULL",
-                    "fichier_path" => "VARCHAR(255) NULL",
-                    "responsabilites" => "TEXT NULL",
-                    "etat" => "VARCHAR(50) NULL",
-                    "groupId" => "VARCHAR(36) NULL",
-                    "date_creation" => "DATETIME DEFAULT CURRENT_TIMESTAMP",
-                    "date_modification" => "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-                ],
-                "pilotage" => [
-                    "id" => "VARCHAR(36) PRIMARY KEY",
-                    "titre" => "VARCHAR(255) NOT NULL",
-                    "description" => "TEXT NULL",
-                    "statut" => "VARCHAR(50) NULL",
-                    "priorite" => "VARCHAR(50) NULL",
-                    "date_debut" => "DATE NULL",
-                    "date_fin" => "DATE NULL",
-                    "responsabilites" => "TEXT NULL",
-                    "date_creation" => "DATETIME DEFAULT CURRENT_TIMESTAMP",
-                    "date_modification" => "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-                ]
-            ];
-            
-            // Nettoyer l'ID utilisateur pour éviter les injections
+            // Nettoyer l'ID utilisateur pour éviter les injections SQL
             $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
             
-            foreach ($tables as $baseTableName => $columns) {
-                $tableName = "{$baseTableName}_{$safeUserId}";
-                
-                // Vérifier si la table existe
-                $query = "SHOW TABLES LIKE '{$tableName}'";
-                $stmt = $this->conn->prepare($query);
-                $stmt->execute();
-                
-                if ($stmt->rowCount() === 0) {
-                    // La table n'existe pas, la créer
-                    $columnDefinitions = [];
-                    foreach ($columns as $columnName => $columnDefinition) {
-                        $columnDefinitions[] = "`{$columnName}` {$columnDefinition}";
+            // Liste des tables à créer pour chaque utilisateur
+            $tables = [
+                "bibliotheque" => "
+                    CREATE TABLE IF NOT EXISTS `bibliotheque_{$safeUserId}` (
+                        `id` VARCHAR(36) PRIMARY KEY,
+                        `nom` VARCHAR(255) NOT NULL,
+                        `description` TEXT NULL,
+                        `link` VARCHAR(255) NULL,
+                        `groupId` VARCHAR(36) NULL,
+                        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                ",
+                "exigences" => "
+                    CREATE TABLE IF NOT EXISTS `exigences_{$safeUserId}` (
+                        `id` VARCHAR(36) PRIMARY KEY,
+                        `nom` VARCHAR(255) NOT NULL,
+                        `responsabilites` TEXT,
+                        `exclusion` TINYINT(1) DEFAULT 0,
+                        `atteinte` ENUM('NC', 'PC', 'C') NULL,
+                        `groupId` VARCHAR(36) NULL,
+                        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                ",
+                "membres" => "
+                    CREATE TABLE IF NOT EXISTS `membres_{$safeUserId}` (
+                        `id` VARCHAR(36) PRIMARY KEY,
+                        `nom` VARCHAR(100) NOT NULL,
+                        `prenom` VARCHAR(100) NOT NULL,
+                        `email` VARCHAR(255) NULL,
+                        `telephone` VARCHAR(20) NULL,
+                        `fonction` VARCHAR(100) NULL,
+                        `organisation` VARCHAR(255) NULL,
+                        `notes` TEXT NULL,
+                        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                ",
+                "documents" => "
+                    CREATE TABLE IF NOT EXISTS `documents_{$safeUserId}` (
+                        `id` VARCHAR(36) PRIMARY KEY,
+                        `nom` VARCHAR(255) NOT NULL,
+                        `fichier_path` VARCHAR(255) NULL,
+                        `responsabilites` TEXT NULL,
+                        `etat` VARCHAR(50) NULL,
+                        `groupId` VARCHAR(36) NULL,
+                        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                ",
+                "pilotage" => "
+                    CREATE TABLE IF NOT EXISTS `pilotage_{$safeUserId}` (
+                        `id` VARCHAR(36) PRIMARY KEY,
+                        `titre` VARCHAR(255) NOT NULL,
+                        `description` TEXT NULL,
+                        `statut` VARCHAR(50) NULL,
+                        `priorite` VARCHAR(50) NULL,
+                        `date_debut` DATE NULL,
+                        `date_fin` DATE NULL,
+                        `responsabilites` TEXT NULL,
+                        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                "
+            ];
+            
+            $success = true;
+            $createdTables = [];
+            
+            // Créer chaque table
+            foreach ($tables as $tableName => $query) {
+                try {
+                    $stmt = $this->connection->prepare($query);
+                    if ($stmt->execute()) {
+                        error_log("Table {$tableName}_{$safeUserId} créée avec succès");
+                        $createdTables[] = "{$tableName}_{$safeUserId}";
+                    } else {
+                        error_log("Échec de création de la table {$tableName}_{$safeUserId}");
+                        $success = false;
                     }
-                    
-                    $createTableQuery = "CREATE TABLE IF NOT EXISTS `{$tableName}` (\n    " . 
-                                       implode(",\n    ", $columnDefinitions) . 
-                                       "\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-                    
-                    $this->conn->exec($createTableQuery);
-                    error_log("Table {$tableName} créée avec succès pour l'utilisateur {$userId}");
-                } else {
-                    // La table existe, vérifier/mettre à jour sa structure
-                    foreach ($columns as $columnName => $columnDefinition) {
-                        $checkColumnQuery = "SHOW COLUMNS FROM `{$tableName}` LIKE '{$columnName}'";
-                        $columnStmt = $this->conn->prepare($checkColumnQuery);
-                        $columnStmt->execute();
-                        
-                        if ($columnStmt->rowCount() === 0) {
-                            // La colonne n'existe pas, l'ajouter
-                            $addColumnQuery = "ALTER TABLE `{$tableName}` ADD COLUMN `{$columnName}` {$columnDefinition}";
-                            $this->conn->exec($addColumnQuery);
-                            error_log("Colonne {$columnName} ajoutée à la table {$tableName}");
-                        }
-                    }
+                } catch (PDOException $e) {
+                    error_log("Erreur lors de la création de la table {$tableName}_{$safeUserId}: " . $e->getMessage());
+                    $success = false;
                 }
             }
             
-            return true;
-        } catch (PDOException $e) {
-            error_log("Erreur lors de la création des tables pour l'utilisateur {$userId}: " . $e->getMessage());
+            error_log("Création des tables pour l'utilisateur {$safeUserId} - Statut: " . ($success ? "Succès" : "Échec"));
+            return [
+                'success' => $success,
+                'tables_created' => $createdTables
+            ];
+            
+        } catch (Exception $e) {
+            error_log("Exception lors de la création des tables utilisateur: " . $e->getMessage());
             return false;
         }
     }
     
-    /**
-     * Vérifie et crée les tables pour tous les utilisateurs existants
-     */
     public function ensureAllUserTablesExist() {
+        if (!$this->connection || !$this->is_connected) {
+            error_log("ensureAllUserTablesExist: Pas de connexion à la base de données");
+            return false;
+        }
+        
         try {
-            $query = "SELECT identifiant_technique FROM `{$this->model->table}`";
-            $stmt = $this->conn->prepare($query);
+            // Récupérer tous les utilisateurs
+            $query = "SELECT identifiant_technique FROM utilisateurs_p71x6d_richard";
+            $stmt = $this->connection->prepare($query);
             $stmt->execute();
             
-            $userIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $results = [];
             
-            foreach ($userIds as $userId) {
-                $this->createUserTables($userId);
+            // Pour chaque utilisateur, créer les tables nécessaires
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $userId = $row['identifiant_technique'];
+                $result = $this->createUserTables($userId);
+                $results[$userId] = $result;
             }
             
-            return true;
-        } catch (PDOException $e) {
-            error_log("Erreur lors de la vérification des tables pour tous les utilisateurs: " . $e->getMessage());
+            return $results;
+            
+        } catch (Exception $e) {
+            error_log("Exception lors de la vérification des tables utilisateur: " . $e->getMessage());
             return false;
         }
     }
 }
 
+// Classes pour les opérations spécifiques
 class BaseOperations {
-    public $model;
-    public $conn;
-    protected $lastInsertedId = null;
+    protected $connection;
+    protected $model;
     
-    public function getLastInsertedUserId() {
-        return $this->lastInsertedId;
+    public function __construct($db, $model) {
+        $this->connection = $db;
+        $this->model = $model;
+    }
+}
+
+class UserGetOperations extends BaseOperations {
+    public function handleGetRequest() {
+        try {
+            // Vérifier si une requête spécifique est demandée
+            if (isset($_GET['id'])) {
+                $this->getUserById($_GET['id']);
+                return;
+            }
+            
+            // Par défaut, récupérer tous les utilisateurs
+            $users = $this->model->getAll();
+            
+            if (!empty($users)) {
+                ResponseHandler::success([
+                    'records' => $users,
+                    'count' => count($users),
+                    'message' => 'Utilisateurs récupérés avec succès'
+                ]);
+            } else {
+                // Si aucun utilisateur trouvé, essayer de lire les données mockées
+                $mockFile = dirname(__DIR__) . '/mock-users.json';
+                if (file_exists($mockFile)) {
+                    $mockData = json_decode(file_get_contents($mockFile), true);
+                    ResponseHandler::success($mockData);
+                } else {
+                    ResponseHandler::success([
+                        'records' => [],
+                        'count' => 0,
+                        'message' => 'Aucun utilisateur trouvé'
+                    ]);
+                }
+            }
+        } catch (Exception $e) {
+            error_log("UserGetOperations - Exception: " . $e->getMessage());
+            ResponseHandler::error('Erreur serveur: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    private function getUserById($id) {
+        try {
+            $user = $this->model->getById($id);
+            
+            if ($user) {
+                ResponseHandler::success([
+                    'user' => $user,
+                    'message' => 'Utilisateur récupéré avec succès'
+                ]);
+            } else {
+                ResponseHandler::error("Aucun utilisateur trouvé avec l'ID: " . $id, 404);
+            }
+        } catch (Exception $e) {
+            ResponseHandler::error('Erreur serveur: ' . $e->getMessage(), 500);
+        }
+    }
+}
+
+class UserPutOperations extends BaseOperations {
+    public function handlePutRequest() {
+        try {
+            // Récupérer les données PUT
+            $data = json_decode(file_get_contents("php://input"), true);
+            
+            if (!$data) {
+                ResponseHandler::error('Aucune donnée reçue.', 400);
+                return;
+            }
+            
+            // Vérifier l'ID de l'utilisateur
+            if (!isset($data['id'])) {
+                ResponseHandler::error("L'ID de l'utilisateur est requis.", 400);
+                return;
+            }
+            
+            // Récupérer l'utilisateur existant
+            $existingUser = $this->model->getById($data['id']);
+            if (!$existingUser) {
+                ResponseHandler::error("Utilisateur non trouvé avec l'ID: " . $data['id'], 404);
+                return;
+            }
+            
+            // Mettre à jour les propriétés de l'utilisateur
+            $this->model->id = $data['id'];
+            
+            if (isset($data['nom'])) $this->model->nom = htmlspecialchars(strip_tags($data['nom']));
+            if (isset($data['prenom'])) $this->model->prenom = htmlspecialchars(strip_tags($data['prenom']));
+            if (isset($data['email'])) $this->model->email = htmlspecialchars(strip_tags($data['email']));
+            if (isset($data['role'])) $this->model->role = htmlspecialchars(strip_tags($data['role']));
+            
+            // Mot de passe (optionnel)
+            if (isset($data['mot_de_passe']) && !empty($data['mot_de_passe'])) {
+                $this->model->mot_de_passe = $data['mot_de_passe'];
+            }
+            
+            if ($this->model->update()) {
+                ResponseHandler::success([
+                    'message' => 'Utilisateur mis à jour avec succès.',
+                    'user' => [
+                        'id' => $this->model->id,
+                        'nom' => $this->model->nom,
+                        'prenom' => $this->model->prenom,
+                        'email' => $this->model->email,
+                        'role' => $this->model->role,
+                        'identifiant_technique' => $this->model->identifiant_technique
+                    ]
+                ]);
+            } else {
+                ResponseHandler::error("Échec de la mise à jour de l'utilisateur.", 400);
+            }
+        } catch (Exception $e) {
+            ResponseHandler::error('Erreur serveur: ' . $e->getMessage(), 500);
+        }
     }
 }

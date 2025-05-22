@@ -2,70 +2,78 @@
 <?php
 class RequestHandler {
     /**
-     * Gère les en-têtes CORS et les requêtes preflight
+     * Définit les en-têtes HTTP standard pour les réponses API
+     */
+    public static function setStandardHeaders($methods = "GET, POST, OPTIONS") {
+        header("Access-Control-Allow-Origin: *");
+        header("Content-Type: application/json; charset=UTF-8");
+        header("Access-Control-Allow-Methods: {$methods}");
+        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Forced-DB-User, X-User-Prefix");
+        header("Access-Control-Max-Age: 3600");
+    }
+    
+    /**
+     * Gère les requêtes OPTIONS pour CORS
+     */
+    public static function handleOptionsRequest() {
+        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+            http_response_code(200);
+            exit();
+        }
+    }
+    
+    /**
+     * Gestion complète des en-têtes CORS
      */
     public static function handleCORS() {
-        // Définir les en-têtes CORS
-        header("Access-Control-Allow-Origin: *");
-        header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-        header("Cache-Control: no-cache, no-store, must-revalidate");
-        
-        // Si c'est une requête OPTIONS (preflight), nous la terminons ici
-        if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-            http_response_code(200);
-            echo json_encode(['status' => 'success', 'message' => 'Preflight request accepted']);
-            exit;
-        }
+        self::setStandardHeaders();
+        self::handleOptionsRequest();
     }
     
     /**
-     * Parse et valide les données JSON de la requête
-     * 
-     * @return object|null Données JSON décodées ou null en cas d'erreur
+     * Nettoie et valide l'ID utilisateur
      */
-    public static function getJsonData() {
-        // Récupérer le contenu brut de la requête
-        $json = file_get_contents('php://input');
-        
-        if (empty($json)) {
-            return null;
+    public static function sanitizeUserId($userId) {
+        // Si l'ID est vide, retourner une valeur par défaut
+        if (empty($userId)) {
+            error_log("RequestHandler::sanitizeUserId - ID utilisateur vide, utilisation de p71x6d_richard par défaut");
+            return 'p71x6d_richard';
         }
         
-        // Décoder le JSON
-        $data = json_decode($json);
+        // Nettoyer l'ID (supprimer les caractères spéciaux)
+        $sanitized = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
         
-        // Vérifier si le décodage a réussi
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return null;
+        // Journaliser si l'ID a été modifié
+        if ($sanitized !== $userId) {
+            error_log("RequestHandler::sanitizeUserId - ID nettoyé: {$userId} -> {$sanitized}");
         }
         
-        return $data;
+        return $sanitized;
     }
     
     /**
-     * Nettoie et désinfecte une entrée
-     * 
-     * @param mixed $input L'entrée à nettoyer
-     * @return mixed L'entrée nettoyée
+     * Obtient et nettoie l'ID utilisateur à partir des en-têtes ou des paramètres
      */
-    public static function sanitizeInput($input) {
-        if (is_array($input)) {
-            foreach ($input as $key => $value) {
-                $input[$key] = self::sanitizeInput($value);
-            }
-            return $input;
+    public static function getUserId() {
+        // Essayer d'obtenir l'utilisateur à partir des en-têtes
+        $headers = getallheaders();
+        if (isset($headers['X-Forced-DB-User'])) {
+            return self::sanitizeUserId($headers['X-Forced-DB-User']);
         }
         
-        // Pour les chaînes, appliquer une désinfection
-        if (is_string($input)) {
-            // Supprimer les balises HTML, PHP et les caractères potentiellement malveillants
-            $input = strip_tags($input);
-            // Convertir les caractères spéciaux en entités HTML
-            $input = htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
+        // Essayer d'obtenir l'utilisateur à partir des paramètres GET
+        if (isset($_GET['userId'])) {
+            return self::sanitizeUserId($_GET['userId']);
         }
         
-        return $input;
+        // Essayer d'obtenir l'utilisateur à partir des paramètres POST
+        if (isset($_POST['userId'])) {
+            return self::sanitizeUserId($_POST['userId']);
+        }
+        
+        // Si aucun ID utilisateur n'est trouvé, utiliser p71x6d_richard par défaut
+        error_log("RequestHandler::getUserId - Aucun ID utilisateur trouvé, utilisation de p71x6d_richard par défaut");
+        return 'p71x6d_richard';
     }
 }
 ?>
