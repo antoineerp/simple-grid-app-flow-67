@@ -1,3 +1,4 @@
+
 // Configuration API
 
 // Récupère l'URL de base de l'API
@@ -38,15 +39,18 @@ export const testApiConnection = async (): Promise<{
       'test.php',
       'check.php', 
       'check-db-connection.php',
-      'auth-test.php'
+      'auth-test.php',
+      'check-users.php'
     ];
     
     let successfulEndpoint = null;
     let lastError = null;
+    let lastResponse = null;
     
     // Tester chaque endpoint séquentiellement
     for (const endpoint of endpointsToTest) {
       try {
+        console.log(`Tentative de connexion à ${apiUrl}/${endpoint}`);
         const response = await fetch(`${apiUrl}/${endpoint}`, {
           method: 'GET',
           headers: {
@@ -54,17 +58,20 @@ export const testApiConnection = async (): Promise<{
             'Cache-Control': 'no-cache'
           },
           // Court timeout pour ne pas attendre trop longtemps sur des endpoints qui échouent
-          signal: AbortSignal.timeout(3000)
+          signal: AbortSignal.timeout(5000)
         });
         
         if (!response.ok) {
+          console.warn(`Endpoint ${endpoint} a répondu avec le code ${response.status}`);
           throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
         }
         
         const responseText = await response.text();
+        lastResponse = responseText;
         
         // Vérifier si la réponse contient du PHP non exécuté
         if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+          console.warn(`Endpoint ${endpoint} a retourné du PHP/HTML non exécuté`);
           throw new Error("La réponse contient du PHP/HTML au lieu de JSON - problème de configuration serveur");
         }
         
@@ -72,15 +79,23 @@ export const testApiConnection = async (): Promise<{
         let data;
         try {
           data = JSON.parse(responseText);
-          // Si on arrive ici, c'est que l'endpoint fonctionne
-          successfulEndpoint = endpoint;
           
-          return {
-            success: true,
-            message: data.message || 'API connection successful',
-            details: { ...data, endpoint: successfulEndpoint }
-          };
+          // Vérifier si la réponse indique un succès
+          if (data.status === 'success' || data.success === true) {
+            // Si on arrive ici, c'est que l'endpoint fonctionne
+            successfulEndpoint = endpoint;
+            
+            return {
+              success: true,
+              message: data.message || 'API connection successful',
+              details: { ...data, endpoint: successfulEndpoint }
+            };
+          } else {
+            // La réponse est du JSON valide mais indique une erreur
+            throw new Error(data.message || "L'API a renvoyé une erreur");
+          }
         } catch (parseError) {
+          console.warn(`Erreur de parsing JSON pour ${endpoint}:`, parseError);
           throw new Error(`Erreur de parsing JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
         }
       } catch (endpointError) {
@@ -91,6 +106,7 @@ export const testApiConnection = async (): Promise<{
     }
     
     // Si on arrive ici, c'est qu'aucun endpoint n'a fonctionné
+    console.error("Tous les endpoints ont échoué. Dernière réponse:", lastResponse);
     throw new Error('Tous les endpoints ont échoué');
   } catch (error) {
     console.error("API connection error:", error);

@@ -21,20 +21,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 error_log("Exécution de check-users.php - Méthode: " . $_SERVER['REQUEST_METHOD']);
 
 // Configuration de base pour la base de données
-require_once __DIR__ . '/config/database.php';
+$host = "p71x6d.myd.infomaniak.com";
+$dbname = "p71x6d_system";
+$username = "p71x6d_richard";
+$password = "Trottinette43!";
 
 try {
     // Créer une connexion à la base de données
-    $database = new Database();
-    $conn = $database->getConnection(true);
+    $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
+    $options = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ];
     
-    // Vérifier que la connexion a réussi
-    if (!$conn) {
-        throw new Exception("Échec de connexion à la base de données: " . $database->getError());
-    }
+    $conn = new PDO($dsn, $username, $password, $options);
     
     // Initialiser la table des utilisateurs (toujours p71x6d_richard)
-    $table = 'utilisateurs_p71x6d_richard';
+    $table = 'utilisateurs';
     
     // Vérifier si la table existe, sinon la créer
     $checkTableQuery = "SHOW TABLES LIKE '$table'";
@@ -95,8 +99,10 @@ try {
         error_log("Utilisateur créé car aucun n'existait");
     }
     
-    // Retourner la liste des utilisateurs
+    // Retourner la liste des utilisateurs avec un format consistant
     echo json_encode([
+        'status' => 'success',
+        'message' => 'Utilisateurs récupérés avec succès',
         'success' => true,
         'records' => $users,
         'count' => count($users),
@@ -113,8 +119,10 @@ try {
     
     http_response_code(500);
     echo json_encode([
+        'status' => 'error',
         'success' => false,
         'message' => "Erreur serveur: " . $e->getMessage(),
         'debug_info' => $e->getTraceAsString()
     ]);
 }
+?>
