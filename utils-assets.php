@@ -1,29 +1,48 @@
 
 <?php
-// Utility: Asset search, selection (main JS/CSS), and listing
+// Fonctions utilitaires pour la gestion des assets compilés
 
-// Returns latest asset by prefix (eg: 'main-' for JS, 'index-' for CSS)
-function find_latest_asset($assets, $prefix) {
-    $latest = '';
+// Trouver tous les assets d'un type donné dans un répertoire
+function find_assets_in_dir($directory, $type) {
+    if (!is_dir($directory)) {
+        return [];
+    }
+    
+    if ($type === 'js') {
+        return glob("$directory/*.js");
+    } else if ($type === 'css') {
+        return glob("$directory/*.css");
+    }
+    
+    return [];
+}
+
+// Trouver le dernier asset créé correspondant à un pattern
+function find_latest_asset($files, $prefix = '') {
     $latest_time = 0;
-    foreach ($assets as $file) {
-        $filename = basename($file);
-        if (strpos($filename, $prefix) === 0) {
-            $file_time = filemtime($file);
-            if ($file_time > $latest_time) {
-                $latest_time = $file_time;
-                $latest = $filename;
+    $latest_file = '';
+    
+    foreach ($files as $file) {
+        $basename = basename($file);
+        if (empty($prefix) || strpos($basename, $prefix) === 0) {
+            $mtime = filemtime($file);
+            if ($mtime > $latest_time) {
+                $latest_time = $mtime;
+                $latest_file = $basename;
             }
         }
     }
-    return [$latest, $latest_time];
+    
+    return [$latest_file, $latest_time];
 }
 
-// List all assets as HTML
-function list_assets($assets) {
+// Liste les assets trouvés avec leurs dates de modification
+function list_assets($files) {
     $output = '';
-    foreach ($assets as $file) {
-        $output .= "<li>" . basename($file) . " (" . filesize($file) . " octets)</li>";
+    foreach ($files as $file) {
+        $basename = basename($file);
+        $mtime = filemtime($file);
+        $output .= "<li>{$basename} <small class='text-gray-500'>(" . date('Y-m-d H:i:s', $mtime) . ")</small></li>";
     }
     return $output;
 }

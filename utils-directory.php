@@ -1,31 +1,54 @@
 
 <?php
-// Utility: Directory structure checks and helpers
+// Fonctions utilitaires pour la gestion des répertoires
 
-// Checks if a directory exists, returns count of files or false
+// Vérifie si un répertoire existe et compte ses fichiers/dossiers
 function check_directory($dir) {
     if (is_dir($dir)) {
-        $files = glob($dir . '/*');
+        $files = scandir($dir);
         return count($files);
     }
     return false;
 }
 
-// Returns an array of found JavaScript or CSS assets in a directory
-function find_assets_in_dir($dir, $type = 'js') {
-    $pattern = rtrim($dir, '/') . '/*.' . ($type === 'css' ? 'css' : 'js');
-    return glob($pattern);
+// Copie récursivement un répertoire
+function copy_directory($src, $dst) {
+    $dir = opendir($src);
+    @mkdir($dst);
+    
+    while (($file = readdir($dir)) !== false) {
+        if (($file != '.') && ($file != '..')) {
+            if (is_dir($src . '/' . $file)) {
+                copy_directory($src . '/' . $file, $dst . '/' . $file);
+            } else {
+                copy($src . '/' . $file, $dst . '/' . $file);
+            }
+        }
+    }
+    
+    closedir($dir);
+    return true;
 }
 
-// Helper to print a list of files, limited by $max
-function print_file_list($files, $max = 5) {
-    $output = '';
-    $count = count($files);
-    for ($i = 0; $i < min($count, $max); $i++) {
-        $output .= "<li>" . basename($files[$i]) . "</li>";
+// Déplace les fichiers d'un répertoire à un autre
+function move_directory_contents($src, $dst) {
+    if (!is_dir($src)) {
+        return false;
     }
-    if ($count > $max) {
-        $output .= "<li>... et " . ($count - $max) . " autres fichiers</li>";
+    
+    if (!is_dir($dst)) {
+        mkdir($dst, 0755, true);
     }
-    return $output;
+    
+    $files = glob($src . '/*');
+    foreach ($files as $file) {
+        $dest = $dst . '/' . basename($file);
+        if (is_dir($file)) {
+            copy_directory($file, $dest);
+        } else {
+            copy($file, $dest);
+        }
+    }
+    
+    return true;
 }

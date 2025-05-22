@@ -3,138 +3,124 @@
 header('Content-Type: text/html; charset=utf-8');
 require_once 'utils-directory.php';
 require_once 'utils-assets.php';
-require_once 'index-validator.php';
 ?>
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Vérification de la Structure des Répertoires</title>
+    <title>Correction de la Structure des Dossiers</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
         .success { color: green; font-weight: bold; }
         .error { color: red; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
         .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .fix-button { background: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <h1>Vérification de la Structure des Répertoires</h1>
+    <h1>Correction de la Structure des Dossiers</h1>
     
     <div class="section">
-        <h2>1. Structure Actuelle</h2>
+        <h2>État actuel</h2>
         <?php
-        // Répertoires à vérifier
         $directories = [
             './' => 'Répertoire racine',
-            './assets' => 'Dossier des assets',
-            '../assets' => 'Dossier des assets (un niveau au-dessus)',
-            './api' => 'Dossier API',
-            './public' => 'Dossier public'
+            './dist' => 'Dossier dist',
+            './dist/assets' => 'Dossier dist/assets',
+            './assets' => 'Dossier assets'
         ];
-        foreach ($directories as $dir => $desc) {
-            $count = check_directory($dir);
-            echo "<p>$desc ($dir): ";
-            if ($count !== false) {
-                echo "<span class='success'>EXISTE</span> ($count fichiers/dossiers)";
+        
+        foreach ($directories as $dir => $label) {
+            $files_count = check_directory($dir);
+            echo "<p>$label ($dir): ";
+            if ($files_count !== false) {
+                echo "<span class='success'>EXISTE</span> ($files_count fichiers/dossiers)";
             } else {
                 echo "<span class='error'>N'EXISTE PAS</span>";
             }
             echo "</p>";
         }
-
-        // JS file locations
-        echo "<h3>Recherche des fichiers JavaScript</h3>";
-        $js_locations = [
-            './assets/*.js',
-            '../assets/*.js',
-            './dist/assets/*.js',
-            '../dist/assets/*.js'
-        ];
-        foreach ($js_locations as $pattern) {
-            $files = glob($pattern);
-            echo "<p>$pattern: ";
-            if (!empty($files)) {
-                echo "<span class='success'>TROUVÉ</span> (" . count($files) . " fichiers)<ul>";
-                echo print_file_list($files);
-                echo "</ul>";
-            } else {
-                echo "<span class='error'>AUCUN FICHIER</span>";
-            }
-            echo "</p>";
+        
+        $fixes_needed = [];
+        
+        // Vérifier si le dossier assets existe à la racine
+        if (!is_dir('./assets') && is_dir('./dist/assets')) {
+            $fixes_needed[] = [
+                'type' => 'copy_directory',
+                'src' => './dist/assets',
+                'dst' => './assets',
+                'description' => 'Créer le dossier assets à la racine et y copier les fichiers depuis dist/assets'
+            ];
+        }
+        
+        // Vérifier si index.html existe
+        if (!file_exists('./index.html') && file_exists('./dist/index.html')) {
+            $fixes_needed[] = [
+                'type' => 'copy_file',
+                'src' => './dist/index.html',
+                'dst' => './index.html',
+                'description' => 'Copier index.html depuis dist/ vers la racine'
+            ];
         }
         ?>
     </div>
     
+    <?php if (!empty($fixes_needed)): ?>
     <div class="section">
-        <h2>2. Correction de la Structure</h2>
-        <?php
-        if (isset($_POST['fix_structure'])) {
-            echo "<h3>Actions effectuées :</h3>";
-            // Création dossier assets
-            if (!is_dir('./assets')) {
-                if (mkdir('./assets', 0755, true)) {
-                    echo "<p>Création du dossier <code>./assets</code>: <span class='success'>SUCCÈS</span></p>";
-                } else {
-                    echo "<p>Création du dossier <code>./assets</code>: <span class='error'>ÉCHEC</span></p>";
-                }
-            }
-            // Copier JS/CSS depuis ../assets
-            foreach (['js', 'css'] as $type) {
-                $source = glob("../assets/*.$type");
-                if (!empty($source)) {
-                    $copied = 0;
-                    foreach ($source as $file) {
-                        $dest = './assets/' . basename($file);
-                        if (copy($file, $dest)) $copied++;
+        <h2>Corrections nécessaires</h2>
+        <ul>
+            <?php foreach ($fixes_needed as $fix): ?>
+                <li><?php echo $fix['description']; ?></li>
+            <?php endforeach; ?>
+        </ul>
+        
+        <?php if (isset($_POST['fix_structure'])): ?>
+            <h3>Application des corrections...</h3>
+            <?php
+            foreach ($fixes_needed as $fix) {
+                echo "<p>• {$fix['description']}: ";
+                
+                if ($fix['type'] === 'copy_directory') {
+                    if (move_directory_contents($fix['src'], $fix['dst'])) {
+                        echo "<span class='success'>RÉUSSI</span>";
+                    } else {
+                        echo "<span class='error'>ÉCHEC</span>";
                     }
-                    echo "<p>Copie des fichiers $type depuis <code>../assets/</code>: <span class='success'>SUCCÈS</span> ($copied fichiers copiés)</p>";
-                } else {
-                    echo "<p>Aucun fichier $type trouvé dans <code>../assets/</code> à copier</p>";
-                }
-            }
-            // Vérifier et patcher index.html
-            if (file_exists('./index.html')) {
-                $index_content = file_get_contents('./index.html');
-                $refs = validate_index_references($index_content);
-                if (!$refs['has_js_reference'] || !$refs['has_css_reference']) {
-                    $js_files = find_assets_in_dir('./assets', 'js');
-                    $css_files = find_assets_in_dir('./assets', 'css');
-                    list($main_js) = find_latest_asset($js_files, 'main-');
-                    list($index_css) = find_latest_asset($css_files, 'index-');
-                    // Fallback first file
-                    $main_js = $main_js ?: (isset($js_files[0]) ? basename($js_files[0]) : null);
-                    $index_css = $index_css ?: (isset($css_files[0]) ? basename($css_files[0]) : null);
-                    if ($main_js && $index_css) {
-                        copy('./index.html', './index.html.bak');
-                        $new_content = patch_index_html($index_content, $main_js, $index_css);
-                        if (file_put_contents('./index.html', $new_content)) {
-                            echo "<p>Mise à jour des références dans index.html : <span class='success'>SUCCÈS</span></p>";
-                        } else {
-                            echo "<p>Mise à jour des références dans index.html : <span class='error'>ÉCHEC (impossible d'écrire)</span></p>";
-                        }
+                } else if ($fix['type'] === 'copy_file') {
+                    if (copy($fix['src'], $fix['dst'])) {
+                        echo "<span class='success'>RÉUSSI</span>";
+                    } else {
+                        echo "<span class='error'>ÉCHEC</span>";
                     }
-                } else {
-                    echo "<p>Les références dans index.html sont déjà correctes</p>";
                 }
-            } else {
-                echo "<p>Le fichier index.html n'existe pas à la racine</p>";
+                
+                echo "</p>";
             }
-        } else {
-            echo "<form method='post'>";
-            echo "<p>Ce script va tenter de créer/corriger la structure des répertoires et de copier les fichiers nécessaires.</p>";
-            echo "<input type='hidden' name='fix_structure' value='1'>";
-            echo '<button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Corriger la structure</button>';
-            echo "</form>";
-        }
-        ?>
+            ?>
+            <p>Corrections terminées. <a href="check-assets-deployment.php">Vérifier le déploiement</a></p>
+        <?php else: ?>
+            <form method="post">
+                <input type="hidden" name="fix_structure" value="1">
+                <button type="submit" class="fix-button">Appliquer les corrections</button>
+            </form>
+        <?php endif; ?>
     </div>
+    <?php else: ?>
+    <div class="section">
+        <h2>Aucune correction nécessaire</h2>
+        <p><span class='success'>La structure des dossiers semble correcte.</span></p>
+        <p>Si vous rencontrez toujours des problèmes, vérifiez les références dans index.html avec <a href="fix-index-references.php">l'outil de correction des références</a>.</p>
+    </div>
+    <?php endif; ?>
     
     <div class="section">
-        <h2>3. Recommandations</h2>
+        <h2>Étapes suivantes</h2>
         <ol>
-            <li>Assurez-vous que le dossier <code>assets</code> existe à la racine du site</li>
-            <li>Vérifiez que les fichiers JS et CSS compilés se trouvent dans ce dossier</li>
-            <li>Assurez-vous que <code>index.html</code> fait référence à ces fichiers compilés</li>
-            <li>Si vous utilisez un workflow de déploiement, vérifiez qu'il copie correctement les fichiers compilés</li>
+            <li>Vérifiez que les fichiers dans <code>assets/</code> sont correctement référencés dans <code>index.html</code></li>
+            <li>Si nécessaire, utilisez <a href="fix-index-references.php">l'outil de correction des références</a> pour mettre à jour index.html</li>
+            <li>Videz le cache de votre navigateur et testez à nouveau l'application</li>
+            <li>Si des problèmes persistent, utilisez <a href="check-assets-deployment.php">l'outil de diagnostic complet</a></li>
         </ol>
     </div>
 </body>
