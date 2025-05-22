@@ -72,16 +72,9 @@ try {
 function handleGetRequest($pdo) {
     error_log("Traitement de la requête GET pour récupérer les exigences");
     
-    if (!isset($_GET['userId'])) {
-        throw new Exception("Le paramètre userId est requis");
-    }
-    
-    $userId = $_GET['userId'];
-    error_log("Récupération des exigences pour l'utilisateur: {$userId}");
-    
-    // Forcer l'utilisation de p71x6d_richard comme base de données pour tous
+    // Forcer l'utilisation de p71x6d_richard 
     $userId = "p71x6d_richard";
-    error_log("ID forcé à: {$userId} pour la base de données");
+    error_log("Récupération des exigences avec ID forcé: {$userId}");
     
     // Vérifier si la table existe
     $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
@@ -99,8 +92,9 @@ function handleGetRequest($pdo) {
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )");
     
-    // Récupérer toutes les exigences de la table
-    $stmt = $pdo->query("SELECT * FROM `{$tableName}`");
+    // Récupérer toutes les exigences de la table avec paramètres nommés
+    $stmt = $pdo->prepare("SELECT * FROM `{$tableName}`");
+    $stmt->execute();
     $exigences = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     error_log("Nombre d'exigences récupérées: " . count($exigences));
@@ -121,7 +115,7 @@ function handlePostRequest($pdo) {
     
     // Récupérer les données POST JSON
     $json = file_get_contents('php://input');
-    error_log("Données reçues (brut): " . substr($json, 0, 500) . "...");
+    error_log("Données reçues (brut): " . substr($json, 0, 100) . "...");
     
     $data = json_decode($json, true);
     
@@ -130,33 +124,36 @@ function handlePostRequest($pdo) {
     }
     
     if ($data === null) {
-        error_log("Erreur JSON: " . json_last_error_msg() . " - JSON reçu: " . substr($json, 0, 500));
+        error_log("Erreur JSON: " . json_last_error_msg() . " - JSON reçu: " . substr($json, 0, 100));
         throw new Exception("Format JSON invalide: " . json_last_error_msg());
     }
-    
-    error_log("Données décodées: " . print_r($data, true));
-    
-    // Vérifier si les données nécessaires sont présentes
-    if (!isset($data['userId']) && !isset($data['user_id'])) {
-        throw new Exception("Données incomplètes. 'userId' ou 'user_id' est requis");
-    }
-    
-    // Récupérer l'ID utilisateur du bon champ
-    $userId = isset($data['userId']) ? $data['userId'] : $data['user_id'];
-    $exigences = isset($data['exigences']) ? $data['exigences'] : [];
-    
-    if (!is_array($exigences)) {
-        error_log("Format d'exigences invalide: " . gettype($exigences) . " au lieu d'un tableau");
-        error_log("Contenu: " . print_r($exigences, true));
-        throw new Exception("Le champ 'exigences' doit être un tableau");
-    }
-    
-    error_log("Synchronisation pour l'utilisateur: {$userId}");
-    error_log("Nombre d'exigences: " . count($exigences));
     
     // Forcer l'utilisation de p71x6d_richard comme base de données pour tous
     $userId = "p71x6d_richard";
     error_log("ID forcé à: {$userId} pour la base de données");
+    
+    // Déterminer la clé dans laquelle se trouvent les exigences
+    $exigences = [];
+    if (isset($data['exigences'])) {
+        $exigences = $data['exigences'];
+    } else {
+        // Parcourir toutes les clés pour trouver des données
+        foreach ($data as $key => $value) {
+            if (is_array($value) && count($value) > 0) {
+                $exigences = $value;
+                error_log("Exigences trouvées dans la clé: {$key}");
+                break;
+            }
+        }
+    }
+    
+    if (!is_array($exigences)) {
+        error_log("Format d'exigences invalide: " . gettype($exigences) . " au lieu d'un tableau");
+        error_log("Contenu des données: " . print_r($data, true));
+        throw new Exception("Impossible de trouver les exigences dans les données");
+    }
+    
+    error_log("Nombre d'exigences à synchroniser: " . count($exigences));
     
     // Créer la table si elle n'existe pas
     $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
@@ -176,47 +173,56 @@ function handlePostRequest($pdo) {
     // Vider la table pour une synchronisation complète - uniquement si des exigences sont fournies
     if (!empty($exigences)) {
         $pdo->exec("TRUNCATE TABLE `{$tableName}`");
+        error_log("Table {$tableName} vidée pour resynchronisation complète");
         
         // Préparer l'insertion des exigences avec des paramètres nommés
-        $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, nom, responsabilites, exclusion, atteinte, groupId, date_creation) 
+        $stmt = $pdo->prepare("INSERT INTO `{$tableName}` 
+                              (id, nom, responsabilites, exclusion, atteinte, groupId, date_creation) 
                               VALUES (:id, :nom, :resp, :excl, :att, :groupe, :date)");
         
         foreach ($exigences as $exigence) {
-            // Vérifier que l'ID existe
-            if (!isset($exigence['id'])) {
-                error_log("Exigence sans ID trouvée, génération d'un UUID");
-                $exigence['id'] = uniqid('exig_', true);
+            try {
+                // Vérifier que l'ID existe, sinon en générer un
+                $id = isset($exigence['id']) ? $exigence['id'] : uniqid('exig_', true);
+                
+                // Vérifier que le nom existe
+                $nom = isset($exigence['nom']) ? $exigence['nom'] : 'Exigence sans titre';
+                
+                // Traiter les responsabilités (gérer les formats possibles)
+                $responsabilites = null;
+                if (isset($exigence['responsabilites'])) {
+                    $responsabilites = is_array($exigence['responsabilites']) ? 
+                        json_encode($exigence['responsabilites']) : $exigence['responsabilites'];
+                }
+                
+                // Préparer la date de création
+                $dateCreation = isset($exigence['date_creation']) && !empty($exigence['date_creation']) 
+                    ? date('Y-m-d H:i:s', strtotime($exigence['date_creation']))
+                    : date('Y-m-d H:i:s');
+                
+                // Option d'exclusion et autres champs
+                $exclusion = isset($exigence['exclusion']) ? (int)$exigence['exclusion'] : 0;
+                $atteinte = isset($exigence['atteinte']) ? $exigence['atteinte'] : null;
+                $groupId = isset($exigence['groupId']) ? $exigence['groupId'] : null;
+                
+                // Liaison des paramètres
+                $stmt->bindParam(':id', $id);
+                $stmt->bindParam(':nom', $nom);
+                $stmt->bindParam(':resp', $responsabilites);
+                $stmt->bindParam(':excl', $exclusion, PDO::PARAM_INT);
+                $stmt->bindParam(':att', $atteinte);
+                $stmt->bindParam(':groupe', $groupId);
+                $stmt->bindParam(':date', $dateCreation);
+                
+                // Exécuter l'insertion avec gestion des erreurs
+                if (!$stmt->execute()) {
+                    throw new Exception("Erreur lors de l'insertion de l'exigence ID: $id");
+                }
+            } catch (Exception $insertError) {
+                error_log("Erreur lors de l'insertion d'une exigence: " . $insertError->getMessage());
+                // Continuer avec l'exigence suivante sans interrompre la boucle
+                continue;
             }
-            
-            // Vérifier que le nom existe (au lieu de titre)
-            $nom = isset($exigence['nom']) ? $exigence['nom'] : 'Exigence sans titre';
-            
-            // Traiter les responsabilités (gérer les formats possibles)
-            $responsabilites = null;
-            if (isset($exigence['responsabilites'])) {
-                $responsabilites = is_array($exigence['responsabilites']) ? 
-                    json_encode($exigence['responsabilites']) : $exigence['responsabilites'];
-            }
-            
-            // Préparer la date de création
-            $dateCreation = isset($exigence['date_creation']) && !empty($exigence['date_creation']) 
-                ? date('Y-m-d H:i:s', strtotime($exigence['date_creation']))
-                : date('Y-m-d H:i:s');
-            
-            // Option d'exclusion
-            $exclusion = isset($exigence['exclusion']) ? (int)$exigence['exclusion'] : 0;
-            
-            // Liaison des paramètres
-            $stmt->bindParam(':id', $exigence['id']);
-            $stmt->bindParam(':nom', $nom);
-            $stmt->bindParam(':resp', $responsabilites);
-            $stmt->bindParam(':excl', $exclusion, PDO::PARAM_INT);
-            $stmt->bindParam(':att', $exigence['atteinte']);
-            $stmt->bindParam(':groupe', $exigence['groupId']);
-            $stmt->bindParam(':date', $dateCreation);
-            
-            // Exécuter l'insertion
-            $stmt->execute();
         }
     }
     

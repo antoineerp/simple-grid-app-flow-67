@@ -3,7 +3,7 @@ import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { MembresProvider } from '@/contexts/MembresContext';
 import { exportPilotageToOdf } from "@/services/pdfExport";
-import { useSyncTableCrud } from '@/hooks/useSyncTableCrud';
+import { useUnifiedSync } from '@/hooks/useUnifiedSync';
 import PilotageHeader from '@/components/pilotage/PilotageHeader';
 import PilotageActions from '@/components/pilotage/PilotageActions';
 import PilotageDocumentsTable from '@/components/pilotage/PilotageDocumentsTable';
@@ -70,7 +70,7 @@ const Pilotage = () => {
     lien: null
   });
 
-  // Utiliser notre hook personnalisé pour la synchronisation CRUD
+  // Utiliser notre nouveau hook unifié
   const {
     data: documents,
     isSyncing,
@@ -80,11 +80,13 @@ const Pilotage = () => {
     createItem,
     updateItem,
     deleteItem,
-    syncWithServer
-  } = useSyncTableCrud<PilotageDocument>({
+    reorderItems,
+    syncData
+  } = useUnifiedSync<PilotageDocument>({
     tableName: 'pilotage_documents',
     autoSync: true,
     syncInterval: 30000,  // 30 secondes
+    endpoint: 'documents-sync.php',
     itemFactory: (data) => ({
       id: '',
       nom: data?.nom || 'Nouveau document',
@@ -173,18 +175,8 @@ const Pilotage = () => {
   };
 
   const handleReorder = (startIndex: number, endIndex: number) => {
-    // Créer une nouvelle liste réordonnée
-    const reorderedDocs = [...convertedDocuments];
-    const [removed] = reorderedDocs.splice(startIndex, 1);
-    reorderedDocs.splice(endIndex, 0, removed);
-    
-    // Mettre à jour la liste complète
-    reorderedDocs.forEach((doc, index) => {
-      const originalDoc = documents.find(d => parseInt(d.id) === doc.id);
-      if (originalDoc) {
-        updateItem(originalDoc.id, { ordre: index + 1 });
-      }
-    });
+    // Réorganiser les documents
+    reorderItems(startIndex, endIndex);
     
     toast({
       title: "Ordre mis à jour",
@@ -204,7 +196,7 @@ const Pilotage = () => {
   const handleSync = async () => {
     try {
       if (documents && documents.length > 0) {
-        const success = await syncWithServer("manual");
+        const success = await syncData("manual");
         if (success) {
           toast({
             title: "Synchronisation",

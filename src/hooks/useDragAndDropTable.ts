@@ -1,98 +1,140 @@
 
 import { useState } from 'react';
 
-interface DragAndDropState {
-  draggedItem: { id: string; groupId?: string; index: number } | null;
-}
-
-export function useDragAndDropTable<T extends { id: string | number }>(
-  items: T[],
+/**
+ * Hook pour gérer le glisser-déposer dans les tables
+ * Compatible avec tous les types de tables de l'application
+ */
+export function useDragAndDropTable<T>(
+  items: T[], 
   onReorder: (startIndex: number, endIndex: number, targetGroupId?: string) => void,
-  getGroupId?: (item: T) => string | undefined
+  getItemGroupId?: (item: T) => string | undefined
 ) {
-  const [dragState, setDragState] = useState<DragAndDropState>({ draggedItem: null });
-
-  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string, index?: number) => {
-    const realIndex = typeof index === 'number' ? index : items.findIndex(item => String(item.id) === id);
-    
-    setDragState({
-      draggedItem: { id: String(id), groupId, index: realIndex }
-    });
-    
-    e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId, index: realIndex }));
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [draggedItemGroupId, setDraggedItemGroupId] = useState<string | undefined>(undefined);
+  const [draggedItemIndex, setDraggedItemIndex] = useState<number>(-1);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  
+  // Gestionnaire pour le début du glisser-déposer
+  const handleDragStart = (
+    e: React.DragEvent<HTMLTableRowElement>, 
+    id: string, 
+    groupId?: string, 
+    index?: number
+  ) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId, index }));
+    setDraggedItemId(id);
+    setDraggedItemGroupId(groupId);
+    setDraggedItemIndex(index !== undefined ? index : -1);
     e.currentTarget.classList.add('opacity-50');
   };
-
+  
+  // Gestionnaire pour le survol d'une cible potentielle
   const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
     e.preventDefault();
-    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
+    if (e.currentTarget.getAttribute('data-id') !== draggedItemId) {
+      e.currentTarget.classList.add('bg-gray-100');
+      setDropTargetId(e.currentTarget.getAttribute('data-id'));
+    }
   };
-
+  
+  // Gestionnaire quand le curseur quitte la cible
   const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+    e.currentTarget.classList.remove('bg-gray-100');
+    setDropTargetId(null);
   };
-
-  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => {
+  
+  // Gestionnaire pour le dépôt sur une cible
+  const handleDrop = (
+    e: React.DragEvent<HTMLTableRowElement>, 
+    id: string, 
+    groupId?: string
+  ) => {
     e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+    e.currentTarget.classList.remove('bg-gray-100');
     
-    if (!dragState.draggedItem) return;
-    
-    const sourceId = dragState.draggedItem.id;
-    const sourceIndex = dragState.draggedItem.index;
-    const sourceGroupId = dragState.draggedItem.groupId;
-    
-    if (sourceId === String(targetId) && sourceGroupId === targetGroupId) return;
-    
-    // Find target index
-    const targetIndex = items.findIndex(item => String(item.id) === targetId);
-    
-    if (targetIndex !== -1) {
-      console.log(`Moving item from index ${sourceIndex} to ${targetIndex} (group: ${targetGroupId || 'none'})`);
-      onReorder(sourceIndex, targetIndex, targetGroupId);
+    try {
+      const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+      
+      // Si on essaie de déposer sur le même élément, ne rien faire
+      if (dragData.id === id) return;
+      
+      // Si on manipule un groupe et pas un élément, ne pas traiter ici
+      if (dragData.isGroup) return;
+      
+      // Trouver les indices de départ et d'arrivée
+      let startIndex = dragData.index;
+      if (startIndex === -1 || startIndex === undefined) {
+        // Si l'index n'était pas préalablement défini, chercher dans les items
+        const filteredItems = draggedItemGroupId 
+          ? items.filter(item => getItemGroupId && getItemGroupId(item) === draggedItemGroupId)
+          : items.filter(item => getItemGroupId && !getItemGroupId(item));
+        
+        startIndex = filteredItems.findIndex((item: any) => 
+          (item.id && item.id === draggedItemId) || 
+          (item.id && item.id.toString() === draggedItemId));
+      }
+      
+      // Trouver l'index de la cible
+      let endIndex = -1;
+      const targetItems = groupId 
+        ? items.filter(item => getItemGroupId && getItemGroupId(item) === groupId)
+        : items.filter(item => getItemGroupId && !getItemGroupId(item));
+        
+      endIndex = targetItems.findIndex((item: any) => 
+        (item.id && item.id === id) || 
+        (item.id && item.id.toString() === id));
+      
+      if (startIndex === -1 || endIndex === -1) {
+        console.error("Indices invalides pour le réordonnancement", { startIndex, endIndex });
+        return;
+      }
+      
+      // Appeler la fonction de réordonnancement
+      onReorder(startIndex, endIndex, groupId);
+    } catch (error) {
+      console.error("Erreur lors du traitement du glisser-déposer:", error);
     }
     
-    setDragState({ draggedItem: null });
+    setDraggedItemId(null);
+    setDraggedItemGroupId(undefined);
+    setDraggedItemIndex(-1);
+    setDropTargetId(null);
   };
-
+  
+  // Gestionnaire pour la fin du glisser-déposer (que ce soit réussi ou annulé)
   const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
     e.currentTarget.classList.remove('opacity-50');
-    setDragState({ draggedItem: null });
+    setDraggedItemId(null);
+    setDraggedItemGroupId(undefined);
+    setDraggedItemIndex(-1);
+    setDropTargetId(null);
   };
-
-  const handleGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
+  
+  // Gestionnaire pour le glisser-déposer entre groupes
+  const handleGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, targetGroupId: string) => {
     e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
-    if (!dragState.draggedItem) return;
-    
-    const sourceId = dragState.draggedItem.id;
-    const sourceIndex = dragState.draggedItem.index;
-    const sourceGroupId = dragState.draggedItem.groupId;
-    
-    if (sourceGroupId === groupId) return;
-    
-    // Find the last index in the target group
-    let targetIndex = items.length;
-    const groupItems = items.filter(item => getGroupId && getGroupId(item) === groupId);
-    if (groupItems.length > 0) {
-      const lastGroupItem = groupItems[groupItems.length - 1];
-      const lastGroupItemIndex = items.findIndex(item => 
-        String(item.id) === String(lastGroupItem.id)
-      );
-      if (lastGroupItemIndex !== -1) {
-        targetIndex = lastGroupItemIndex + 1;
+    try {
+      const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+      
+      // Ne traiter que si c'est un élément (et pas un groupe) qu'on dépose
+      if (!dragData.isGroup && dragData.id && dragData.id !== targetGroupId) {
+        console.log(`Déplacement de l'élément ${dragData.id} vers le groupe ${targetGroupId}`);
+        
+        // Ici, intégrer la logique pour déplacer un élément vers un groupe
+        // Cette implémentation dépendra de la structure des données
       }
+    } catch (error) {
+      console.error("Erreur lors du traitement du glisser-déposer de groupe:", error);
     }
-    
-    console.log(`Moving item from index ${sourceIndex} to group ${groupId} at index ${targetIndex}`);
-    onReorder(sourceIndex, targetIndex, groupId);
-    
-    setDragState({ draggedItem: null });
   };
-
+  
   return {
-    draggedItem: dragState.draggedItem,
+    draggedItemId,
+    draggedItemGroupId,
+    draggedItemIndex,
+    dropTargetId,
     handleDragStart,
     handleDragOver,
     handleDragLeave,

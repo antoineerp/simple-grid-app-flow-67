@@ -1,6 +1,6 @@
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/components/ui/use-toast';
-import { LoginResponse } from '@/types/auth';
+import { LoginResponse, Utilisateur } from '@/types/auth';
 import { convertEmailToTechnicalId } from '../core/userIdConverter';
 
 // Variable pour stocker l'utilisateur connecté
@@ -129,8 +129,9 @@ export const login = async (username: string, password: string): Promise<LoginRe
       isLoggedIn = true;
       
       // Stocker les données utilisateur et le rôle explicitement
-      const adminUser = {
+      const adminUser: Utilisateur = {
         id: 'p71x6d_richard',
+        username: 'antcirier',
         email: username,
         role: 'admin',
         identifiant_technique: 'p71x6d_richard'
@@ -148,9 +149,7 @@ export const login = async (username: string, password: string): Promise<LoginRe
       };
     }
     
-    // Pour les autres utilisateurs, flux standard avec vérification supplémentaire
-    console.log(`Tentative de connexion au serveur pour l'utilisateur ${username}`);
-    
+    // Pour les autres utilisateurs, procéder avec l'API normale
     const API_URL = getApiUrl();
     
     const response = await fetch(`${API_URL}/login.php`, {

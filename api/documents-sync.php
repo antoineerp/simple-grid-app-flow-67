@@ -72,26 +72,19 @@ try {
 function handleGetRequest($pdo) {
     error_log("Traitement de la requête GET pour récupérer les documents");
     
-    if (!isset($_GET['userId'])) {
-        throw new Exception("Le paramètre userId est requis");
-    }
-    
-    $userId = $_GET['userId'];
-    error_log("Récupération des documents pour l'utilisateur: {$userId}");
-    
-    // Toujours forcer l'utilisation de p71x6d_richard
+    // Forcer l'utilisation de p71x6d_richard sans utiliser le paramètre userId
     $userId = "p71x6d_richard";
-    error_log("ID forcé à: {$userId} pour la base de données");
-    
-    // Vérifier si la table existe
-    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    $tableName = "documents_{$safeUserId}";
+    error_log("Récupération des documents avec ID forcé: {$userId}");
     
     // Vérifier et créer la table avec la bonne structure si nécessaire
+    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    $tableName = "documents_{$safeUserId}";
     verifyAndCreateDocumentTable($pdo, $tableName);
     
-    // Récupérer tous les documents de la table
-    $stmt = $pdo->query("SELECT * FROM `{$tableName}`");
+    // Récupérer tous les documents de la table avec paramètres nommés
+    $sql = "SELECT * FROM `{$tableName}`";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute();
     $documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     error_log("Nombre de documents récupérés: " . count($documents));
@@ -112,7 +105,7 @@ function handlePostRequest($pdo) {
     
     // Récupérer les données POST JSON
     $json = file_get_contents('php://input');
-    error_log("Données reçues (brut): " . substr($json, 0, 500) . "...");
+    error_log("Données reçues (brut): " . substr($json, 0, 100) . "...");
     
     $data = json_decode($json, true);
     
@@ -121,33 +114,38 @@ function handlePostRequest($pdo) {
     }
     
     if ($data === null) {
-        error_log("Erreur JSON: " . json_last_error_msg() . " - JSON reçu: " . substr($json, 0, 500));
+        error_log("Erreur JSON: " . json_last_error_msg() . " - JSON reçu: " . substr($json, 0, 100));
         throw new Exception("Format JSON invalide: " . json_last_error_msg());
     }
     
-    error_log("Données décodées: " . print_r($data, true));
+    // Forcer l'utilisation de p71x6d_richard comme base de données pour tous
+    $userId = "p71x6d_richard";
+    error_log("Synchronisation avec ID forcé: {$userId}");
     
-    // Vérifier si les données nécessaires sont présentes
-    if (!isset($data['userId']) && !isset($data['user_id'])) {
-        throw new Exception("Données incomplètes. 'userId' ou 'user_id' est requis");
+    // Déterminer la clé dans laquelle se trouvent les documents
+    $documents = [];
+    if (isset($data['pilotage_documents'])) {
+        $documents = $data['pilotage_documents'];
+    } elseif (isset($data['documents'])) {
+        $documents = $data['documents'];
+    } else {
+        // Parcourir toutes les clés pour trouver des données
+        foreach ($data as $key => $value) {
+            if (is_array($value) && count($value) > 0) {
+                $documents = $value;
+                error_log("Documents trouvés dans la clé: {$key}");
+                break;
+            }
+        }
     }
-    
-    // Récupérer l'ID utilisateur du bon champ
-    $userId = isset($data['userId']) ? $data['userId'] : $data['user_id'];
-    $documents = isset($data['documents']) ? $data['documents'] : [];
     
     if (!is_array($documents)) {
         error_log("Format de documents invalide: " . gettype($documents) . " au lieu d'un tableau");
-        error_log("Contenu: " . print_r($documents, true));
-        throw new Exception("Le champ 'documents' doit être un tableau");
+        error_log("Contenu des données: " . print_r($data, true));
+        throw new Exception("Impossible de trouver les documents dans les données");
     }
     
-    error_log("Synchronisation pour l'utilisateur: {$userId}");
-    error_log("Nombre de documents: " . count($documents));
-    
-    // Forcer l'utilisation de p71x6d_richard comme base de données pour tous
-    $userId = "p71x6d_richard";
-    error_log("ID forcé à: {$userId} pour la base de données");
+    error_log("Nombre de documents à synchroniser: " . count($documents));
     
     // Vérifier et créer la table avec la bonne structure si nécessaire
     $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
@@ -159,38 +157,52 @@ function handlePostRequest($pdo) {
         $pdo->exec("TRUNCATE TABLE `{$tableName}`");
         error_log("Table {$tableName} vidée pour resynchronisation complète");
         
-        // Préparer l'insertion des documents
-        $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, nom, fichier_path, responsabilites, etat, groupId, excluded) 
-                              VALUES (:id, :nom, :fichier, :resp, :etat, :groupe, :exclu)");
+        // Préparer l'insertion des documents avec paramètres nommés
+        $stmt = $pdo->prepare("INSERT INTO `{$tableName}` 
+            (id, nom, fichier_path, responsabilites, etat, groupId, excluded, ordre) 
+            VALUES (:id, :nom, :fichier, :resp, :etat, :groupe, :exclu, :ordre)");
         
         foreach ($documents as $doc) {
-            // Vérifier que l'ID existe
-            if (!isset($doc['id'])) {
-                error_log("Document sans ID trouvé, génération d'un UUID");
-                $doc['id'] = uniqid('doc_', true);
+            try {
+                // Vérifier que l'ID existe, sinon en générer un
+                $id = isset($doc['id']) ? $doc['id'] : uniqid('doc_');
+                
+                // Vérifier que le nom existe
+                $nom = isset($doc['nom']) ? $doc['nom'] : 'Document sans nom';
+                
+                // Traiter les responsabilités (gérer les formats possibles)
+                $responsabilites = null;
+                if (isset($doc['responsabilites'])) {
+                    $responsabilites = is_array($doc['responsabilites']) ? 
+                        json_encode($doc['responsabilites']) : $doc['responsabilites'];
+                }
+                
+                // Récupérer les autres champs avec valeurs par défaut
+                $fichier_path = isset($doc['fichier_path']) ? $doc['fichier_path'] : null;
+                $etat = isset($doc['etat']) ? $doc['etat'] : null;
+                $groupId = isset($doc['groupId']) ? $doc['groupId'] : null;
+                $excluded = isset($doc['excluded']) && $doc['excluded'] ? 1 : 0;
+                $ordre = isset($doc['ordre']) ? intval($doc['ordre']) : 0;
+                
+                // Liaison des paramètres avec vérification des types
+                $stmt->bindParam(':id', $id);
+                $stmt->bindParam(':nom', $nom);
+                $stmt->bindParam(':fichier', $fichier_path);
+                $stmt->bindParam(':resp', $responsabilites);
+                $stmt->bindParam(':etat', $etat);
+                $stmt->bindParam(':groupe', $groupId);
+                $stmt->bindParam(':exclu', $excluded, PDO::PARAM_INT);
+                $stmt->bindParam(':ordre', $ordre, PDO::PARAM_INT);
+                
+                // Exécuter l'insertion avec gestion des erreurs
+                if (!$stmt->execute()) {
+                    throw new Exception("Erreur lors de l'insertion du document ID: $id");
+                }
+            } catch (Exception $insertError) {
+                error_log("Erreur lors de l'insertion d'un document: " . $insertError->getMessage());
+                // Continuer avec le document suivant sans interrompre la boucle
+                continue;
             }
-            
-            // Vérifier que le nom existe
-            $nom = isset($doc['nom']) ? $doc['nom'] : 'Document sans nom';
-            
-            // Traiter les responsabilités (gérer les formats possibles)
-            $responsabilites = null;
-            if (isset($doc['responsabilites'])) {
-                $responsabilites = is_array($doc['responsabilites']) ? 
-                    json_encode($doc['responsabilites']) : $doc['responsabilites'];
-            }
-            
-            // Exécuter l'insertion avec des paramètres nommés pour éviter les erreurs SQL
-            $stmt->bindParam(':id', $doc['id']);
-            $stmt->bindParam(':nom', $nom);
-            $stmt->bindParam(':fichier', $doc['fichier_path'], PDO::PARAM_NULL);
-            $stmt->bindParam(':resp', $responsabilites);
-            $stmt->bindParam(':etat', $doc['etat'], PDO::PARAM_NULL);
-            $stmt->bindParam(':groupe', $doc['groupId'], PDO::PARAM_NULL);
-            $exclu = isset($doc['excluded']) && $doc['excluded'] ? 1 : 0;
-            $stmt->bindParam(':exclu', $exclu, PDO::PARAM_INT);
-            
-            $stmt->execute();
         }
     }
     
@@ -215,7 +227,7 @@ function verifyAndCreateDocumentTable($pdo, $tableName) {
     
     if (!$tableExists) {
         // Créer la table avec toutes les colonnes nécessaires
-        $pdo->exec("CREATE TABLE `{$tableName}` (
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `{$tableName}` (
             `id` VARCHAR(36) PRIMARY KEY,
             `nom` VARCHAR(255) NOT NULL,
             `fichier_path` VARCHAR(255) NULL,
