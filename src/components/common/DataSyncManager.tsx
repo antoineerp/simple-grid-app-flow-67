@@ -14,6 +14,7 @@ interface DataSyncManagerProps<T> {
   lastSynced: Date | null;
   setLastSynced: (date: Date | null) => void;
   children?: React.ReactNode;
+  hideIndicators?: boolean; // Added the hideIndicators prop
 }
 
 /**
@@ -27,6 +28,7 @@ export function DataSyncManager<T>({
   setData,
   lastSynced,
   setLastSynced,
+  hideIndicators = false, // Added with default value false
   children
 }: DataSyncManagerProps<T>) {
   const { toast } = useToast();
@@ -111,37 +113,39 @@ export function DataSyncManager<T>({
 
   return (
     <div>
-      <div className="flex items-center justify-end mb-4 gap-2">
-        <div className="text-sm text-muted-foreground">
-          {lastSynced ? (
-            <span>Dernière synchronisation: {lastSynced.toLocaleTimeString()} (Utilisateur: {currentUser.split('_')[1] || currentUser})</span>
-          ) : (
-            <span>Jamais synchronisé</span>
-          )}
+      {!hideIndicators && (
+        <div className="flex items-center justify-end mb-4 gap-2">
+          <div className="text-sm text-muted-foreground">
+            {lastSynced ? (
+              <span>Dernière synchronisation: {lastSynced.toLocaleTimeString()} (Utilisateur: {currentUser.split('_')[1] || currentUser})</span>
+            ) : (
+              <span>Jamais synchronisé</span>
+            )}
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSync}
+            disabled={isSyncing || !isOnline}
+          >
+            {isSyncing ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-1" />
+            )}
+            {isSyncing ? "Synchronisation..." : "Synchroniser"}
+          </Button>
         </div>
-        
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleSync}
-          disabled={isSyncing || !isOnline}
-        >
-          {isSyncing ? (
-            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4 mr-1" />
-          )}
-          {isSyncing ? "Synchronisation..." : "Synchroniser"}
-        </Button>
-      </div>
+      )}
       
-      {syncFailed && !isSyncing && (
+      {!hideIndicators && syncFailed && !isSyncing && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-2 rounded mb-4 text-sm">
           La dernière synchronisation a échoué. Vos modifications sont enregistrées localement uniquement.
         </div>
       )}
       
-      {!isOnline && (
+      {!hideIndicators && !isOnline && (
         <div className="bg-gray-50 border border-gray-200 text-gray-800 p-2 rounded mb-4 text-sm">
           Mode hors ligne actif. Les modifications seront enregistrées localement.
         </div>
