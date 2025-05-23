@@ -1,7 +1,7 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { checkPermission, UserRole } from '@/types/roles';
-import { getUtilisateurs, ensureAllUserTablesExist, clearUsersCache } from '@/services/users/userManager';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import type { Utilisateur } from '@/types/auth';
@@ -29,6 +29,7 @@ export const useAdminUsers = () => {
     }
   }, [error, retryCount]);
 
+  // Fonction pour charger les utilisateurs directement depuis l'API
   const loadUtilisateurs = useCallback(async () => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;
     
@@ -46,19 +47,42 @@ export const useAdminUsers = () => {
     setError(null);
     
     try {
-      console.log("Début du chargement des utilisateurs depuis la base de données...");
+      console.log("Début du chargement des utilisateurs directement depuis l'API...");
       
-      // S'assurer que toutes les tables existent pour tous les utilisateurs
-      await ensureAllUserTablesExist();
+      // Appel direct à l'API pour récupérer les utilisateurs (sans cache)
+      const API_URL = getApiUrl();
+      const timestamp = Date.now(); // Pour éviter le cache du navigateur
+      const response = await fetch(`${API_URL}/users.php?_nocache=${timestamp}`, {
+        method: 'GET',
+        headers: {
+          ...getAuthHeaders(),
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      });
       
-      // Effacer le cache pour forcer un rechargement frais
-      clearUsersCache();
+      // Vérifier si la réponse est du JSON valide
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error('Réponse non-JSON reçue:', textResponse);
+        throw new Error("Le serveur a renvoyé une réponse non-JSON. Contactez l'administrateur.");
+      }
       
-      // Récupérer la liste des utilisateurs depuis la base de données
-      const users = await getUtilisateurs(true);
+      const data = await response.json();
       
-      console.log("Utilisateurs chargés depuis la base de données:", users.length);
-      setUtilisateurs(users);
+      if (!response.ok) {
+        throw new Error(data.message || `Erreur HTTP: ${response.status}`);
+      }
+      
+      if (!data.records) {
+        console.warn("Format de réponse inattendu:", data);
+        throw new Error("Format de réponse inattendu de l'API");
+      }
+      
+      console.log(`${data.records.length} utilisateurs chargés depuis l'API`);
+      setUtilisateurs(data.records);
       setError(null);
       setRetryCount(0);
     } catch (error) {
@@ -159,13 +183,15 @@ export const useAdminUsers = () => {
       
       // Vérifier si la réponse est du JSON valide
       const contentType = response.headers.get('content-type');
+      let result;
+      
       if (!contentType || !contentType.includes('application/json')) {
         const textResponse = await response.text();
         console.error('Réponse non-JSON reçue:', textResponse);
-        throw new Error("Le serveur a renvoyé une réponse non-JSON. Contactez l'administrateur.");
+        throw new Error("Le serveur a renvoyé une réponse non-JSON. Contactez l'administrateur. Détails: " + textResponse.substring(0, 100));
+      } else {
+        result = await response.json();
       }
-      
-      const result = await response.json();
       
       if (!response.ok) {
         console.error('Erreur lors de la suppression:', result);
@@ -174,11 +200,8 @@ export const useAdminUsers = () => {
       
       console.log('Résultat de la suppression:', result);
       
-      // Mettre à jour la liste des utilisateurs
-      clearUsersCache();
-      
-      // Filtrer l'utilisateur supprimé de la liste locale
-      setUtilisateurs(prev => prev.filter(user => user.id !== userId));
+      // Recharger la liste des utilisateurs
+      await loadUtilisateurs();
       
       return true;
     } catch (error) {

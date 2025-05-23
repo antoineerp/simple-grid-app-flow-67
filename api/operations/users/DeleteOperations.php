@@ -7,8 +7,9 @@ class UserDeleteOperations extends BaseOperations {
         // Nettoyer tout buffer de sortie existant
         if (ob_get_level()) ob_clean();
         
-        // Assurez-vous que les headers sont configurés correctement
+        // S'assurer que les headers sont configurés correctement
         header('Content-Type: application/json; charset=UTF-8');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
         
         // Journaliser l'appel pour le débogage
         error_log("UserDeleteOperations::handleDeleteRequest - Début");
@@ -44,8 +45,9 @@ class UserDeleteOperations extends BaseOperations {
             
             // Supprimer toutes les tables associées à cet utilisateur
             try {
-                $this->deleteUserTables($user->identifiant_technique);
-            } catch (PDOException $e) {
+                $result = $this->deleteUserTables($user->identifiant_technique);
+                error_log("Résultat de la suppression des tables: " . json_encode($result));
+            } catch (Exception $e) {
                 error_log("Erreur lors de la suppression des tables: " . $e->getMessage());
                 // On continue malgré l'erreur de suppression des tables
             }
@@ -61,13 +63,13 @@ class UserDeleteOperations extends BaseOperations {
                 } else {
                     ResponseHandler::error("Impossible de supprimer l'utilisateur", 500);
                 }
-            } catch (PDOException $e) {
+            } catch (Exception $e) {
                 error_log("Erreur SQL lors de la suppression de l'utilisateur: " . $e->getMessage());
                 ResponseHandler::error("Erreur SQL: " . $e->getMessage(), 500);
             }
         } catch (Exception $e) {
             error_log("UserDeleteOperations::handleDeleteRequest - Erreur: " . $e->getMessage());
-            ResponseHandler::error("Erreur lors de la suppression de l'utilisateur: " . $e->getMessage(), 500);
+            ResponseHandler::logAndSendError($e, "Erreur lors de la suppression de l'utilisateur");
         }
     }
     

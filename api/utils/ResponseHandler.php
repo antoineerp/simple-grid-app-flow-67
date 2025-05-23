@@ -14,6 +14,8 @@ class ResponseHandler {
         if (!headers_sent()) {
             header('Content-Type: application/json; charset=UTF-8');
             header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
         }
         
         // Fusionner les données avec le statut et le succès
@@ -40,6 +42,8 @@ class ResponseHandler {
         if (!headers_sent()) {
             header('Content-Type: application/json; charset=UTF-8');
             header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
         }
         
         $response = array_merge([
@@ -60,6 +64,9 @@ class ResponseHandler {
     public static function logAndSendError($e, $message = 'Erreur serveur', $code = 500) {
         // Journaliser l'erreur
         error_log("Exception: " . get_class($e) . " - " . $e->getMessage() . " dans " . $e->getFile() . " à la ligne " . $e->getLine());
+        
+        // Nettoyer tout buffer de sortie existant
+        if (ob_get_level()) ob_clean();
         
         // Envoyer la réponse d'erreur
         self::error($message . ': ' . $e->getMessage(), $code, [

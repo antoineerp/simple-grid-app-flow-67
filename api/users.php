@@ -11,16 +11,24 @@ error_reporting(E_ALL);
 // Journalisation de la requête
 error_log("users.php - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
+// S'assurer que toute sortie précédente est effacée
+if (ob_get_level()) ob_clean();
+
 // En-têtes pour CORS et JSON
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST, GET, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Forced-DB-User, X-User-Prefix");
 header("Access-Control-Max-Age: 3600");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
 // Traiter les requêtes OPTIONS (CORS preflight)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'Preflight OK'
+    ]);
     exit();
 }
 

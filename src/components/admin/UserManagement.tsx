@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -5,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Download, Trash2, Database } from 'lucide-react';
+import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Download, Trash2, Database, Info } from 'lucide-react';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import UserForm from './UserForm';
 import { getCurrentUser, getLastConnectionError, getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { adminImportFromManager } from '@/services/core/userInitializationService';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
@@ -34,6 +35,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [connectingUser, setConnectingUser] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [forceRefreshing, setForceRefreshing] = useState(false);
 
   useEffect(() => {
     // Recharger les données au montage
@@ -125,6 +127,30 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     }
   };
   
+  const handleForceRefresh = async () => {
+    setForceRefreshing(true);
+    try {
+      // Effacer le cache local
+      clearUsersCache();
+      
+      // Forcer un rechargement depuis l'API
+      await loadUtilisateurs();
+      
+      toast({
+        title: "Données actualisées",
+        description: "La liste des utilisateurs a été rechargée depuis la base de données.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur d'actualisation",
+        description: error instanceof Error ? error.message : "Erreur lors de l'actualisation des données",
+        variant: "destructive",
+      });
+    } finally {
+      setForceRefreshing(false);
+    }
+  };
+  
   const importManagerData = async () => {
     setImportingData(true);
     try {
@@ -169,7 +195,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
         });
         
         // Recharger la liste des utilisateurs
-        loadUtilisateurs();
+        await loadUtilisateurs();
       } else {
         toast({
           title: "Erreur de suppression",
@@ -204,9 +230,13 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
             <UserForm onSuccess={handleSuccessfulUserCreation} onClose={() => setNewUserOpen(false)} />
           </Dialog>
           
-          <Button variant="outline" onClick={loadUtilisateurs} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
+          <Button 
+            variant="outline" 
+            onClick={handleForceRefresh} 
+            disabled={loading || forceRefreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${(loading || forceRefreshing) ? 'animate-spin' : ''}`} />
+            Actualiser depuis la base de données
           </Button>
         </div>
       </div>
@@ -218,18 +248,30 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
         </Alert>
       )}
 
+      {!loading && utilisateurs.length > 0 && (
+        <Alert variant="default" className="bg-muted">
+          <Info className="h-4 w-4" />
+          <AlertTitle>Informations sur la connexion</AlertTitle>
+          <AlertDescription>
+            <p>Les données affichées proviennent directement de la base de données.</p>
+            <p className="text-xs mt-1">{utilisateurs.length} utilisateurs trouvés dans la table <code>utilisateurs</code>.</p>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-4">
         <Card className="col-span-3">
           <CardHeader>
             <CardTitle>Liste des utilisateurs</CardTitle>
             <CardDescription>
-              {utilisateurs.length} utilisateurs trouvés
+              {utilisateurs.length} utilisateurs trouvés dans la base de données
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {loading || forceRefreshing ? (
               <div className="flex justify-center items-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-3">{forceRefreshing ? "Actualisation des données..." : "Chargement..."}</p>
               </div>
             ) : utilisateurs.length > 0 ? (
               <div className="rounded-md border">
@@ -336,6 +378,14 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
             <DialogTitle>Confirmer la suppression</DialogTitle>
             <DialogDescription>
               Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.
+              <br /><br />
+              <Alert variant="destructive" className="mt-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Attention</AlertTitle>
+                <AlertDescription>
+                  La suppression supprimera également toutes les tables associées à cet utilisateur.
+                </AlertDescription>
+              </Alert>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 justify-end pt-4">
