@@ -4,6 +4,10 @@ import { getAuthHeaders } from '../auth/authService';
 import { toast } from '@/components/ui/use-toast';
 import { Utilisateur } from '@/types/auth';
 
+// Constants to enforce fixed database settings
+const ENFORCE_DB_USER = 'p71x6d_richard';
+const ENFORCE_DB_NAME = 'p71x6d_system';
+
 // Variables pour stocker l'utilisateur connecté et l'état de la connexion
 let currentUser: string | null = null;
 let lastConnectionError: string | null = null;
