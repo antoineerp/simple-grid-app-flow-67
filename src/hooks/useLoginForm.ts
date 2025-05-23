@@ -37,15 +37,8 @@ export const useLoginForm = () => {
     console.log('Tentative de connexion pour:', values.username);
     
     try {
-      // Traiter le cas spécial pour antcirier@gmail.com
-      if (values.username === 'antcirier@gmail.com') {
-        console.log("Connexion spéciale pour l'administrateur antcirier@gmail.com");
-        // Stocker l'email pour une utilisation future
-        localStorage.setItem('userEmail', values.username);
-        // Forcer l'utilisation de p71x6d_richard
-        localStorage.setItem('userId', 'p71x6d_richard');
-        localStorage.setItem('originalUserId', 'p71x6d_richard');
-      }
+      // Stocker l'email pour une utilisation future
+      localStorage.setItem('userEmail', values.username);
       
       // Utiliser le service de connexion standard
       const result = await login(values.username, values.password);
@@ -58,16 +51,18 @@ export const useLoginForm = () => {
         sessionStorage.setItem('authToken', result.token);
         localStorage.setItem('authToken', result.token);
         
-        // Pour l'administrateur, forcer l'utilisation de p71x6d_richard
-        if (values.username === 'antcirier@gmail.com') {
-          localStorage.setItem('userId', 'p71x6d_richard');
-          localStorage.setItem('user_id', 'p71x6d_richard');
-          localStorage.setItem('currentDatabaseUser', 'p71x6d_richard');
-          console.log("ID utilisateur admin forcé vers:", 'p71x6d_richard');
-          
-          // Définir un rôle administrateur explicite
-          localStorage.setItem('userRole', 'administrateur');
+        // Stocker l'identifiant utilisateur (email)
+        if (result.user?.identifiant_technique) {
+          localStorage.setItem('userId', result.user.identifiant_technique);
+          localStorage.setItem('user_id', result.user.identifiant_technique);
+          localStorage.setItem('currentDatabaseUser', result.user.identifiant_technique);
+        } else {
+          localStorage.setItem('userId', values.username);
+          localStorage.setItem('user_id', values.username);
+          localStorage.setItem('currentDatabaseUser', values.username);
         }
+        
+        console.log("ID utilisateur défini:", localStorage.getItem('userId'));
         
         // Stocker les données utilisateur et le rôle explicitement
         if (result.user) {

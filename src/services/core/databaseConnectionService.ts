@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { toast } from '@/components/ui/use-toast';
@@ -8,10 +9,7 @@ let currentUser: string | null = null;
 let lastConnectionError: string | null = null;
 
 // Constantes pour la validation
-const RESTRICTED_IDS = ['system', 'admin', 'root', 'p71x6d_system', 'p71x6d_system2', '[object Object]', 'null', 'undefined'];
-// Utilisation OBLIGATOIRE de cette constante pour TOUTES les connexions à la base de données
-const ENFORCE_DB_USER = 'p71x6d_richard';
-const ENFORCE_DB_NAME = 'p71x6d_richard';
+const RESTRICTED_IDS = ['system', 'admin', 'root', '[object Object]', 'null', 'undefined'];
 
 /**
  * Vérifie si un ID est restreint/système
@@ -30,36 +28,51 @@ const isEmail = (input: string): boolean => {
 
 /**
  * Récupère l'identifiant de l'utilisateur actuellement connecté
- * TOUJOURS retourne p71x6d_richard
  */
 export const getCurrentUser = (): string => {
-  console.log("Demande d'utilisateur actuel, forcé à utiliser la base de données:", ENFORCE_DB_NAME);
-  // TOUJOURS utiliser p71x6d_richard pour TOUTES les opérations
-  return ENFORCE_DB_USER;
+  // Vérifier si c'est l'administrateur
+  const storedEmail = localStorage.getItem('userEmail');
+  if (storedEmail === 'antcirier@gmail.com') {
+    return storedEmail;
+  }
+  
+  // Vérifier dans localStorage
+  const userId = localStorage.getItem('userId') || localStorage.getItem('user_id') || localStorage.getItem('currentDatabaseUser');
+  
+  if (userId && !isRestrictedId(userId)) {
+    return userId;
+  }
+  
+  // Si on a un currentUser en mémoire, l'utiliser
+  if (currentUser && !isRestrictedId(currentUser)) {
+    return currentUser;
+  }
+  
+  // Par défaut
+  return 'p71x6d_richard';
 };
 
 /**
  * Définit l'identifiant de l'utilisateur actuellement connecté
- * Note: L'identifiant original est stocké mais on FORCE l'utilisation de p71x6d_richard comme base
  */
 export const setCurrentUser = (userId: string): void => {
   try {
-    // Stocker l'ID original pour référence uniquement
+    // Stocker l'ID original pour référence
     const originalId = userId || 'default';
     localStorage.setItem('originalUserId', originalId);
     
-    // TOUJOURS forcer l'utilisation de p71x6d_richard pour la base de données
-    currentUser = ENFORCE_DB_USER;
+    // Utiliser l'ID fourni directement si ce n'est pas un ID restreint
+    currentUser = isRestrictedId(userId) ? 'p71x6d_richard' : userId;
     
-    // Stocker l'ID utilisateur sécurisé
-    localStorage.setItem('userId', ENFORCE_DB_USER);
-    localStorage.setItem('user_id', ENFORCE_DB_USER);
+    // Stocker l'ID utilisateur
+    localStorage.setItem('userId', currentUser);
+    localStorage.setItem('user_id', currentUser);
     
     // Stocker également un préfixe utilisateur pour distinguer les données
     const userPrefix = originalId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 10);
     localStorage.setItem('userPrefix', userPrefix);
     
-    console.log(`Identifiant utilisateur défini: ${userId} (forcé vers: ${ENFORCE_DB_USER}, préfixe: ${userPrefix})`);
+    console.log(`Identifiant utilisateur défini: ${userId} (stocké comme: ${currentUser}, préfixe: ${userPrefix})`);
   } catch (error) {
     console.error("Erreur lors de la définition de l'identifiant utilisateur:", error);
   }
@@ -140,16 +153,16 @@ export const testDatabaseConnection = async (): Promise<{ success: boolean; mess
 
 /**
  * Se connecte avec un identifiant utilisateur spécifique
- * Toujours force p71x6d_richard
+ * Utilise directement l'identifiant fourni
  */
 export const connectAsUser = async (userId: string): Promise<boolean> => {
   try {
-    // TOUJOURS utiliser p71x6d_richard comme base, mais stocker l'ID original pour référence
+    // Utiliser directement l'identifiant fourni, qu'il s'agisse d'un email ou d'un identifiant technique
     setCurrentUser(userId);
     
     toast({
       title: "Connexion réussie",
-      description: `Connecté à la base de données ${ENFORCE_DB_NAME}`,
+      description: `Connecté en tant que ${userId}`,
     });
     
     return true;

@@ -97,23 +97,23 @@ export const useUserForm = ({ onClose, onSuccess, onUserConnect }: UseUserFormPr
         email: formData.email,
         nom: formData.nom,
         prenom: formData.prenom,
-        identifiant: result.identifiant_technique
+        identifiant: formData.email // Utiliser l'email comme identifiant technique
       }));
       
-      if (connectAfterCreate && result.identifiant_technique) {
+      if (connectAfterCreate) {
         try {
-          console.log("Tentative de connexion avec:", result.identifiant_technique);
-          const connectSuccess = await connectAsUser(result.identifiant_technique);
+          console.log("Tentative de connexion avec:", formData.email);
+          const connectSuccess = await connectAsUser(formData.email);
           console.log("Résultat de la connexion:", connectSuccess);
           
           if (connectSuccess) {
             toast({
               title: "Connexion réussie",
-              description: `Vous êtes maintenant connecté en tant que ${result.identifiant_technique}`,
+              description: `Vous êtes maintenant connecté en tant que ${formData.email}`,
             });
             
             if (onUserConnect) {
-              onUserConnect(result.identifiant_technique);
+              onUserConnect(formData.email);
             }
           }
         } catch (connectError) {

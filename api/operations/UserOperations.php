@@ -1,4 +1,3 @@
-
 <?php
 if (!defined('DIRECT_ACCESS_CHECK')) {
     define('DIRECT_ACCESS_CHECK', true);
@@ -99,11 +98,8 @@ class UserOperations {
                 $this->userModel->mot_de_passe = bin2hex(openssl_random_pseudo_bytes(4));
             }
             
-            // Générer un identifiant technique unique
-            $baseIdentifier = 'user_' . strtolower(substr($this->userModel->prenom, 0, 3)) . 
-                             strtolower(substr($this->userModel->nom, 0, 3)) . 
-                             substr(md5($this->userModel->email), 0, 5);
-            $this->userModel->identifiant_technique = $baseIdentifier;
+            // Utiliser l'email comme identifiant technique
+            $this->userModel->identifiant_technique = $this->userModel->email;
             
             // Vérifier si cette email existe déjà
             if ($this->userModel->exists($this->userModel->email)) {

@@ -1,12 +1,6 @@
 
 // Fichier utilitaire pour la conversion entre email et identifiant technique
 
-// Mapping d'emails vers des identifiants techniques
-const EMAIL_TO_ID_MAPPING: Record<string, string> = {
-  'antcirier@gmail.com': 'p71x6d_cirier',
-  'admin@example.com': 'p71x6d_system'
-};
-
 /**
  * Vérifie si l'entrée est une adresse email
  */
@@ -25,23 +19,9 @@ export const convertEmailToTechnicalId = (input: string): string => {
     return input;
   }
   
-  // Vérifier si l'email est dans le mapping
-  if (EMAIL_TO_ID_MAPPING[input]) {
-    console.log(`Conversion de l'email ${input} vers l'identifiant technique ${EMAIL_TO_ID_MAPPING[input]}`);
-    return EMAIL_TO_ID_MAPPING[input];
-  }
-  
-  // Pour un nouvel email, générer un identifiant technique basé sur le nom d'utilisateur
-  const username = input.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-  const technicalId = `p71x6d_${username}`;
-  
-  console.log(`Création d'identifiant technique ${technicalId} pour l'email ${input}`);
-  
-  // Ajouter au mapping pour utilisation future
-  // Note: Ceci est temporaire pour cette session, le mapping sera perdu au rechargement
-  (EMAIL_TO_ID_MAPPING as any)[input] = technicalId;
-  
-  return technicalId;
+  // Pour un email, utiliser directement l'email comme identifiant technique
+  console.log(`Utilisation directe de l'email ${input} comme identifiant technique`);
+  return input;
 };
 
 /**
@@ -59,7 +39,7 @@ export const ensureCorrectUserId = (input: string | any): string => {
   if (typeof input === 'string') {
     // Si c'est un email
     if (isEmail(input)) {
-      return convertEmailToTechnicalId(input);
+      return input; // Utiliser directement l'email
     }
     return input;
   }
@@ -70,7 +50,7 @@ export const ensureCorrectUserId = (input: string | any): string => {
       return input.identifiant_technique;
     }
     if (input.email) {
-      return convertEmailToTechnicalId(input.email);
+      return input.email;
     }
     if (input.user_id) {
       return input.user_id;

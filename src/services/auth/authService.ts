@@ -1,43 +1,17 @@
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/components/ui/use-toast';
 import { LoginResponse, Utilisateur } from '@/types/auth';
-import { convertEmailToTechnicalId } from '../core/userIdConverter';
 
 // Variable pour stocker l'utilisateur connecté
 let currentUser: string | null = null;
 let currentToken: string | null = null;
 let isLoggedIn = false;
 
-// Mapping d'emails vers des identifiants techniques - TOUJOURS utiliser p71x6d_richard
-const EMAIL_TO_ID_MAPPING: Record<string, string> = {
-  'antcirier@gmail.com': 'p71x6d_richard',
-  'admin@example.com': 'p71x6d_richard'
-};
-
 /**
  * Vérifie si l'entrée est une adresse email
  */
 const isEmail = (input: string): boolean => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
-}
-
-/**
- * Convertit un email en identifiant technique
- * TOUJOURS utiliser p71x6d_richard pour antcirier@gmail.com
- */
-const convertEmailToId = (email: string): string => {
-  if (email === 'antcirier@gmail.com') {
-    console.log('Utilisateur administrateur détecté: antcirier@gmail.com - Utilisation de p71x6d_richard');
-    return 'p71x6d_richard';
-  }
-  
-  if (EMAIL_TO_ID_MAPPING[email]) {
-    return EMAIL_TO_ID_MAPPING[email];
-  }
-  
-  // Pour tous les autres utilisateurs, utiliser également p71x6d_richard
-  console.log(`Email ${email} - Utilisation de p71x6d_richard par défaut`);
-  return 'p71x6d_richard';
 }
 
 /**
@@ -59,7 +33,7 @@ export const getToken = (): string | null => {
 
 /**
  * Récupère l'ID utilisateur actuellement connecté
- * Toujours retourne p71x6d_richard pour l'administrateur
+ * Utilise directement l'identifiant technique tel que stocké en base de données
  */
 export const getCurrentUser = (): string => {
   // Vérifier l'utilisateur dans localStorage
@@ -67,27 +41,18 @@ export const getCurrentUser = (): string => {
   
   // Cas spécial pour antcirier@gmail.com
   if (storedEmail === 'antcirier@gmail.com') {
-    console.log('Email administrateur détecté: antcirier@gmail.com - Utilisation de p71x6d_richard');
-    currentUser = 'p71x6d_richard';
-    return 'p71x6d_richard';
+    console.log('Email administrateur détecté: antcirier@gmail.com');
+    return storedEmail;
   }
   
-  // Si déjà mis en cache, le retourner (sauf si c'est un ID système)
-  if (currentUser && currentUser !== 'p71x6d_system' && currentUser !== 'p71x6d_system2') {
+  // Si déjà mis en cache, le retourner
+  if (currentUser) {
     return currentUser;
   }
   
   // Sinon, essayer de le récupérer du localStorage
   const storedUser = localStorage.getItem('user_id');
   if (storedUser && storedUser !== 'null' && storedUser !== 'undefined' && storedUser !== '[object Object]') {
-    // Vérifier que ce n'est pas un ID système
-    if (storedUser === 'p71x6d_system' || storedUser === 'p71x6d_system2' || storedUser === 'system' || storedUser === 'admin') {
-      console.warn("ID système détecté, utilisation de p71x6d_richard");
-      currentUser = 'p71x6d_richard';
-      localStorage.setItem('user_id', 'p71x6d_richard');
-      return 'p71x6d_richard';
-    }
-    
     currentUser = storedUser;
     return storedUser;
   }
@@ -118,28 +83,28 @@ export const login = async (username: string, password: string): Promise<LoginRe
       
       // Stocker email original pour référence future
       localStorage.setItem('userEmail', username);
-      localStorage.setItem('user_id', 'p71x6d_richard');
-      localStorage.setItem('originalUserId', 'p71x6d_richard');
+      localStorage.setItem('user_id', username);
+      localStorage.setItem('originalUserId', username);
       
       // Connexion directe sans appel au serveur pour l'admin
       const adminToken = "admin_" + Date.now().toString(36);
       localStorage.setItem('auth_token', adminToken);
-      currentUser = 'p71x6d_richard';
+      currentUser = username;
       currentToken = adminToken;
       isLoggedIn = true;
       
       // Stocker les données utilisateur et le rôle explicitement
       const adminUser: Utilisateur = {
-        id: 'p71x6d_richard',
+        id: username,
         username: 'antcirier',
         email: username,
         role: 'admin',
-        identifiant_technique: 'p71x6d_richard'
+        identifiant_technique: username
       };
       localStorage.setItem('currentUser', JSON.stringify(adminUser));
       localStorage.setItem('userRole', 'admin');
       
-      console.log(`Connexion directe réussie pour l'administrateur, ID: p71x6d_richard`);
+      console.log(`Connexion directe réussie pour l'administrateur, ID: ${username}`);
       
       return {
         success: true,
@@ -166,20 +131,6 @@ export const login = async (username: string, password: string): Promise<LoginRe
       // Vérifier que l'ID utilisateur est valide et non restreint
       let userId = data.user?.identifiant_technique || username;
       
-      // Si c'est un email, le convertir en ID technique
-      if (isEmail(userId)) {
-        // Forcer p71x6d_richard pour tous les utilisateurs
-        userId = 'p71x6d_richard';
-        console.log(`Tous les utilisateurs pointent vers la base: p71x6d_richard`);
-      }
-      
-      // Bloquer explicitement les IDs système
-      if (userId === 'p71x6d_system' || userId === 'p71x6d_system2' || userId === 'system' || userId === 'admin') {
-        console.warn(`ID système détecté: ${userId}, utilisation de p71x6d_richard à la place`);
-        userId = 'p71x6d_richard';
-      }
-      
-      // Stocker email original pour référence future
       localStorage.setItem('userEmail', username);
       
       localStorage.setItem('auth_token', data.token);
@@ -336,25 +287,24 @@ export const getIsLoggedIn = (): boolean => {
 
 /**
  * S'assure que l'ID utilisateur est récupéré du token JWT
- * Modifié pour toujours utiliser p71x6d_richard
  */
 export const ensureUserIdFromToken = (): string => {
   // Vérifier si c'est l'administrateur
   const storedEmail = localStorage.getItem('userEmail');
   if (storedEmail === 'antcirier@gmail.com') {
-    console.log('Email administrateur détecté lors de la vérification du token - Utilisation de p71x6d_richard');
-    localStorage.setItem('user_id', 'p71x6d_richard');
-    currentUser = 'p71x6d_richard';
-    return 'p71x6d_richard';
+    console.log('Email administrateur détecté lors de la vérification du token');
+    localStorage.setItem('user_id', storedEmail);
+    currentUser = storedEmail;
+    return storedEmail;
   }
 
   const userId = localStorage.getItem('user_id');
-  if (userId && userId !== 'p71x6d_system' && userId !== 'p71x6d_system2') {
+  if (userId) {
     return userId;
   }
   
-  // Si pas d'ID utilisateur ou ID système, forcer p71x6d_richard
-  console.log("Forçage de l'ID utilisateur vers p71x6d_richard");
+  // Si pas d'ID utilisateur, utiliser la valeur par défaut
+  console.log("Aucun ID utilisateur trouvé, utilisation de la valeur par défaut");
   localStorage.setItem('user_id', 'p71x6d_richard');
   currentUser = 'p71x6d_richard';
   return 'p71x6d_richard';

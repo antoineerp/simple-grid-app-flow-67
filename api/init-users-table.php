@@ -55,7 +55,7 @@ try {
               `prenom` VARCHAR(100) NOT NULL,
               `email` VARCHAR(255) NOT NULL UNIQUE,
               `mot_de_passe` VARCHAR(255) NOT NULL,
-              `identifiant_technique` VARCHAR(100) NOT NULL UNIQUE,
+              `identifiant_technique` VARCHAR(255) NOT NULL UNIQUE,
               `role` ENUM('administrateur', 'utilisateur', 'gestionnaire') NOT NULL DEFAULT 'utilisateur',
               `date_creation` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -68,7 +68,7 @@ try {
         $insertAdminQuery = "
             INSERT INTO {$tableName} 
             (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
-            VALUES ('Admin', 'Système', 'admin@system.local', :password, 'admin_system', 'administrateur')
+            VALUES ('Admin', 'Système', 'admin@system.local', :password, 'admin@system.local', 'administrateur')
         ";
         
         $stmt = $pdo->prepare($insertAdminQuery);
