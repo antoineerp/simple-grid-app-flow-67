@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { checkPermission, UserRole } from '@/types/roles';
@@ -5,6 +6,25 @@ import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { verifyUserTables } from '@/utils/userTableVerification';
 import type { Utilisateur } from '@/types/auth';
+
+// Fonction utilitaire pour vérifier et parser les réponses JSON
+const safeParseJSON = async (response: Response): Promise<any> => {
+  // Vérifier si la réponse est du JSON valide
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    const textResponse = await response.text();
+    console.error('Réponse non-JSON reçue:', textResponse);
+    throw new Error(`Le serveur a renvoyé une réponse non-JSON (${response.status}): ${textResponse.substring(0, 100)}...`);
+  }
+  
+  try {
+    return await response.json();
+  } catch (error) {
+    const textResponse = await response.text();
+    console.error('Erreur de parsing JSON:', textResponse);
+    throw new Error(`Erreur de parsing JSON: ${textResponse.substring(0, 100)}...`);
+  }
+};
 
 export const useAdminUsers = () => {
   const { toast } = useToast();
@@ -52,39 +72,56 @@ export const useAdminUsers = () => {
       // Appel direct à l'API pour récupérer les utilisateurs (sans cache)
       const API_URL = getApiUrl();
       const timestamp = Date.now(); // Pour éviter le cache du navigateur
-      const response = await fetch(`${API_URL}/users.php?_nocache=${timestamp}`, {
-        method: 'GET',
-        headers: {
-          ...getAuthHeaders(),
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
+      
+      // Amélioration: Ajouter un timeout pour éviter les requêtes qui ne répondent pas
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes timeout
+      
+      console.log(`Appel API: ${API_URL}/users.php?_nocache=${timestamp}`);
+      
+      try {
+        const response = await fetch(`${API_URL}/users.php?_nocache=${timestamp}`, {
+          method: 'GET',
+          headers: {
+            ...getAuthHeaders(),
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          // Récupérer le texte de la réponse pour diagnostic
+          const errorText = await response.text();
+          console.error(`Erreur HTTP ${response.status}: ${errorText}`);
+          throw new Error(`Erreur HTTP: ${response.status} - ${errorText.substring(0, 100)}...`);
         }
-      });
-      
-      // Vérifier si la réponse est du JSON valide
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const textResponse = await response.text();
-        console.error('Réponse non-JSON reçue:', textResponse);
-        throw new Error("Le serveur a renvoyé une réponse non-JSON. Contactez l'administrateur.");
+        
+        const data = await safeParseJSON(response);
+        
+        if (!data.records) {
+          console.warn("Format de réponse inattendu:", data);
+          throw new Error("Format de réponse inattendu de l'API");
+        }
+        
+        console.log(`${data.records.length} utilisateurs chargés depuis l'API`);
+        setUtilisateurs(data.records);
+        setError(null);
+        setRetryCount(0);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        
+        // Si l'erreur est due à l'abort, personnaliser le message
+        if (fetchError.name === 'AbortError') {
+          throw new Error("La requête a expiré après 15 secondes. Vérifiez la connexion au serveur.");
+        }
+        
+        // Sinon propager l'erreur
+        throw fetchError;
       }
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || `Erreur HTTP: ${response.status}`);
-      }
-      
-      if (!data.records) {
-        console.warn("Format de réponse inattendu:", data);
-        throw new Error("Format de réponse inattendu de l'API");
-      }
-      
-      console.log(`${data.records.length} utilisateurs chargés depuis l'API`);
-      setUtilisateurs(data.records);
-      setError(null);
-      setRetryCount(0);
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs", error);
       setError(error instanceof Error ? error.message : "Impossible de charger les utilisateurs.");
@@ -167,6 +204,11 @@ export const useAdminUsers = () => {
       console.log(`Tentative de suppression de l'utilisateur avec ID: ${userId}`);
       
       const API_URL = getApiUrl();
+      
+      // Amélioration: Ajouter un timeout pour éviter les requêtes qui ne répondent pas
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes timeout
+      
       const response = await fetch(`${API_URL}/users.php`, {
         method: 'DELETE',
         headers: {
@@ -175,19 +217,19 @@ export const useAdminUsers = () => {
           'Accept': 'application/json',
           'Cache-Control': 'no-cache'
         },
-        body: JSON.stringify({ id: userId })
+        body: JSON.stringify({ id: userId }),
+        signal: controller.signal
       });
       
-      // Vérifier si la réponse est du JSON valide
-      const contentType = response.headers.get('content-type');
+      clearTimeout(timeoutId);
+      
       let result;
       
-      if (!contentType || !contentType.includes('application/json')) {
-        const textResponse = await response.text();
-        console.error('Réponse non-JSON reçue:', textResponse);
-        throw new Error("Le serveur a renvoyé une réponse non-JSON. Contactez l'administrateur.");
-      } else {
-        result = await response.json();
+      try {
+        result = await safeParseJSON(response);
+      } catch (parseError) {
+        console.error("Erreur lors du parsing de la réponse:", parseError);
+        throw new Error(`Erreur lors de la suppression: ${parseError.message}`);
       }
       
       if (!response.ok) {
@@ -211,20 +253,36 @@ export const useAdminUsers = () => {
   const verifyAllUserTables = async (): Promise<boolean> => {
     try {
       const API_URL = getApiUrl();
+      
+      // Amélioration: Ajouter un timeout pour éviter les requêtes qui ne répondent pas
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes timeout
+      
       const response = await fetch(`${API_URL}/users.php?action=ensure_tables&_t=${Date.now()}`, {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),
           'Accept': 'application/json',
           'Cache-Control': 'no-cache'
-        }
+        },
+        signal: controller.signal
       });
       
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
-        throw new Error(`Erreur HTTP ${response.status} lors de la vérification des tables`);
+        const errorText = await response.text();
+        console.error(`Erreur HTTP ${response.status}:`, errorText);
+        throw new Error(`Erreur HTTP ${response.status} lors de la vérification des tables: ${errorText.substring(0, 100)}...`);
       }
       
-      const data = await response.json();
+      let data;
+      try {
+        data = await safeParseJSON(response);
+      } catch (parseError) {
+        throw new Error(`Erreur lors du parsing de la réponse: ${parseError.message}`);
+      }
+      
       console.log("Résultat de la vérification des tables:", data);
       
       toast({
