@@ -1,4 +1,3 @@
-
 import React from 'react';
 import Pilotage from './pages/Pilotage';
 import Dashboard from './pages/Dashboard';
@@ -11,6 +10,7 @@ import Admin from './pages/Admin';
 import Diagnostic from './pages/Diagnostic';
 import Documents from './pages/Documents';
 import GestionDocumentaire from './pages/GestionDocumentaire';
+import { getCurrentUser } from './services/core/databaseConnectionService';
 
 // Définition des routes de l'application - maintenue pour la compatibilité avec d'éventuels imports
 // La configuration principale des routes est désormais dans router.tsx
@@ -49,11 +49,29 @@ const routes = [
   },
   {
     path: '/administration',
-    element: <Admin />,
+    element: <Admin 
+      currentDatabaseUser={getCurrentUser()}
+      onUserConnect={(identifiant: string) => {
+        // Dispatch a custom event that App.tsx is listening for
+        const event = new CustomEvent('database-user-changed', {
+          detail: { user: identifiant }
+        });
+        window.dispatchEvent(event);
+      }}
+    />,
   },
   {
     path: '/admin',
-    element: <Admin />,
+    element: <Admin 
+      currentDatabaseUser={getCurrentUser()}
+      onUserConnect={(identifiant: string) => {
+        // Dispatch a custom event that App.tsx is listening for
+        const event = new CustomEvent('database-user-changed', {
+          detail: { user: identifiant }
+        });
+        window.dispatchEvent(event);
+      }}
+    />,
   },
   {
     path: '/diagnostic',

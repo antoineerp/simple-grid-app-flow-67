@@ -1,4 +1,3 @@
-
 import { createBrowserRouter } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import Pilotage from './pages/Pilotage';
@@ -15,6 +14,7 @@ import Documents from './pages/Documents';
 import GestionDocumentaire from './pages/GestionDocumentaire';
 import NotFound from './pages/NotFound';
 import UserInitializer from './components/core/UserInitializer';
+import { getCurrentUser } from './services/core/databaseConnectionService';
 
 const router = createBrowserRouter([
   {
@@ -98,7 +98,16 @@ const router = createBrowserRouter([
     element: (
       <Layout>
         <UserInitializer />
-        <Admin />
+        <Admin 
+          currentDatabaseUser={getCurrentUser()} 
+          onUserConnect={(identifiant: string) => {
+            // Dispatch a custom event that App.tsx is listening for
+            const event = new CustomEvent('database-user-changed', {
+              detail: { user: identifiant }
+            });
+            window.dispatchEvent(event);
+          }}
+        />
       </Layout>
     ),
   },
@@ -107,7 +116,16 @@ const router = createBrowserRouter([
     element: (
       <Layout>
         <UserInitializer />
-        <Admin />
+        <Admin 
+          currentDatabaseUser={getCurrentUser()} 
+          onUserConnect={(identifiant: string) => {
+            // Dispatch a custom event that App.tsx is listening for
+            const event = new CustomEvent('database-user-changed', {
+              detail: { user: identifiant }
+            });
+            window.dispatchEvent(event);
+          }}
+        />
       </Layout>
     ),
   },
