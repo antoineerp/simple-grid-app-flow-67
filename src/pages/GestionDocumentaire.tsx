@@ -13,13 +13,16 @@ import { exportDocumentsToPdf } from '@/services/documentsExport';
 import { ensureCorrectUserId } from '@/services/core/userIdConverter';
 import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
 import { calculateDocumentStats } from '@/services/documents/documentStatsService';
+import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 
 const GestionDocumentaire = () => {
   const {
     documents,
     groups,
     stats,
+    editingDocument,
     editingGroup,
+    dialogOpen,
     groupDialogOpen,
     isSyncing,
     setIsSyncing,
@@ -27,6 +30,7 @@ const GestionDocumentaire = () => {
     lastSynced,
     setLastSynced,
     syncFailed,
+    setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
     handleAtteinteChange,
@@ -34,6 +38,7 @@ const GestionDocumentaire = () => {
     handleEdit,
     handleDelete,
     handleAddDocument,
+    handleSaveDocument,
     handleReorder,
     handleGroupReorder,
     handleToggleGroup,
@@ -89,6 +94,7 @@ const GestionDocumentaire = () => {
         setData={() => {/* Pas besoin de mise à jour, géré par useDocuments */}}
         lastSynced={lastSynced}
         setLastSynced={setLastSynced}
+        hideIndicators={true} // Masquer les indicateurs de synchronisation
       >
         {documents.length > 0 || isSyncing ? (
           <DocumentTable 
@@ -138,6 +144,13 @@ const GestionDocumentaire = () => {
         onOpenChange={setGroupDialogOpen}
         onSave={handleSaveGroup}
         isEditing={!!editingGroup}
+      />
+      
+      <DocumentForm 
+        document={editingDocument}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSave={handleSaveDocument}
       />
     </div>
   );

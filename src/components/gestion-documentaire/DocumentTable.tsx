@@ -75,7 +75,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
 
   return (
     <div className="bg-white rounded-md shadow overflow-hidden">
-      <Table className="table-fixed">
+      <Table className="table-fixed w-full">
         <DocumentTableHeader onAddDocument={onAddDocument} />
         
         <TableBody>
