@@ -36,7 +36,7 @@ const Sidebar = () => {
           />
         ))}
         
-        {/* Items de navigation pour administrateurs */}
+        {/* Items de navigation pour administrateurs uniquement */}
         {isAdmin && adminNavigationItems.map((item) => (
           <SidebarNavItem
             key={item.path}

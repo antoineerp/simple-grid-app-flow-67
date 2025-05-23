@@ -18,19 +18,16 @@ export {
   authService as authServiceLegacy 
 } from './auth/authService';
 
-// Exports from userService with explicit naming to avoid conflicts
-// Avoid re-exporting items already exported from './api/apiService'
+// Export direct du service utilisateur pour éviter les conflits
 export { 
   getUser,
   updateUser,
   deleteUser,
   getAllUsers,
   createUser,
-  userService as userServiceLegacy,
-  // Export these functions directly from userService to avoid conflicts
-  connectAsUser,
-  clearUsersCache,
-  verifyAllUserTables
+  // Ne pas réexporter ces fonctions pour éviter les conflits
+  userService,
+  // Ces fonctions sont déjà exportées directement dans userService
 } from './users/userService';
 
 // Note: Ces services seront progressivement migrés vers 
