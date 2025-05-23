@@ -2,14 +2,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { checkPermission, UserRole } from '@/types/roles';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
+import { getUtilisateurs, ensureAllUserTablesExist, clearUsersCache } from '@/services/users/userManager';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
-import { getUtilisateurs, ensureAllUserTablesExist, clearUsersCache } from '@/services/users/userManager';
 import type { Utilisateur } from '@/types/auth';
-
-// ID utilisateur fixe pour toute l'application
-const FIXED_USER_ID = 'p71x6d_richard';
 
 export const useAdminUsers = () => {
   const { toast } = useToast();
@@ -51,8 +47,7 @@ export const useAdminUsers = () => {
     setError(null);
     
     try {
-      console.log("Début du chargement des utilisateurs...");
-      console.log(`Utilisateur base de données actuel: ${FIXED_USER_ID}`);
+      console.log("Début du chargement des utilisateurs depuis la base de données...");
       
       // S'assurer que toutes les tables existent pour tous les utilisateurs
       await ensureAllUserTablesExist();
@@ -60,10 +55,10 @@ export const useAdminUsers = () => {
       // Effacer le cache pour forcer un rechargement frais
       clearUsersCache();
       
-      // Récupérer la liste des utilisateurs
+      // Récupérer la liste des utilisateurs depuis la base de données
       const users = await getUtilisateurs(true);
       
-      console.log("Utilisateurs chargés:", users.length);
+      console.log("Utilisateurs chargés depuis la base de données:", users.length);
       setUtilisateurs(users);
       setError(null);
       setRetryCount(0);
@@ -71,48 +66,9 @@ export const useAdminUsers = () => {
       console.error("Erreur lors du chargement des utilisateurs", error);
       setError(error instanceof Error ? error.message : "Impossible de charger les utilisateurs.");
       
-      // Essayons de faire une requête alternative à l'API
-      try {
-        console.log("Tentative de récupération via l'API alternative check-users.php");
-        const API_URL = getApiUrl();
-        const altResponse = await fetch(`${API_URL}/check-users.php?_t=${Date.now()}`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache'
-          }
-        });
-        
-        if (altResponse.ok) {
-          const altData = await altResponse.json();
-          if (altData && altData.records && Array.isArray(altData.records)) {
-            console.log("Récupération alternative réussie:", altData.records.length, "utilisateurs");
-            setUtilisateurs(altData.records);
-            setError(null);
-            return;
-          }
-        }
-      } catch (altError) {
-        console.error("Échec de la récupération alternative:", altError);
-      }
-      
-      // Si toutes les tentatives échouent, créer un utilisateur par défaut pour l'interface
-      const defaultUser: Utilisateur = {
-        id: "default_admin",
-        username: "admin",
-        email: "admin@example.com",
-        role: "admin",
-        status: "active",
-        nom: "Admin",
-        prenom: "Default",
-        identifiant_technique: FIXED_USER_ID
-      };
-      
-      setUtilisateurs([defaultUser]);
-      
       toast({
         title: "Erreur",
-        description: "Impossible de charger les utilisateurs. Un utilisateur par défaut a été créé.",
+        description: "Impossible de charger les utilisateurs depuis la base de données.",
         variant: "destructive",
       });
     } finally {
@@ -133,14 +89,14 @@ export const useAdminUsers = () => {
       return false;
     }
     
-    console.log(`Tentative de connexion en tant que: ${identifiantTechnique} (utilisera toujours ${FIXED_USER_ID})`);
+    console.log(`Tentative de connexion en tant que: ${identifiantTechnique}`);
 
     try {
-      // Simulation de connexion - toujours utiliser p71x6d_richard
-      console.log(`Connexion réussie (simulée avec ${FIXED_USER_ID})`);
+      // Simulation de connexion
+      console.log(`Connexion réussie avec identifiant: ${identifiantTechnique}`);
       toast({
         title: "Connexion réussie",
-        description: `Connecté en tant que ${FIXED_USER_ID}`,
+        description: `Connecté en tant que ${identifiantTechnique}`,
       });
       
       // S'assurer que les tables existent pour cet utilisateur
@@ -159,8 +115,8 @@ export const useAdminUsers = () => {
         console.log("Résultat de la création de tables:", result);
       }
       
-      // Mettre à jour explicitement localStorage pour la cohérence de l'interface
-      localStorage.setItem('currentDatabaseUser', FIXED_USER_ID);
+      // Mettre à jour localStorage pour la cohérence de l'interface
+      localStorage.setItem('currentDatabaseUser', identifiantTechnique);
       localStorage.setItem('userPrefix', identifiantTechnique.replace(/[^a-zA-Z0-9]/g, '_'));
       return true;
     } catch (error) {
