@@ -18,35 +18,21 @@ export {
   authService as authServiceLegacy 
 } from './auth/authService';
 
-// Exports since userService is already exported from './api/apiService'
+// Exports from userService with explicit naming to avoid conflicts
+// Avoid re-exporting items already exported from './api/apiService'
 export { 
   getUser,
   updateUser,
   deleteUser,
   getAllUsers,
   createUser,
-  clearUsersCache,
-  connectAsUser,
-  verifyAllUserTables,
-  userService as userServiceLegacy
+  // Re-exporting with legacy naming to maintain compatibility while avoiding conflicts
+  userService as userServiceLegacy 
 } from './users/userService';
 
-// Exporter connectAsUser pour la compatibilité
-export const connectAsUser = async (identifiantTechnique: string): Promise<boolean> => {
-  try {
-    const { userService } = await import('./users/userService');
-    return await userService.connectAsUser(identifiantTechnique);
-  } catch (error) {
-    console.error("Erreur lors de la connexion en tant qu'utilisateur:", error);
-    return false;
-  }
-};
-
-// Fonction pour nettoyer le cache des utilisateurs
-export const clearUsersCache = (): void => {
-  localStorage.removeItem('usersCache');
-  console.log('Cache des utilisateurs nettoyé');
-};
+// Export centralized versions of utility functions
+// These declarations replace the duplicate declarations that were causing errors
+export { connectAsUser, clearUsersCache, verifyAllUserTables } from './users/userService';
 
 // Note: Ces services seront progressivement migrés vers 
 // l'architecture centralisée dans apiService.ts
