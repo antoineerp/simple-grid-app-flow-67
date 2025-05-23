@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { checkPermission, UserRole } from '@/types/roles';
@@ -157,6 +156,14 @@ export const useAdminUsers = () => {
         },
         body: JSON.stringify({ id: userId })
       });
+      
+      // Vérifier si la réponse est du JSON valide
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error('Réponse non-JSON reçue:', textResponse);
+        throw new Error("Le serveur a renvoyé une réponse non-JSON. Contactez l'administrateur.");
+      }
       
       const result = await response.json();
       

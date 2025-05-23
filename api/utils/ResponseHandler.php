@@ -5,6 +5,9 @@ class ResponseHandler {
      * Envoie une réponse de succès
      */
     public static function success($data, $code = 200) {
+        // Nettoyer tout buffer de sortie existant
+        if (ob_get_level()) ob_clean();
+        
         http_response_code($code);
         
         // Si les en-têtes n'ont pas encore été envoyés
@@ -28,6 +31,9 @@ class ResponseHandler {
      * Envoie une réponse d'erreur
      */
     public static function error($message, $code = 400, $additionalData = []) {
+        // Nettoyer tout buffer de sortie existant
+        if (ob_get_level()) ob_clean();
+        
         http_response_code($code);
         
         // Si les en-têtes n'ont pas encore été envoyés

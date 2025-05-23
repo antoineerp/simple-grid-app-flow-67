@@ -43,17 +43,27 @@ class UserDeleteOperations extends BaseOperations {
             }
             
             // Supprimer toutes les tables associées à cet utilisateur
-            $this->deleteUserTables($user->identifiant_technique);
+            try {
+                $this->deleteUserTables($user->identifiant_technique);
+            } catch (PDOException $e) {
+                error_log("Erreur lors de la suppression des tables: " . $e->getMessage());
+                // On continue malgré l'erreur de suppression des tables
+            }
             
             // Supprimer l'utilisateur
-            $this->model->id = $data->id;
-            if ($this->model->delete()) {
-                ResponseHandler::success([
-                    "message" => "Utilisateur supprimé avec succès",
-                    "id" => $data->id
-                ]);
-            } else {
-                ResponseHandler::error("Impossible de supprimer l'utilisateur", 500);
+            try {
+                $this->model->id = $data->id;
+                if ($this->model->delete()) {
+                    ResponseHandler::success([
+                        "message" => "Utilisateur supprimé avec succès",
+                        "id" => $data->id
+                    ]);
+                } else {
+                    ResponseHandler::error("Impossible de supprimer l'utilisateur", 500);
+                }
+            } catch (PDOException $e) {
+                error_log("Erreur SQL lors de la suppression de l'utilisateur: " . $e->getMessage());
+                ResponseHandler::error("Erreur SQL: " . $e->getMessage(), 500);
             }
         } catch (Exception $e) {
             error_log("UserDeleteOperations::handleDeleteRequest - Erreur: " . $e->getMessage());
@@ -70,22 +80,40 @@ class UserDeleteOperations extends BaseOperations {
             "collaborateurs_{$identifiantTechnique}",
             "bibliotheque_{$identifiantTechnique}",
             "collaboration_{$identifiantTechnique}",
-            "collaboration_groups_{$identifiantTechnique}",
+            "collaboration_groups_{$identifiantTechnique}"
             // Ajoutez d'autres tables selon votre schéma
         ];
         
+        $tablesDropped = [];
+        $errors = [];
+        
         foreach ($tables as $table) {
             try {
+                error_log("Tentative de suppression de la table {$table}");
                 $query = "DROP TABLE IF EXISTS {$table}";
                 $this->conn->exec($query);
+                $tablesDropped[] = $table;
                 error_log("Table {$table} supprimée avec succès");
             } catch (PDOException $e) {
                 error_log("Erreur lors de la suppression de la table {$table}: " . $e->getMessage());
+                $errors[] = [
+                    'table' => $table,
+                    'error' => $e->getMessage()
+                ];
                 // On continue malgré l'erreur
             }
         }
         
-        return true;
+        error_log("Tables supprimées: " . implode(", ", $tablesDropped));
+        if (count($errors) > 0) {
+            error_log("Erreurs lors de la suppression des tables: " . json_encode($errors));
+        }
+        
+        return [
+            'success' => true,
+            'tables_dropped' => $tablesDropped,
+            'errors' => $errors
+        ];
     }
 }
 ?>
