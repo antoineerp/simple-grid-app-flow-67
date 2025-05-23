@@ -1,37 +1,19 @@
 
-import React, { useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
+import { getCurrentUser, setCurrentUser } from '@/services/core/databaseConnectionService';
 
 /**
- * Composant qui initialise l'identifiant utilisateur au chargement de l'application
- * et respecte le rôle de l'utilisateur
+ * Composant pour initialiser l'utilisateur au chargement de l'application
  */
-export const UserInitializer: React.FC = () => {
-  const { isLoggedIn, userId, userRole } = useAuth();
-  const { toast } = useToast();
-  
+const UserInitializer = () => {
   useEffect(() => {
-    // Initialiser l'identifiant utilisateur
-    if (isLoggedIn) {
-      console.log("UserInitializer: Démarrage de l'initialisation de l'utilisateur");
-      
-      // Conserver l'ID utilisateur
-      console.log(`UserInitializer: ID utilisateur: ${userId}, Rôle: ${userRole || 'non défini'}`);
-      
-      // Stocker l'information de dernière vérification d'ID utilisateur
-      localStorage.setItem('user_id_last_verified', new Date().toISOString());
-      
-      // Émettre un événement pour informer que l'initialisation est terminée
-      window.dispatchEvent(new CustomEvent('user-initialized', {
-        detail: { userId, userRole, timestamp: new Date().toISOString() }
-      }));
-    } else {
-      console.log("UserInitializer: Aucun utilisateur connecté");
+    // Vérifier s'il y a un utilisateur sauvegardé
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser && savedUser !== getCurrentUser()) {
+      setCurrentUser(savedUser);
     }
-  }, [isLoggedIn, userId, userRole, toast]);
-  
-  // Composant invisible, ne rend rien
+  }, []);
+
   return null;
 };
 

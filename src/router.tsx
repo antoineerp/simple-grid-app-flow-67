@@ -10,7 +10,7 @@ import Exigences from './pages/Exigences';
 import Bibliotheque from './pages/Bibliotheque';
 import Collaboration from './pages/Collaboration';
 import Admin from './pages/Admin';
-import DiagnosticPage from './pages/diagnostic';
+import Diagnostic from './pages/Diagnostic';
 import Documents from './pages/Documents';
 import GestionDocumentaire from './pages/GestionDocumentaire';
 import NotFound from './pages/NotFound';
@@ -116,7 +116,7 @@ const router = createBrowserRouter([
     element: (
       <Layout>
         <UserInitializer />
-        <DiagnosticPage />
+        <Diagnostic />
       </Layout>
     ),
   },
