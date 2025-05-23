@@ -1,37 +1,31 @@
 
+// types/roles.ts
+// Types et utilitaires liés aux rôles utilisateurs
+
 export type UserRole = 'admin' | 'gestionnaire' | 'utilisateur';
 
-// Vérifier si l'utilisateur a une permission spécifique
-export const checkPermission = (userRole: UserRole | null | undefined, permission: 'isAdmin' | 'isGestionnaire' | 'canEditExigences'): boolean => {
-  if (!userRole) return false;
-  
+export type Permission = 'isAdmin';
+
+// Fonction pour vérifier si un rôle a une permission spécifique
+export const checkPermission = (role: UserRole, permission: Permission): boolean => {
   switch (permission) {
     case 'isAdmin':
-      return userRole === 'admin';
-    
-    case 'isGestionnaire':
-      return userRole === 'admin' || userRole === 'gestionnaire';
-    
-    case 'canEditExigences':
-      return userRole === 'admin' || userRole === 'gestionnaire';
-    
+      return role === 'admin';
     default:
       return false;
   }
 };
 
-// Obtenir le niveau de permission (1: admin, 2: gestionnaire, 3: utilisateur)
-export const getPermissionLevel = (userRole: UserRole | null | undefined): number => {
-  if (!userRole) return 0;
-  
-  switch (userRole) {
+// Fonction pour traduire un rôle en français
+export const translateRole = (role: UserRole): string => {
+  switch (role) {
     case 'admin':
-      return 1;
+      return 'Administrateur';
     case 'gestionnaire':
-      return 2;
+      return 'Gestionnaire';
     case 'utilisateur':
-      return 3;
+      return 'Utilisateur';
     default:
-      return 0;
+      return 'Inconnu';
   }
 };

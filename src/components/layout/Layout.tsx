@@ -7,6 +7,7 @@ import { Header } from './Header';
 import { GlobalDataProvider } from '@/contexts/GlobalDataContext';
 import { GlobalSyncProvider } from '@/contexts/GlobalSyncContext';
 import GlobalSyncManager from '@/components/common/GlobalSyncManager';
+import AppSyncManager from '@/components/common/AppSyncManager';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Loader2 } from 'lucide-react';
 import { getIsLoggedIn } from '@/services/auth/authService';
@@ -42,35 +43,30 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-app-blue mx-auto mb-4" />
-          <p className="text-gray-600">Chargement de l'application...</p>
-        </div>
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-10 w-10 text-app-blue animate-spin" />
       </div>
     );
   }
 
   return (
-    <TooltipProvider>
-      <GlobalDataProvider>
-        <GlobalSyncProvider>
-          <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
+    <GlobalDataProvider>
+      <GlobalSyncProvider>
+        <TooltipProvider>
+          <div className="flex h-screen flex-col">
             <Header />
             <div className="flex flex-1 overflow-hidden">
               <Sidebar />
-              <div className="flex flex-col flex-1 overflow-y-auto">
-                <main className="flex-1">
-                  {children}
-                </main>
-                <GlobalSyncManager />
-              </div>
+              <main className="flex-1 overflow-auto bg-gray-50 p-4">
+                {children}
+                <AppSyncManager showControls={false} className="fixed bottom-2 right-2" />
+              </main>
             </div>
             <Toaster />
           </div>
-        </GlobalSyncProvider>
-      </GlobalDataProvider>
-    </TooltipProvider>
+        </TooltipProvider>
+      </GlobalSyncProvider>
+    </GlobalDataProvider>
   );
 };
 

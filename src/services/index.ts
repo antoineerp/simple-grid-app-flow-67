@@ -26,13 +26,12 @@ export {
   deleteUser,
   getAllUsers,
   createUser,
-  // Re-exporting with legacy naming to maintain compatibility while avoiding conflicts
-  userService as userServiceLegacy 
+  userService as userServiceLegacy,
+  // Export these functions directly from userService to avoid conflicts
+  connectAsUser,
+  clearUsersCache,
+  verifyAllUserTables
 } from './users/userService';
-
-// Export centralized versions of utility functions
-// These declarations replace the duplicate declarations that were causing errors
-export { connectAsUser, clearUsersCache, verifyAllUserTables } from './users/userService';
 
 // Note: Ces services seront progressivement migrés vers 
 // l'architecture centralisée dans apiService.ts
