@@ -1,163 +1,180 @@
 
-import { useState } from 'react';
-import { useToast } from "@/hooks/use-toast";
-import { createUser } from '@/services/users/createUserService';
+import { useState, FormEvent } from 'react';
+import { toast } from "@/hooks/use-toast";
+import { UserRole } from '@/types/roles';
 import { connectAsUser } from '@/services';
 
-interface UserFormData {
-  nom: string;
-  prenom: string;
-  email: string;
-  role: string;
-  mot_de_passe: string;
-}
-
-interface UseUserFormProps {
+interface UserFormProps {
   onClose: () => void;
   onSuccess?: () => void;
   onUserConnect?: (identifiant: string) => void;
 }
 
-export const useUserForm = ({ onClose, onSuccess, onUserConnect }: UseUserFormProps) => {
-  const { toast } = useToast();
+interface UserFormData {
+  nom: string;
+  prenom: string;
+  email: string;
+  identifiant_technique: string;
+  role: UserRole;
+  mot_de_passe: string;
+  confirmation_mot_de_passe: string;
+}
+
+interface FieldErrors {
+  nom?: string;
+  prenom?: string;
+  email?: string;
+  identifiant_technique?: string;
+  mot_de_passe?: string;
+  confirmation_mot_de_passe?: string;
+}
+
+export const useUserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
   const [formData, setFormData] = useState<UserFormData>({
     nom: '',
     prenom: '',
     email: '',
+    identifiant_technique: '',
     role: 'utilisateur',
-    mot_de_passe: ''
+    mot_de_passe: '',
+    confirmation_mot_de_passe: '',
   });
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [connectAfterCreate, setConnectAfterCreate] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const validateForm = (): boolean => {
-    const errors: {[key: string]: string} = {};
+    const errors: FieldErrors = {};
     let isValid = true;
-    
+
     if (!formData.nom.trim()) {
-      errors.nom = "Le nom est requis";
+      errors.nom = 'Le nom est obligatoire';
       isValid = false;
     }
-    
+
     if (!formData.prenom.trim()) {
-      errors.prenom = "Le prénom est requis";
+      errors.prenom = 'Le prénom est obligatoire';
       isValid = false;
     }
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (!formData.email.trim()) {
-      errors.email = "L'email est requis";
+      errors.email = 'L\'email est obligatoire';
       isValid = false;
-    } else if (!emailRegex.test(formData.email)) {
-      errors.email = "Format d'email invalide";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = 'Format d\'email invalide';
       isValid = false;
     }
-    
-    if (!formData.mot_de_passe) {
-      errors.mot_de_passe = "Le mot de passe est requis";
+
+    if (!formData.identifiant_technique.trim()) {
+      errors.identifiant_technique = 'L\'identifiant technique est obligatoire';
+      isValid = false;
+    }
+
+    if (!formData.mot_de_passe.trim()) {
+      errors.mot_de_passe = 'Le mot de passe est obligatoire';
       isValid = false;
     } else if (formData.mot_de_passe.length < 6) {
-      errors.mot_de_passe = "Le mot de passe doit contenir au moins 6 caractères";
+      errors.mot_de_passe = 'Le mot de passe doit contenir au moins 6 caractères';
       isValid = false;
     }
-    
+
+    if (formData.mot_de_passe !== formData.confirmation_mot_de_passe) {
+      errors.confirmation_mot_de_passe = 'Les mots de passe ne correspondent pas';
+      isValid = false;
+    }
+
     setFieldErrors(errors);
     return isValid;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    setIsSubmitting(true);
-
-    try {
-      console.log("Soumission du formulaire avec les données:", formData);
-      const result = await createUser(formData);
-      console.log("Résultat de la création:", result);
-      
-      if (!result.success) {
-        throw new Error(result.message || "Échec de la création de l'utilisateur");
-      }
-      
-      toast({
-        title: "Utilisateur créé",
-        description: "L'utilisateur a été créé avec succès.",
-      });
-      
-      // Stocker l'information de création réussie pour vérification après rechargement
-      localStorage.setItem('user_creation_success', JSON.stringify({
-        timestamp: Date.now(),
-        email: formData.email,
-        nom: formData.nom,
-        prenom: formData.prenom,
-        identifiant: formData.email // Utiliser l'email comme identifiant technique
-      }));
-      
-      if (connectAfterCreate) {
-        try {
-          console.log("Tentative de connexion avec:", formData.email);
-          const connectSuccess = await connectAsUser(formData.email);
-          console.log("Résultat de la connexion:", connectSuccess);
-          
-          if (connectSuccess) {
-            toast({
-              title: "Connexion réussie",
-              description: `Vous êtes maintenant connecté en tant que ${formData.email}`,
-            });
-            
-            if (onUserConnect) {
-              onUserConnect(formData.email);
-            }
-          }
-        } catch (connectError) {
-          console.error("Erreur lors de la connexion avec le nouvel utilisateur:", connectError);
-          toast({
-            title: "Erreur de connexion",
-            description: "L'utilisateur a été créé mais la connexion automatique a échoué.",
-            variant: "destructive",
-          });
-        }
-      }
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-      
-      onClose();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue";
-      setFormError(errorMessage);
-      console.error("Erreur lors de la création de l'utilisateur:", errorMessage);
-      
-      if (errorMessage.includes("email existe déjà")) {
-        setFieldErrors(prev => ({ ...prev, email: "Cet email est déjà utilisé" }));
-      } else if (errorMessage.includes("Un seul compte gestionnaire")) {
-        setFieldErrors(prev => ({ ...prev, role: "Un gestionnaire existe déjà" }));
-      }
-      
-      toast({
-        title: "Erreur",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    if (fieldErrors[name]) {
-      setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    // Réinitialiser l'erreur spécifique lors de la modification
+    if (fieldErrors[name as keyof FieldErrors]) {
+      setFieldErrors(prev => ({ ...prev, [name]: undefined }));
+    }
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/users.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          user: {
+            nom: formData.nom,
+            prenom: formData.prenom,
+            email: formData.email,
+            identifiant_technique: formData.identifiant_technique,
+            role: formData.role,
+            mot_de_passe: formData.mot_de_passe,
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      toast({
+        title: "Utilisateur créé",
+        description: `L'utilisateur ${formData.prenom} ${formData.nom} a été créé avec succès.`,
+      });
+
+      if (connectAfterCreate && onUserConnect) {
+        // Connexion automatique avec le nouvel utilisateur
+        const connectionSuccess = await connectAsUser(formData.identifiant_technique);
+        
+        if (connectionSuccess) {
+          toast({
+            title: "Connexion réussie",
+            description: `Connecté en tant que ${formData.identifiant_technique}`,
+          });
+          
+          onUserConnect(formData.identifiant_technique);
+        } else {
+          toast({
+            title: "Avertissement",
+            description: "Utilisateur créé mais la connexion automatique a échoué",
+            variant: "destructive",
+          });
+        }
+      }
+
+      if (onSuccess) {
+        onSuccess();
+      }
+      
+      onClose();
+
+    } catch (error) {
+      console.error("Erreur lors de la création de l'utilisateur:", error);
+      setFormError(error instanceof Error ? error.message : "Une erreur s'est produite");
+      
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Erreur lors de la création de l'utilisateur",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

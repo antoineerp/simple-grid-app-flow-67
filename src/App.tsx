@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import Index from './pages/Index';
@@ -47,15 +48,35 @@ function App() {
         <Route path="/" element={<Index />} />
         
         {/* Routes protégées nécessitant une connexion */}
-        <Route path="/" element={<LoginGuard isLoggedIn={isLoggedIn} />}>
-          <Route path="/dashboard" element={<MainLayout><Dashboard /></MainLayout>} />
-          <Route path="/documents" element={<MainLayout><Documents /></MainLayout>} />
-          <Route path="/exigences" element={<MainLayout><Exigences /></MainLayout>} />
-          <Route path="/ressources-humaines" element={<MainLayout><RessourcesHumaines /></MainLayout>} />
+        <Route element={<LoginGuard isLoggedIn={isLoggedIn} />}>
+          <Route path="/dashboard" element={
+            <MainLayout>
+              <Dashboard />
+            </MainLayout>
+          } />
+          <Route path="/documents" element={
+            <MainLayout>
+              <Documents />
+            </MainLayout>
+          } />
+          <Route path="/exigences" element={
+            <MainLayout>
+              <Exigences />
+            </MainLayout>
+          } />
+          <Route path="/ressources-humaines" element={
+            <MainLayout>
+              <RessourcesHumaines />
+            </MainLayout>
+          } />
           
           {/* Routes protégées nécessitant un rôle d'administrateur */}
-          <Route path="/" element={<AdminGuard isLoggedIn={isLoggedIn} />}>
-            <Route path="/admin" element={<MainLayout><Admin currentDatabaseUser={currentDatabaseUser} onUserConnect={handleUserConnect} /></MainLayout>} />
+          <Route element={<AdminGuard isLoggedIn={isLoggedIn} />}>
+            <Route path="/admin" element={
+              <MainLayout>
+                <Admin currentDatabaseUser={currentDatabaseUser} onUserConnect={handleUserConnect} />
+              </MainLayout>
+            } />
           </Route>
         </Route>
 

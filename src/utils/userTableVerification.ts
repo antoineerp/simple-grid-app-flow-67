@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { userService } from '@/services/api/apiService';
@@ -127,3 +128,4 @@ export const setupTableVerificationInterval = (userId: string, intervalMinutes: 
     clearInterval(interval);
   };
 };
+
