@@ -66,13 +66,13 @@ export const getCurrentUser = (): string => {
 
 /**
  * Connecte un utilisateur
- * Modifié pour toujours utiliser p71x6d_richard pour antcirier@gmail.com
+ * Modifié pour toujours utiliser p71x6d_cirier pour antcirier@gmail.com
  */
 export const login = async (username: string, password: string): Promise<LoginResponse> => {
   try {
     // Cas spécial pour antcirier@gmail.com
     if (username === 'antcirier@gmail.com') {
-      console.log("Connexion pour l'administrateur antcirier@gmail.com - Attribution de p71x6d_richard");
+      console.log("Connexion pour l'administrateur antcirier@gmail.com - Attribution de p71x6d_cirier");
       
       // Nettoyer tout état utilisateur précédent
       localStorage.removeItem('auth_token');
