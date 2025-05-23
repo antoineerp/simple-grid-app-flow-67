@@ -7,7 +7,6 @@ export * from './api/apiService';
 
 // Réexporter les services existants, mais renommer l'authService importé
 // pour éviter le conflit avec celui de apiService
-export * from './users/userService';
 export { 
   getIsLoggedIn,
   checkAuth,
@@ -19,10 +18,23 @@ export {
   authService as authServiceLegacy 
 } from './auth/authService';
 
+// Exports since userService is already exported from './api/apiService'
+export { 
+  getUser,
+  updateUser,
+  deleteUser,
+  getAllUsers,
+  createUser,
+  clearUsersCache,
+  connectAsUser,
+  verifyAllUserTables,
+  userService as userServiceLegacy
+} from './users/userService';
+
 // Exporter connectAsUser pour la compatibilité
 export const connectAsUser = async (identifiantTechnique: string): Promise<boolean> => {
   try {
-    const { userService } = await import('./api/apiService');
+    const { userService } = await import('./users/userService');
     return await userService.connectAsUser(identifiantTechnique);
   } catch (error) {
     console.error("Erreur lors de la connexion en tant qu'utilisateur:", error);

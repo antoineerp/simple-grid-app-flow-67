@@ -73,10 +73,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else {
           // Construire un objet utilisateur minimal avec l'ID
           if (currentUserId) {
-            const minimalUser = { 
+            const minimalUser: Utilisateur = { 
               id: currentUserId,
-              username: currentUserId,
-              role: storedRole || null
+              nom: 'Utilisateur',
+              prenom: 'Défaut',
+              email: '',
+              identifiant_technique: currentUserId,
+              role: (storedRole || 'utilisateur') as any
             };
             setUser(minimalUser);
             console.log(`Utilisateur minimal créé avec ID: ${currentUserId}, Rôle: ${storedRole || 'non défini'}`);

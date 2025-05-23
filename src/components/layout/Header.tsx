@@ -88,7 +88,7 @@ export const Header = () => {
               <div className="flex items-center space-x-2 cursor-pointer rounded-md px-2 py-1 hover:bg-gray-100">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-app-blue text-white">
-                    {userRole === 'administrateur' ? 'AD' : userRole === 'gestionnaire' ? 'GE' : 'UT'}
+                    {userRole === 'admin' ? 'AD' : userRole === 'gestionnaire' ? 'GE' : 'UT'}
                   </AvatarFallback>
                 </Avatar>
                 <div>

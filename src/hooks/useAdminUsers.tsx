@@ -133,6 +133,21 @@ export const useAdminUsers = () => {
     }
   };
   
+  // Ajout de la méthode verifyAllUserTables
+  const verifyAllUserTables = async () => {
+    try {
+      return await userService.verifyAllUserTables();
+    } catch (error) {
+      console.error("Erreur lors de la vérification des tables:", error);
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Erreur lors de la vérification des tables",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+  
   return {
     utilisateurs,
     loading,
@@ -140,6 +155,7 @@ export const useAdminUsers = () => {
     loadUtilisateurs,
     handleConnectAsUser,
     deleteUser,
+    verifyAllUserTables,
     retryCount
   };
 };
