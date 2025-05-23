@@ -1,100 +1,95 @@
 
-/**
- * Service de création d'utilisateurs
- * Utilise UNIQUEMENT la base de données p71x6d_richard
- */
-
-import { toast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
+import { createUserTables } from '../core/userInitializationService';
 
-// Interface pour les données utilisateur
-interface UserData {
+interface CreateUserData {
   nom: string;
   prenom: string;
   email: string;
   role: string;
-  mot_de_passe?: string;
+  mot_de_passe: string;
 }
 
-// Interface pour le résultat de la création
-interface CreateUserResult {
+interface CreateUserResponse {
   success: boolean;
-  message: string;
-  identifiant_technique?: string;
+  user?: any;
+  message?: string;
+  error?: boolean;
 }
 
 /**
- * Crée un nouvel utilisateur dans la base de données
- * Utilise UNIQUEMENT p71x6d_richard
+ * Crée un nouvel utilisateur
+ * @param userData Les données de l'utilisateur à créer
  */
-export const createUser = async (userData: UserData): Promise<CreateUserResult> => {
+export const createUser = async (userData: CreateUserData): Promise<CreateUserResponse> => {
   try {
-    console.log('Création d\'un nouvel utilisateur:', userData.prenom, userData.nom);
+    const API_URL = getApiUrl();
     
-    // Appel à l'API pour créer l'utilisateur
-    const apiUrl = getApiUrl();
-    const response = await fetch(`${apiUrl}/users.php`, {
+    // Appel API pour créer l'utilisateur
+    const response = await fetch(`${API_URL}/users.php`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
-        'Content-Type': 'application/json',
-        'X-Forced-DB-User': 'p71x6d_richard', // Forcer l'utilisation de p71x6d_richard
-        'X-User-Prefix': 'p71x6d_richard' // Préfixe utilisateur pour l'isolation des données
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(userData)
     });
-    
-    // Vérifier si la requête a réussi
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Réponse serveur non-OK:', response.status, errorText);
+      console.error(`Erreur HTTP ${response.status}:`, errorText);
       
-      // Tenter de parser l'erreur comme JSON
       try {
         const errorJson = JSON.parse(errorText);
-        throw new Error(errorJson.message || `Erreur ${response.status}: ${errorJson.status || 'Échec de la création'}`);
-      } catch (parseError) {
-        throw new Error(`Erreur ${response.status}: ${errorText || 'Échec de la création de l\'utilisateur'}`);
+        throw new Error(errorJson.message || `Erreur ${response.status}`);
+      } catch (e) {
+        if (e instanceof SyntaxError) {
+          throw new Error(`Erreur ${response.status}: ${errorText || 'Erreur inconnue'}`);
+        }
+        throw e;
       }
     }
-    
-    // Parser la réponse JSON
+
     const data = await response.json();
     
-    // Vérifier si la réponse contient des erreurs
-    if (data.status === 'error' || !data.success) {
-      throw new Error(data.message || 'Échec de la création de l\'utilisateur');
+    if (data.success && data.user) {
+      console.log("Utilisateur créé avec succès:", data.user);
+      
+      // Créer automatiquement les tables pour l'utilisateur
+      if (data.user.identifiant_technique || data.user.email) {
+        const userId = data.user.identifiant_technique || data.user.email;
+        try {
+          const tablesCreated = await createUserTables(userId);
+          if (tablesCreated) {
+            console.log(`Tables créées avec succès pour l'utilisateur ${userId}`);
+          } else {
+            console.warn(`Problème lors de la création des tables pour l'utilisateur ${userId}`);
+          }
+        } catch (tableError) {
+          console.error(`Erreur lors de la création des tables pour ${userId}:`, tableError);
+        }
+      }
+      
+      return {
+        success: true,
+        user: data.user,
+        message: data.message || "Utilisateur créé avec succès"
+      };
+    } else {
+      return {
+        success: false,
+        message: data.message || "Échec de la création de l'utilisateur"
+      };
     }
-    
-    console.log('Utilisateur créé avec succès:', data);
-    
-    // Notifier le succès
-    toast({
-      title: "Utilisateur créé",
-      description: `${userData.prenom} ${userData.nom} a été créé avec succès.`
-    });
-    
-    // Retourner le résultat avec l'identifiant technique
-    return {
-      success: true,
-      message: 'Utilisateur créé avec succès',
-      identifiant_technique: data.user?.identifiant_technique || data.identifiant_technique
-    };
-    
   } catch (error) {
-    console.error('Erreur lors de la création de l\'utilisateur:', error);
-    
-    // Notifier l'erreur
-    toast({
-      variant: "destructive",
-      title: "Erreur lors de la création de l'utilisateur",
-      description: error instanceof Error ? error.message : "Une erreur inconnue est survenue"
-    });
-    
+    console.error("Erreur lors de la création de l'utilisateur:", error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : "Une erreur inconnue est survenue"
+      error: true,
+      message: error instanceof Error ? error.message : "Erreur inconnue"
     };
   }
 };
+
+export default createUser;

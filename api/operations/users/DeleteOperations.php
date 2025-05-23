@@ -42,6 +42,9 @@ class UserDeleteOperations extends BaseOperations {
                 return;
             }
             
+            // Supprimer toutes les tables associées à cet utilisateur
+            $this->deleteUserTables($user->identifiant_technique);
+            
             // Supprimer l'utilisateur
             $this->model->id = $data->id;
             if ($this->model->delete()) {
@@ -56,6 +59,33 @@ class UserDeleteOperations extends BaseOperations {
             error_log("UserDeleteOperations::handleDeleteRequest - Erreur: " . $e->getMessage());
             ResponseHandler::error("Erreur lors de la suppression de l'utilisateur: " . $e->getMessage(), 500);
         }
+    }
+    
+    private function deleteUserTables($identifiantTechnique) {
+        // Liste des tables à supprimer pour chaque utilisateur
+        $tables = [
+            "documents_{$identifiantTechnique}",
+            "document_groupes_{$identifiantTechnique}",
+            "exigences_{$identifiantTechnique}",
+            "collaborateurs_{$identifiantTechnique}",
+            "bibliotheque_{$identifiantTechnique}",
+            "collaboration_{$identifiantTechnique}",
+            "collaboration_groups_{$identifiantTechnique}",
+            // Ajoutez d'autres tables selon votre schéma
+        ];
+        
+        foreach ($tables as $table) {
+            try {
+                $query = "DROP TABLE IF EXISTS {$table}";
+                $this->conn->exec($query);
+                error_log("Table {$table} supprimée avec succès");
+            } catch (PDOException $e) {
+                error_log("Erreur lors de la suppression de la table {$table}: " . $e->getMessage());
+                // On continue malgré l'erreur
+            }
+        }
+        
+        return true;
     }
 }
 ?>

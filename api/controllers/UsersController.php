@@ -8,11 +8,13 @@ require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/middleware/RequestHandler.php';
 require_once dirname(__DIR__) . '/utils/ResponseHandler.php';
 require_once dirname(__DIR__) . '/operations/UserOperations.php';
+require_once dirname(__DIR__) . '/operations/users/DeleteOperations.php';
 
 class UsersController {
     private $database;
     private $connection;
     private $userOperations;
+    private $deleteOperations;
     
     public function __construct() {
         // Initialiser la connexion à la base de données
@@ -25,6 +27,7 @@ class UsersController {
             }
             
             $this->userOperations = new UserOperations($this->connection);
+            $this->deleteOperations = new UserDeleteOperations($this->connection);
         } catch (Exception $e) {
             error_log("UsersController::__construct - Exception: " . $e->getMessage());
             throw $e;
@@ -77,8 +80,7 @@ class UsersController {
                     break;
                     
                 case 'DELETE':
-                    // Si nécessaire, ajoutez la méthode handleDeleteRequest au UserOperations
-                    ResponseHandler::error("Méthode DELETE non implémentée", 501);
+                    $this->deleteOperations->handleDeleteRequest();
                     break;
                     
                 default:
