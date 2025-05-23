@@ -1,8 +1,7 @@
-
 import { useState, FormEvent } from 'react';
 import { toast } from "@/hooks/use-toast";
 import { UserRole } from '@/types/roles';
-import { connectAsUser } from '@/services';
+import { userService } from '@/services/api/apiService';
 
 interface UserFormProps {
   onClose: () => void;
@@ -20,7 +19,9 @@ interface UserFormData {
   confirmation_mot_de_passe: string;
 }
 
+// Update the FieldErrors to include an index signature
 interface FieldErrors {
+  [key: string]: string | undefined;
   nom?: string;
   prenom?: string;
   email?: string;
@@ -94,7 +95,7 @@ export const useUserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps
     setFormData(prev => ({ ...prev, [name]: value }));
     
     // Réinitialiser l'erreur spécifique lors de la modification
-    if (fieldErrors[name as keyof FieldErrors]) {
+    if (fieldErrors[name]) {
       setFieldErrors(prev => ({ ...prev, [name]: undefined }));
     }
   };
@@ -140,7 +141,7 @@ export const useUserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps
 
       if (connectAfterCreate && onUserConnect) {
         // Connexion automatique avec le nouvel utilisateur
-        const connectionSuccess = await connectAsUser(formData.identifiant_technique);
+        const connectionSuccess = await userService.connectAsUser(formData.identifiant_technique);
         
         if (connectionSuccess) {
           toast({

@@ -2,12 +2,22 @@
 // Index de tous les services de l'application
 // Ce fichier centralise les exports pour faciliter les imports
 
-// Exporter le service API principal
+// Exporter le service API principal et ses sous-services
 export * from './api/apiService';
 
-// Réexporter les services existants
+// Réexporter les services existants, mais renommer l'authService importé
+// pour éviter le conflit avec celui de apiService
 export * from './users/userService';
-export * from './auth/authService';
+export { 
+  getIsLoggedIn,
+  checkAuth,
+  getAuthHeaders,
+  getCurrentUser,
+  logout,
+  login,
+  // Renommer authService pour éviter le conflit
+  authService as authServiceLegacy 
+} from './auth/authService';
 
 // Exporter connectAsUser pour la compatibilité
 export const connectAsUser = async (identifiantTechnique: string): Promise<boolean> => {

@@ -11,7 +11,7 @@ import {
   ListChecks,
   Building2
 } from 'lucide-react';
-import { authService } from '@/services';
+import { authService } from '@/services/auth/authService';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {

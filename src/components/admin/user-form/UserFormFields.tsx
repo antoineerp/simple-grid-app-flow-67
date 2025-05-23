@@ -1,11 +1,10 @@
-
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Loader2 } from 'lucide-react';
 
 interface UserFormFieldsProps {
   formData: any;
-  fieldErrors: {[key: string]: string};
+  fieldErrors: {[key: string]: string | undefined};
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   hasManager: boolean;
   connectAfterCreate: boolean;
