@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,7 +6,7 @@ import { AlertCircle, CheckCircle, Database, Server, Users } from "lucide-react"
 import { getApiUrl } from '@/config/apiConfig';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getAuthHeaders } from '@/services/auth/authService';
-import { UserManager } from '@/services/users/userManager';
+import { getUtilisateurs } from '@/services/users/userManager';
 import {
   Accordion,
   AccordionContent,
@@ -146,8 +147,8 @@ const ServerTest = () => {
   const testUsersConnection = async () => {
     setUsersStatus('loading');
     try {
-      // Utiliser notre service centralisé avec forceRefresh pour ignorer le cache
-      const usersData = await UserManager.getUtilisateurs(true);
+      // Use the correct function from userManager
+      const usersData = await getUtilisateurs(true);
       
       setUsers(usersData);
       setUsersMessage(`Utilisateurs récupérés avec succès (${usersData.length} utilisateurs dans la base)`);
