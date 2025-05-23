@@ -1,48 +1,20 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
+import { userService } from '@/services/api/apiService';
 
 /**
  * Vérifie si les tables d'un utilisateur existent et les crée si nécessaire
  * Cette fonction centralise toutes les vérifications de tables pour maintenir la cohérence
+ * Utilise le nouveau service API centralisé
  */
 export const verifyUserTables = async (userId: string): Promise<boolean> => {
   try {
     console.log(`Vérification des tables pour l'utilisateur: ${userId}`);
-    const API_URL = getApiUrl();
     
-    // Utiliser l'API unifiée pour vérifier et créer les tables
-    const response = await fetch(`${API_URL}/users.php?action=create_tables_for_user&userId=${encodeURIComponent(userId)}&_t=${Date.now()}`, {
-      method: 'GET',
-      headers: {
-        ...getAuthHeaders(),
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Accept': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      // Traitement des erreurs côté serveur
-      const contentType = response.headers.get('content-type');
-      
-      if (!contentType || !contentType.includes('application/json')) {
-        const textResponse = await response.text();
-        console.error('Réponse non-JSON reçue:', textResponse);
-        throw new Error("Le serveur a renvoyé une réponse non-JSON. Contactez l'administrateur.");
-      }
-      
-      const errorData = await response.json();
-      throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
-    }
-
-    const data = await response.json();
+    // Utiliser le nouveau service API centralisé
+    const tablesCreated = await userService.verifyUserTables(userId);
     
-    if (!data.success) {
-      throw new Error(data.message || "La vérification des tables a échoué");
-    }
-    
-    console.log(`Tables vérifiées pour l'utilisateur ${userId}:`, data.tables_created || []);
+    console.log(`Tables vérifiées pour l'utilisateur ${userId}:`, tablesCreated);
     return true;
   } catch (error) {
     console.error(`Erreur lors de la vérification des tables pour ${userId}:`, error);
@@ -101,6 +73,7 @@ export const compareUserTables = async (userId: string, localTables: string[]): 
 
 /**
  * Vérifie et synchronise toutes les tables pour tous les utilisateurs
+ * Utilise le nouveau service API centralisé
  */
 export const syncAllUserTables = async (): Promise<{
   success: boolean;
@@ -112,46 +85,8 @@ export const syncAllUserTables = async (): Promise<{
   }>;
 }> => {
   try {
-    // Récupérer la liste des utilisateurs
-    const API_URL = getApiUrl();
-    const response = await fetch(`${API_URL}/users.php?_t=${Date.now()}`, {
-      method: 'GET',
-      headers: {
-        ...getAuthHeaders(),
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Accept': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP ${response.status} lors de la récupération des utilisateurs`);
-    }
-    
-    const data = await response.json();
-    
-    if (!data.records || !Array.isArray(data.records)) {
-      throw new Error("Format de réponse invalide pour les utilisateurs");
-    }
-    
-    const users = data.records;
-    const results = [];
-    
-    // Vérifier les tables pour chaque utilisateur
-    for (const user of users) {
-      try {
-        await verifyUserTables(user.identifiant_technique);
-        results.push({
-          userId: user.identifiant_technique,
-          success: true
-        });
-      } catch (error) {
-        results.push({
-          userId: user.identifiant_technique,
-          success: false,
-          error: error instanceof Error ? error.message : "Erreur inconnue"
-        });
-      }
-    }
+    // Utiliser le nouveau service API centralisé
+    const results = await userService.verifyAllUserTables();
     
     return {
       success: results.every(result => result.success),

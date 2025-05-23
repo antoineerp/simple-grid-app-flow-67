@@ -2,29 +2,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { checkPermission, UserRole } from '@/types/roles';
-import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '@/services/auth/authService';
 import { verifyUserTables } from '@/utils/userTableVerification';
 import type { Utilisateur } from '@/types/auth';
-
-// Fonction utilitaire pour vérifier et parser les réponses JSON
-const safeParseJSON = async (response: Response): Promise<any> => {
-  // Vérifier si la réponse est du JSON valide
-  const contentType = response.headers.get('content-type');
-  if (!contentType || !contentType.includes('application/json')) {
-    const textResponse = await response.text();
-    console.error('Réponse non-JSON reçue:', textResponse);
-    throw new Error(`Le serveur a renvoyé une réponse non-JSON (${response.status}): ${textResponse.substring(0, 100)}...`);
-  }
-  
-  try {
-    return await response.json();
-  } catch (error) {
-    const textResponse = await response.text();
-    console.error('Erreur de parsing JSON:', textResponse);
-    throw new Error(`Erreur de parsing JSON: ${textResponse.substring(0, 100)}...`);
-  }
-};
+import { userService } from '@/services/api/apiService';
 
 export const useAdminUsers = () => {
   const { toast } = useToast();
@@ -49,7 +29,7 @@ export const useAdminUsers = () => {
     }
   }, [error, retryCount]);
 
-  // Fonction pour charger les utilisateurs directement depuis l'API
+  // Fonction pour charger les utilisateurs avec le nouveau service centralisé
   const loadUtilisateurs = useCallback(async () => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;
     
@@ -67,61 +47,15 @@ export const useAdminUsers = () => {
     setError(null);
     
     try {
-      console.log("Début du chargement des utilisateurs directement depuis l'API...");
+      console.log("Début du chargement des utilisateurs depuis le service centralisé...");
       
-      // Appel direct à l'API pour récupérer les utilisateurs (sans cache)
-      const API_URL = getApiUrl();
-      const timestamp = Date.now(); // Pour éviter le cache du navigateur
+      // Utilisation du nouveau service API centralisé
+      const users = await userService.getAllUsers();
       
-      // Amélioration: Ajouter un timeout pour éviter les requêtes qui ne répondent pas
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes timeout
-      
-      console.log(`Appel API: ${API_URL}/users.php?_nocache=${timestamp}`);
-      
-      try {
-        const response = await fetch(`${API_URL}/users.php?_nocache=${timestamp}`, {
-          method: 'GET',
-          headers: {
-            ...getAuthHeaders(),
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-          },
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          // Récupérer le texte de la réponse pour diagnostic
-          const errorText = await response.text();
-          console.error(`Erreur HTTP ${response.status}: ${errorText}`);
-          throw new Error(`Erreur HTTP: ${response.status} - ${errorText.substring(0, 100)}...`);
-        }
-        
-        const data = await safeParseJSON(response);
-        
-        if (!data.records) {
-          console.warn("Format de réponse inattendu:", data);
-          throw new Error("Format de réponse inattendu de l'API");
-        }
-        
-        console.log(`${data.records.length} utilisateurs chargés depuis l'API`);
-        setUtilisateurs(data.records);
-        setError(null);
-        setRetryCount(0);
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        
-        // Si l'erreur est due à l'abort, personnaliser le message
-        if (fetchError.name === 'AbortError') {
-          throw new Error("La requête a expiré après 15 secondes. Vérifiez la connexion au serveur.");
-        }
-        
-        // Sinon propager l'erreur
-        throw fetchError;
-      }
+      console.log(`${users.length} utilisateurs chargés depuis l'API`);
+      setUtilisateurs(users);
+      setError(null);
+      setRetryCount(0);
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs", error);
       setError(error instanceof Error ? error.message : "Impossible de charger les utilisateurs.");
@@ -152,30 +86,30 @@ export const useAdminUsers = () => {
     console.log(`Tentative de connexion en tant que: ${identifiantTechnique}`);
 
     try {
-      // Connexion de l'utilisateur
-      console.log(`Connexion réussie avec identifiant: ${identifiantTechnique}`);
-      toast({
-        title: "Connexion réussie",
-        description: `Connecté en tant que ${identifiantTechnique}`,
-      });
+      // Utiliser le service centralisé pour la connexion
+      const success = await userService.connectAsUser(identifiantTechnique);
       
-      // S'assurer que les tables existent pour cet utilisateur
-      try {
-        const result = await verifyUserTables(identifiantTechnique);
-        console.log("Résultat de la vérification des tables:", result);
-      } catch (tableError) {
-        console.error("Erreur lors de la vérification des tables:", tableError);
+      if (success) {
+        console.log(`Connexion réussie avec identifiant: ${identifiantTechnique}`);
         toast({
-          title: "Attention",
-          description: `Connecté, mais problème lors de la vérification des tables: ${tableError instanceof Error ? tableError.message : 'Erreur inconnue'}`,
-          variant: "destructive",
+          title: "Connexion réussie",
+          description: `Connecté en tant que ${identifiantTechnique}`,
         });
+        
+        // S'assurer que les tables existent pour cet utilisateur
+        try {
+          await verifyUserTables(identifiantTechnique);
+        } catch (tableError) {
+          console.error("Erreur lors de la vérification des tables:", tableError);
+          toast({
+            title: "Attention",
+            description: `Connecté, mais problème lors de la vérification des tables: ${tableError instanceof Error ? tableError.message : 'Erreur inconnue'}`,
+            variant: "destructive",
+          });
+        }
       }
       
-      // Mettre à jour localStorage pour la cohérence de l'interface
-      localStorage.setItem('currentDatabaseUser', identifiantTechnique);
-      localStorage.setItem('userPrefix', identifiantTechnique.replace(/[^a-zA-Z0-9]/g, '_'));
-      return true;
+      return success;
     } catch (error) {
       console.error("Erreur lors de la connexion en tant qu'utilisateur:", error);
       toast({
@@ -203,91 +137,30 @@ export const useAdminUsers = () => {
     try {
       console.log(`Tentative de suppression de l'utilisateur avec ID: ${userId}`);
       
-      const API_URL = getApiUrl();
+      // Utiliser le service centralisé pour la suppression
+      const success = await userService.deleteUser(userId);
       
-      // Amélioration: Ajouter un timeout pour éviter les requêtes qui ne répondent pas
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes timeout
-      
-      const response = await fetch(`${API_URL}/users.php`, {
-        method: 'DELETE',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        },
-        body: JSON.stringify({ id: userId }),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      let result;
-      
-      try {
-        result = await safeParseJSON(response);
-      } catch (parseError) {
-        console.error("Erreur lors du parsing de la réponse:", parseError);
-        throw new Error(`Erreur lors de la suppression: ${parseError.message}`);
+      if (success) {
+        // Recharger la liste des utilisateurs
+        await loadUtilisateurs();
       }
       
-      if (!response.ok) {
-        console.error('Erreur lors de la suppression:', result);
-        throw new Error(result.message || "Erreur lors de la suppression de l'utilisateur");
-      }
-      
-      console.log('Résultat de la suppression:', result);
-      
-      // Recharger la liste des utilisateurs
-      await loadUtilisateurs();
-      
-      return true;
+      return success;
     } catch (error) {
       console.error("Erreur lors de la suppression de l'utilisateur:", error);
       throw error;
     }
   };
   
-  // Vérifie que les tables de tous les utilisateurs existent
+  // Vérifie que les tables de tous les utilisateurs existent avec le service centralisé
   const verifyAllUserTables = async (): Promise<boolean> => {
     try {
-      const API_URL = getApiUrl();
-      
-      // Amélioration: Ajouter un timeout pour éviter les requêtes qui ne répondent pas
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes timeout
-      
-      const response = await fetch(`${API_URL}/users.php?action=ensure_tables&_t=${Date.now()}`, {
-        method: 'GET',
-        headers: {
-          ...getAuthHeaders(),
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        },
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Erreur HTTP ${response.status}:`, errorText);
-        throw new Error(`Erreur HTTP ${response.status} lors de la vérification des tables: ${errorText.substring(0, 100)}...`);
-      }
-      
-      let data;
-      try {
-        data = await safeParseJSON(response);
-      } catch (parseError) {
-        throw new Error(`Erreur lors du parsing de la réponse: ${parseError.message}`);
-      }
-      
-      console.log("Résultat de la vérification des tables:", data);
+      // Utiliser le service centralisé
+      const results = await userService.verifyAllUserTables();
       
       toast({
         title: "Vérification terminée",
-        description: `Tables vérifiées pour ${data.results?.length || 0} utilisateurs`,
+        description: `Tables vérifiées pour ${results.length || 0} utilisateurs`,
       });
       
       return true;
