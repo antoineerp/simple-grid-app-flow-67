@@ -6,6 +6,7 @@ import { Download, Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { adminImportFromManager } from '@/services/core/userInitializationService';
 
 interface ManagerDataImportProps {
   hasManager: boolean;
@@ -21,13 +22,16 @@ const ManagerDataImport = ({ hasManager }: ManagerDataImportProps) => {
     setError(null);
     
     try {
-      // Simulation d'import pour l'instant
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const success = await adminImportFromManager();
       
-      toast({
-        title: "Import réussi",
-        description: "Les données du gestionnaire ont été importées avec succès",
-      });
+      if (success) {
+        toast({
+          title: "Import réussi",
+          description: "Les données du gestionnaire ont été importées avec succès",
+        });
+      } else {
+        setError("L'importation a échoué pour une raison inconnue");
+      }
     } catch (error) {
       setError(error instanceof Error ? error.message : "Une erreur s'est produite lors de l'importation");
       toast({

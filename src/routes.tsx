@@ -8,7 +8,7 @@ import Exigences from './pages/Exigences';
 import Bibliotheque from './pages/Bibliotheque';
 import Collaboration from './pages/Collaboration';
 import Admin from './pages/Admin';
-import DiagnosticPage from './pages/diagnostic';
+import Diagnostic from './pages/Diagnostic';
 import Documents from './pages/Documents';
 import GestionDocumentaire from './pages/GestionDocumentaire';
 
@@ -57,7 +57,7 @@ const routes = [
   },
   {
     path: '/diagnostic',
-    element: <DiagnosticPage />,
+    element: <Diagnostic />,
   },
   {
     path: '/documents',
