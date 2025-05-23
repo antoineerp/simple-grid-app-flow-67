@@ -2,9 +2,9 @@
 import React, { useEffect, useState } from 'react';
 import { validateUserId } from '@/services/core/apiInterceptor';
 import { verifyUserTables, setupTableVerificationInterval } from '@/utils/userTableVerification';
-import { toast } from '@/components/ui/use-toast';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { CloudUpload, AlertCircle, RefreshCw } from 'lucide-react';
 import { SyncDebugger } from '@/components/sync/SyncDebugger';
 
@@ -22,9 +22,10 @@ export const AppSyncManager: React.FC<AppSyncManagerProps> = ({
   className = "",
   enableDebugger = false
 }) => {
+  const { toast } = useToast();
   const [isVerifying, setIsVerifying] = useState(false);
   const [showDebugger, setShowDebugger] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'warning' | 'error'>('idle');
+  const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
   
   useEffect(() => {
     let cleanup: (() => void) | undefined;
@@ -55,7 +56,7 @@ export const AppSyncManager: React.FC<AppSyncManagerProps> = ({
       const userId = validateUserId();
       const result = await verifyUserTables(userId);
       
-      setVerificationStatus(result ? 'success' : 'warning');
+      setVerificationStatus(result ? 'success' : 'error');
       
       if (result) {
         toast({
@@ -82,16 +83,6 @@ export const AppSyncManager: React.FC<AppSyncManagerProps> = ({
   
   return (
     <div className={`space-y-4 ${className}`}>
-      {verificationStatus === 'warning' && (
-        <Alert variant="default" className="border-amber-500 bg-amber-50 text-amber-900">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Attention</AlertTitle>
-          <AlertDescription>
-            Certaines tables utilisateur ont dû être créées. Veuillez vérifier que la synchronisation fonctionne correctement.
-          </AlertDescription>
-        </Alert>
-      )}
-      
       {verificationStatus === 'error' && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />

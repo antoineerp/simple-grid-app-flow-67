@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { checkPermission, UserRole } from '@/types/roles';
@@ -132,7 +131,7 @@ export const useAdminUsers = () => {
         toast({
           title: "Attention",
           description: `Connecté, mais problème lors de la vérification des tables: ${tableError instanceof Error ? tableError.message : 'Erreur inconnue'}`,
-          variant: "warning",
+          variant: "destructive",
         });
       }
       

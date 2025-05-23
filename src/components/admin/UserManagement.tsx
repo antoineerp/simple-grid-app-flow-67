@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -196,7 +195,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
       toast({
         title: result.success ? "Vérification réussie" : "Vérification terminée",
         description: `${result.results.length} utilisateurs traités.`,
-        variant: result.success ? "default" : "warning"
+        variant: result.success ? "default" : "destructive"
       });
       
     } catch (error) {
@@ -327,7 +326,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
       )}
       
       {verificationStatus.message && (
-        <Alert variant={verificationStatus.success ? "default" : "warning"} className="mb-4">
+        <Alert variant={verificationStatus.success ? "default" : "destructive"} className="mb-4">
           {verificationStatus.inProgress ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : verificationStatus.success ? (

@@ -162,3 +162,33 @@ export const syncAllUserTables = async (): Promise<{
     throw error;
   }
 };
+
+/**
+ * Configure une vérification périodique des tables utilisateur
+ * @param userId Identifiant technique de l'utilisateur
+ * @param intervalMinutes Intervalle en minutes entre les vérifications
+ * @returns Fonction pour arrêter la vérification périodique
+ */
+export const setupTableVerificationInterval = (userId: string, intervalMinutes: number = 60): (() => void) => {
+  console.log(`Configuration de la vérification périodique des tables pour ${userId} toutes les ${intervalMinutes} minutes`);
+  
+  // Convertir les minutes en millisecondes
+  const intervalMs = intervalMinutes * 60 * 1000;
+  
+  // Définir l'intervalle
+  const interval = setInterval(async () => {
+    try {
+      console.log(`Vérification périodique des tables pour ${userId}...`);
+      await verifyUserTables(userId);
+      console.log(`Vérification périodique terminée pour ${userId}`);
+    } catch (error) {
+      console.error(`Erreur lors de la vérification périodique des tables pour ${userId}:`, error);
+    }
+  }, intervalMs);
+  
+  // Retourner une fonction pour nettoyer l'intervalle
+  return () => {
+    console.log(`Arrêt de la vérification périodique des tables pour ${userId}`);
+    clearInterval(interval);
+  };
+};
