@@ -32,99 +32,76 @@ export const testApiConnection = async (): Promise<{
 }> => {
   try {
     const apiUrl = getApiUrl();
-    console.log("Testing API connection to:", apiUrl);
+    console.log("Test de connexion à l'API:", apiUrl);
     
-    // Définir les endpoints à tester pour s'assurer qu'au moins un fonctionne
-    const endpointsToTest = [
-      'test.php',
-      'check.php', 
-      'check-db-connection.php',
-      'auth-test.php',
-      'check-users.php'
-    ];
-    
-    let successfulEndpoint = null;
-    let lastError = null;
-    let lastResponse = null;
-    
-    // Tester chaque endpoint séquentiellement
-    for (const endpoint of endpointsToTest) {
-      try {
-        console.log(`Tentative de connexion à ${apiUrl}/${endpoint}`);
-        const response = await fetch(`${apiUrl}/${endpoint}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache'
-          },
-          // Court timeout pour ne pas attendre trop longtemps sur des endpoints qui échouent
-          signal: AbortSignal.timeout(5000)
-        });
-        
-        if (!response.ok) {
-          console.warn(`Endpoint ${endpoint} a répondu avec le code ${response.status}`);
-          throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
-        }
-        
-        const responseText = await response.text();
-        lastResponse = responseText;
-        
-        // Vérifier si la réponse contient du PHP non exécuté
-        if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
-          console.warn(`Endpoint ${endpoint} a retourné du PHP/HTML non exécuté`);
-          throw new Error("La réponse contient du PHP/HTML au lieu de JSON - problème de configuration serveur");
-        }
-        
-        // Essayer de parser le JSON
-        let data;
-        try {
-          data = JSON.parse(responseText);
-          
-          // Vérifier si la réponse indique un succès
-          if (data.status === 'success' || data.success === true) {
-            // Si on arrive ici, c'est que l'endpoint fonctionne
-            successfulEndpoint = endpoint;
-            
-            return {
-              success: true,
-              message: data.message || 'API connection successful',
-              details: { ...data, endpoint: successfulEndpoint }
-            };
-          } else {
-            // La réponse est du JSON valide mais indique une erreur
-            throw new Error(data.message || "L'API a renvoyé une erreur");
-          }
-        } catch (parseError) {
-          console.warn(`Erreur de parsing JSON pour ${endpoint}:`, parseError);
-          throw new Error(`Erreur de parsing JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
-        }
-      } catch (endpointError) {
-        console.warn(`Endpoint ${endpoint} failed:`, endpointError);
-        lastError = endpointError;
-        // Continuer avec le prochain endpoint
+    // Test direct de l'API test.php qui a plus de chances de fonctionner
+    const response = await fetch(`${apiUrl}/test.php?_t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
       }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
     }
     
-    // Si on arrive ici, c'est qu'aucun endpoint n'a fonctionné
-    console.error("Tous les endpoints ont échoué. Dernière réponse:", lastResponse);
-    throw new Error('Tous les endpoints ont échoué');
+    const responseText = await response.text();
+    
+    // Vérifier si la réponse contient du PHP non exécuté
+    if (responseText.includes('<?php')) {
+      console.error("Réponse PHP non exécutée:", responseText.substring(0, 100));
+      throw new Error("Le serveur renvoie du code PHP au lieu de JSON. Vérifiez la configuration du serveur.");
+    }
+    
+    // Essayer de parser la réponse en JSON
+    try {
+      const data = JSON.parse(responseText);
+      return {
+        success: true,
+        message: data.message || "Connexion API réussie",
+        details: data
+      };
+    } catch (e) {
+      console.error("Erreur lors du parsing JSON:", e);
+      throw new Error("Réponse invalide: impossible de parser le JSON");
+    }
   } catch (error) {
-    console.error("API connection error:", error);
+    console.error("Erreur de connexion API:", error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: error instanceof Error ? error.message : "Erreur inconnue",
       details: { error }
     };
   }
 };
 
-// Fonction pour gérer les erreurs lors des requêtes fetch
+// Fonction améliorée pour gérer les requêtes fetch
 export const fetchWithErrorHandling = async (
   url: string, 
   options: RequestInit = {}
 ): Promise<any> => {
   try {
-    const response = await fetch(url, options);
+    console.log(`Requête à ${url}`);
+    
+    // Ajouter un timestamp pour éviter la mise en cache
+    const urlWithTimestamp = url.includes('?') 
+      ? `${url}&_t=${Date.now()}` 
+      : `${url}?_t=${Date.now()}`;
+    
+    // S'assurer que les en-têtes par défaut sont présents
+    const mergedOptions = {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Accept': 'application/json',
+        ...(options.headers || {})
+      }
+    };
+    
+    const response = await fetch(urlWithTimestamp, mergedOptions);
     
     if (!response.ok) {
       // Essayer d'obtenir les détails de l'erreur si disponibles
@@ -135,30 +112,28 @@ export const fetchWithErrorHandling = async (
           errorMessage = errorData.message;
         }
       } catch (parseError) {
-        // Si la réponse n'est pas du JSON, on utilise le message d'erreur par défaut
-        console.warn("Couldn't parse error response:", parseError);
+        // Si la réponse n'est pas du JSON, utiliser le message d'erreur par défaut
       }
       
       throw new Error(errorMessage);
     }
     
-    // Vérifier le type de contenu
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.indexOf('application/json') !== -1) {
-      return await response.json();
-    } else {
-      // Si ce n'est pas du JSON, retourner le texte brut
-      const text = await response.text();
-      try {
-        // Tenter de parser en JSON même si le header ne l'indique pas
-        return JSON.parse(text);
-      } catch {
-        // Sinon retourner le texte tel quel
-        return text;
-      }
+    const responseText = await response.text();
+    
+    // Vérifier si la réponse contient du PHP non exécuté
+    if (responseText.includes('<?php')) {
+      console.error("Réponse PHP non exécutée:", responseText.substring(0, 100));
+      throw new Error("Le serveur renvoie du code PHP au lieu de JSON. Vérifiez la configuration du serveur.");
+    }
+    
+    try {
+      return JSON.parse(responseText);
+    } catch (e) {
+      console.error("Erreur de parsing JSON:", e);
+      throw new Error("Réponse invalide: impossible de parser le JSON");
     }
   } catch (error) {
-    console.error("Fetch error:", error);
+    console.error("Erreur fetch:", error);
     throw error;
   }
 };

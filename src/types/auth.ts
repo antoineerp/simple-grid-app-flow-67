@@ -1,35 +1,35 @@
 
-export interface User {
-  id: string;
-  username?: string;
-  email?: string;
-  role?: string;
-  status?: 'active' | 'inactive';
-  last_login?: string;
-  created_at?: string;
-}
+// Types pour l'authentification et les utilisateurs
+
+export type UserRole = 'admin' | 'gestionnaire' | 'utilisateur';
 
 export interface Utilisateur {
-  id: string | number;
-  username: string;
-  email?: string;
-  role?: string;
-  status?: 'active' | 'inactive';
-  last_login?: string;
-  created_at?: string;
-  
-  // Additional properties used in the app
-  nom?: string;
-  prenom?: string;
-  identifiant_technique?: string;
-  mot_de_passe?: string;
+  id: number | string;
+  nom: string;
+  prenom: string;
+  email: string;
+  identifiant_technique: string;
+  role: UserRole;
   date_creation?: string;
 }
 
 export interface LoginResponse {
   success: boolean;
+  message: string;
   token?: string;
-  user?: Utilisateur;
-  message?: string;
-  user_id?: string;
+  user?: {
+    id: number | string;
+    nom: string;
+    prenom: string;
+    email: string;
+    role: UserRole;
+    identifiant_technique: string;
+  };
+}
+
+export interface AuthState {
+  isLoggedIn: boolean;
+  currentUser: Utilisateur | null;
+  currentDatabaseUser: string | null;
+  error: string | null;
 }

@@ -1,10 +1,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { checkPermission, UserRole } from '@/types/roles';
-import { verifyUserTables } from '@/utils/userTableVerification';
+import { userService } from '@/services/users/userService';
 import type { Utilisateur } from '@/types/auth';
-import { userService } from '@/services/api/apiService';
 
 export const useAdminUsers = () => {
   const { toast } = useToast();
@@ -13,49 +11,26 @@ export const useAdminUsers = () => {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   
-  // Charger les utilisateurs au montage du composant avec retry
-  useEffect(() => {
-    loadUtilisateurs();
-    
-    // Si erreur, réessayer après 2 secondes (max 3 tentatives)
-    if (error && retryCount < 3) {
-      const timer = setTimeout(() => {
-        console.log(`Tentative de reconnexion (${retryCount + 1}/3)...`);
-        setRetryCount(prev => prev + 1);
-        loadUtilisateurs();
-      }, 2000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [error, retryCount]);
-
-  // Fonction pour charger les utilisateurs avec le nouveau service centralisé
+  // Charger les utilisateurs avec retry
   const loadUtilisateurs = useCallback(async () => {
-    const currentUserRole = localStorage.getItem('userRole') as UserRole;
-    
-    // Vérifier les permissions avant de charger les utilisateurs
-    if (!checkPermission(currentUserRole, 'isAdmin')) {
-      toast({
-        title: "Accès refusé",
-        description: "Vous n'avez pas les autorisations nécessaires pour voir la liste des utilisateurs.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
     setError(null);
     
     try {
-      console.log("Début du chargement des utilisateurs depuis le service centralisé...");
+      console.log("Début du chargement des utilisateurs...");
       
-      // Utilisation du nouveau service API centralisé
+      // Utiliser le service directement
       const users = await userService.getAllUsers();
       
-      console.log(`${users.length} utilisateurs chargés depuis l'API`);
-      setUtilisateurs(users);
-      setError(null);
-      setRetryCount(0);
+      if (users && users.length > 0) {
+        console.log(`${users.length} utilisateurs chargés depuis l'API`);
+        setUtilisateurs(users);
+        setError(null);
+        setRetryCount(0);
+      } else {
+        console.warn("Aucun utilisateur récupéré ou format de données incorrect");
+        setError("Aucun utilisateur récupéré");
+      }
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs", error);
       setError(error instanceof Error ? error.message : "Impossible de charger les utilisateurs.");
@@ -70,23 +45,27 @@ export const useAdminUsers = () => {
     }
   }, [toast]);
 
-  const handleConnectAsUser = async (identifiantTechnique: string): Promise<boolean> => {
-    const currentUserRole = localStorage.getItem('userRole') as UserRole;
+  // Charger les utilisateurs au montage avec retry
+  useEffect(() => {
+    loadUtilisateurs();
     
-    // Vérifier les permissions de connexion
-    if (!checkPermission(currentUserRole, 'isAdmin')) {
-      toast({
-        title: "Accès refusé",
-        description: "Vous n'avez pas les autorisations nécessaires pour changer d'utilisateur.",
-        variant: "destructive",
-      });
-      return false;
+    // Si erreur, réessayer après 2 secondes (max 3 tentatives)
+    if (error && retryCount < 3) {
+      const timer = setTimeout(() => {
+        console.log(`Tentative de reconnexion (${retryCount + 1}/3)...`);
+        setRetryCount(prev => prev + 1);
+        loadUtilisateurs();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
     }
-    
+  }, [error, retryCount, loadUtilisateurs]);
+
+  const handleConnectAsUser = async (identifiantTechnique: string): Promise<boolean> => {
     console.log(`Tentative de connexion en tant que: ${identifiantTechnique}`);
 
     try {
-      // Utiliser le service centralisé pour la connexion
+      // Utiliser le service pour la connexion
       const success = await userService.connectAsUser(identifiantTechnique);
       
       if (success) {
@@ -95,18 +74,12 @@ export const useAdminUsers = () => {
           title: "Connexion réussie",
           description: `Connecté en tant que ${identifiantTechnique}`,
         });
-        
-        // S'assurer que les tables existent pour cet utilisateur
-        try {
-          await verifyUserTables(identifiantTechnique);
-        } catch (tableError) {
-          console.error("Erreur lors de la vérification des tables:", tableError);
-          toast({
-            title: "Attention",
-            description: `Connecté, mais problème lors de la vérification des tables: ${tableError instanceof Error ? tableError.message : 'Erreur inconnue'}`,
-            variant: "destructive",
-          });
-        }
+      } else {
+        toast({
+          title: "Échec de connexion",
+          description: `Impossible de se connecter en tant que ${identifiantTechnique}`,
+          variant: "destructive",
+        });
       }
       
       return success;
@@ -122,59 +95,44 @@ export const useAdminUsers = () => {
   };
 
   const deleteUser = async (userId: string): Promise<boolean> => {
-    const currentUserRole = localStorage.getItem('userRole') as UserRole;
-    
-    // Vérifier les permissions de suppression
-    if (!checkPermission(currentUserRole, 'isAdmin')) {
-      toast({
-        title: "Accès refusé",
-        description: "Vous n'avez pas les autorisations nécessaires pour supprimer un utilisateur.",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
     try {
       console.log(`Tentative de suppression de l'utilisateur avec ID: ${userId}`);
       
-      // Utiliser le service centralisé pour la suppression
-      const success = await userService.deleteUser(userId);
+      // Utiliser le service pour la suppression
+      const result = await userService.deleteUser(userId);
       
-      if (success) {
+      if (result && result.success) {
         // Recharger la liste des utilisateurs
         await loadUtilisateurs();
+        
+        toast({
+          title: "Utilisateur supprimé",
+          description: "L'utilisateur a été supprimé avec succès",
+        });
+        
+        return true;
       }
       
-      return success;
-    } catch (error) {
-      console.error("Erreur lors de la suppression de l'utilisateur:", error);
-      throw error;
-    }
-  };
-  
-  // Vérifie que les tables de tous les utilisateurs existent avec le service centralisé
-  const verifyAllUserTables = async (): Promise<boolean> => {
-    try {
-      // Utiliser le service centralisé
-      const results = await userService.verifyAllUserTables();
-      
       toast({
-        title: "Vérification terminée",
-        description: `Tables vérifiées pour ${results.length || 0} utilisateurs`,
-      });
-      
-      return true;
-    } catch (error) {
-      console.error("Erreur lors de la vérification des tables:", error);
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Erreur lors de la vérification des tables",
+        title: "Échec de la suppression",
+        description: result && result.message ? result.message : "Impossible de supprimer l'utilisateur",
         variant: "destructive",
       });
+      
+      return false;
+    } catch (error) {
+      console.error("Erreur lors de la suppression de l'utilisateur:", error);
+      
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Erreur lors de la suppression de l'utilisateur",
+        variant: "destructive",
+      });
+      
       return false;
     }
   };
-
+  
   return {
     utilisateurs,
     loading,
@@ -182,7 +140,6 @@ export const useAdminUsers = () => {
     loadUtilisateurs,
     handleConnectAsUser,
     deleteUser,
-    verifyAllUserTables,
     retryCount
   };
 };
