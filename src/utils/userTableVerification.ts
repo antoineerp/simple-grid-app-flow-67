@@ -1,115 +1,164 @@
 
-import { secureGet } from "@/services/core/apiInterceptor";
-import { toast } from "@/components/ui/use-toast";
-
-// Interface pour la réponse de l'API
-interface TableApiResponse {
-  status: string;
-  tables: string[];
-  user_id: string;
-  count: number;
-  message: string;
-}
+import { getApiUrl } from '@/config/apiConfig';
+import { getAuthHeaders } from '@/services/auth/authService';
 
 /**
- * Vérifie que l'utilisateur dispose de toutes les tables nécessaires
- * @param userId Identifiant de l'utilisateur
- * @returns Promise qui résout à true si tout est correct
+ * Vérifie si les tables d'un utilisateur existent et les crée si nécessaire
+ * Cette fonction centralise toutes les vérifications de tables pour maintenir la cohérence
  */
 export const verifyUserTables = async (userId: string): Promise<boolean> => {
-  if (!userId) {
-    console.error("Impossible de vérifier les tables sans ID utilisateur");
-    return false;
-  }
-  
   try {
-    console.log(`Vérification des tables pour l'utilisateur ${userId}`);
+    console.log(`Vérification des tables pour l'utilisateur: ${userId}`);
+    const API_URL = getApiUrl();
     
-    // Récupérer la liste des tables de l'utilisateur
-    const response = await secureGet<TableApiResponse>(`test.php?action=tables&userId=${encodeURIComponent(userId)}`);
-    
-    if (!response.tables || !Array.isArray(response.tables)) {
-      throw new Error("Format de réponse invalide pour la liste des tables");
-    }
-    
-    console.log(`${response.count} tables trouvées pour l'utilisateur ${userId}`);
-    
-    // Liste des tables requises
-    const requiredTables = [
-      `documents_${userId}`,
-      `exigences_${userId}`,
-      `membres_${userId}`,
-      `pilotage_${userId}`,
-      `bibliotheque_${userId}`
-    ];
-    
-    // Vérifier que toutes les tables requises existent
-    const missingTables = requiredTables.filter(table => 
-      !response.tables.some(userTable => userTable === table)
-    );
-    
-    if (missingTables.length > 0) {
-      console.warn(`Tables manquantes pour l'utilisateur ${userId}:`, missingTables);
+    // Utiliser l'API unifiée pour vérifier et créer les tables
+    const response = await fetch(`${API_URL}/users.php?action=create_tables_for_user&userId=${encodeURIComponent(userId)}&_t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      // Traitement des erreurs côté serveur
+      const contentType = response.headers.get('content-type');
       
-      // Créer les tables manquantes
-      await createMissingTables(userId, missingTables);
-      return false;
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error('Réponse non-JSON reçue:', textResponse);
+        throw new Error("Le serveur a renvoyé une réponse non-JSON. Contactez l'administrateur.");
+      }
+      
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.message || "La vérification des tables a échoué");
     }
     
-    console.log(`Toutes les tables requises existent pour l'utilisateur ${userId}`);
+    console.log(`Tables vérifiées pour l'utilisateur ${userId}:`, data.tables_created || []);
     return true;
   } catch (error) {
-    console.error(`Erreur lors de la vérification des tables pour l'utilisateur ${userId}:`, error);
-    toast({
-      variant: "destructive",
-      title: "Erreur de vérification des tables",
-      description: error instanceof Error ? error.message : "Erreur lors de la vérification des tables utilisateur",
-    });
-    return false;
+    console.error(`Erreur lors de la vérification des tables pour ${userId}:`, error);
+    throw error;
   }
 };
 
 /**
- * Crée les tables manquantes pour un utilisateur
+ * Compare les tables locales avec les tables de la base de données
+ * et retourne les incohérences
  */
-const createMissingTables = async (userId: string, missingTables: string[]): Promise<boolean> => {
+export const compareUserTables = async (userId: string, localTables: string[]): Promise<{
+  missing: string[];
+  extra: string[];
+  consistent: boolean;
+}> => {
   try {
-    console.log(`Création des tables manquantes pour l'utilisateur ${userId}:`, missingTables);
+    const API_URL = getApiUrl();
     
-    // Appeler l'endpoint de mise à jour des tables
-    const response = await secureGet(`db-update.php?userId=${encodeURIComponent(userId)}`);
-    
-    toast({
-      title: "Tables utilisateur mises à jour",
-      description: `Les tables manquantes ont été créées pour l'utilisateur ${userId}`,
+    // Récupérer les tables depuis la base de données
+    const response = await fetch(`${API_URL}/test.php?action=tables&userId=${encodeURIComponent(userId)}&_t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        ...getAuthHeaders(),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Accept': 'application/json'
+      }
     });
     
-    return true;
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP ${response.status} lors de la récupération des tables`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.tables || !Array.isArray(data.tables)) {
+      throw new Error("Format de réponse invalide pour les tables");
+    }
+    
+    const dbTables = data.tables;
+    
+    // Comparer les tables
+    const missing = dbTables.filter(table => !localTables.includes(table));
+    const extra = localTables.filter(table => !dbTables.includes(table));
+    
+    return {
+      missing,
+      extra,
+      consistent: missing.length === 0 && extra.length === 0
+    };
   } catch (error) {
-    console.error(`Erreur lors de la création des tables pour ${userId}:`, error);
-    toast({
-      variant: "destructive",
-      title: "Erreur de création des tables",
-      description: error instanceof Error ? error.message : "Erreur lors de la création des tables utilisateur",
-    });
-    return false;
+    console.error(`Erreur lors de la comparaison des tables pour ${userId}:`, error);
+    throw error;
   }
 };
 
 /**
- * Vérifie et corrige périodiquement les tables de l'utilisateur
+ * Vérifie et synchronise toutes les tables pour tous les utilisateurs
  */
-export const setupTableVerificationInterval = (userId: string, intervalMinutes = 60): () => void => {
-  console.log(`Configuration de la vérification périodique des tables pour ${userId} (${intervalMinutes} minutes)`);
-  
-  // Exécuter une vérification immédiate
-  verifyUserTables(userId).catch(console.error);
-  
-  // Configurer l'intervalle de vérification périodique
-  const interval = setInterval(() => {
-    verifyUserTables(userId).catch(console.error);
-  }, intervalMinutes * 60 * 1000);
-  
-  // Retourner une fonction pour arrêter l'intervalle
-  return () => clearInterval(interval);
+export const syncAllUserTables = async (): Promise<{
+  success: boolean;
+  results: Array<{
+    userId: string;
+    success: boolean;
+    tablesCreated?: string[];
+    error?: string;
+  }>;
+}> => {
+  try {
+    // Récupérer la liste des utilisateurs
+    const API_URL = getApiUrl();
+    const response = await fetch(`${API_URL}/users.php?_t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        ...getAuthHeaders(),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP ${response.status} lors de la récupération des utilisateurs`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.records || !Array.isArray(data.records)) {
+      throw new Error("Format de réponse invalide pour les utilisateurs");
+    }
+    
+    const users = data.records;
+    const results = [];
+    
+    // Vérifier les tables pour chaque utilisateur
+    for (const user of users) {
+      try {
+        await verifyUserTables(user.identifiant_technique);
+        results.push({
+          userId: user.identifiant_technique,
+          success: true
+        });
+      } catch (error) {
+        results.push({
+          userId: user.identifiant_technique,
+          success: false,
+          error: error instanceof Error ? error.message : "Erreur inconnue"
+        });
+      }
+    }
+    
+    return {
+      success: results.every(result => result.success),
+      results
+    };
+  } catch (error) {
+    console.error("Erreur lors de la synchronisation de toutes les tables:", error);
+    throw error;
+  }
 };

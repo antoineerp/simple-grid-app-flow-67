@@ -62,6 +62,21 @@ class UsersController {
                             'tables_created' => $result['tables_created'] ?? []
                         ]);
                         return;
+                        
+                    case 'list_tables':
+                        // Action pour lister les tables d'un utilisateur spécifique
+                        if (!isset($_GET['userId'])) {
+                            ResponseHandler::error("Paramètre userId manquant", 400);
+                            return;
+                        }
+                        $result = $this->userOperations->listUserTables($_GET['userId']);
+                        ResponseHandler::success([
+                            'success' => $result['success'] ?? false,
+                            'message' => $result['success'] ? "Tables listées avec succès pour l'utilisateur {$_GET['userId']}" : "Échec lors du listing des tables pour l'utilisateur {$_GET['userId']}",
+                            'tables' => $result['tables'] ?? [],
+                            'count' => $result['count'] ?? 0
+                        ]);
+                        return;
                 }
             }
             

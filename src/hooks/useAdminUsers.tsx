@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { checkPermission, UserRole } from '@/types/roles';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
+import { verifyUserTables } from '@/utils/userTableVerification';
 import type { Utilisateur } from '@/types/auth';
 
 export const useAdminUsers = () => {
@@ -115,7 +116,7 @@ export const useAdminUsers = () => {
     console.log(`Tentative de connexion en tant que: ${identifiantTechnique}`);
 
     try {
-      // Simulation de connexion
+      // Connexion de l'utilisateur
       console.log(`Connexion réussie avec identifiant: ${identifiantTechnique}`);
       toast({
         title: "Connexion réussie",
@@ -123,19 +124,16 @@ export const useAdminUsers = () => {
       });
       
       // S'assurer que les tables existent pour cet utilisateur
-      const API_URL = getApiUrl();
-      const response = await fetch(`${API_URL}/users.php?action=create_tables_for_user&userId=${encodeURIComponent(identifiantTechnique)}&_t=${Date.now()}`, {
-        method: 'GET',
-        headers: {
-          ...getAuthHeaders(),
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log("Résultat de la création de tables:", result);
+      try {
+        const result = await verifyUserTables(identifiantTechnique);
+        console.log("Résultat de la vérification des tables:", result);
+      } catch (tableError) {
+        console.error("Erreur lors de la vérification des tables:", tableError);
+        toast({
+          title: "Attention",
+          description: `Connecté, mais problème lors de la vérification des tables: ${tableError instanceof Error ? tableError.message : 'Erreur inconnue'}`,
+          variant: "warning",
+        });
       }
       
       // Mettre à jour localStorage pour la cohérence de l'interface
@@ -188,7 +186,7 @@ export const useAdminUsers = () => {
       if (!contentType || !contentType.includes('application/json')) {
         const textResponse = await response.text();
         console.error('Réponse non-JSON reçue:', textResponse);
-        throw new Error("Le serveur a renvoyé une réponse non-JSON. Contactez l'administrateur. Détails: " + textResponse.substring(0, 100));
+        throw new Error("Le serveur a renvoyé une réponse non-JSON. Contactez l'administrateur.");
       } else {
         result = await response.json();
       }
@@ -209,6 +207,43 @@ export const useAdminUsers = () => {
       throw error;
     }
   };
+  
+  // Vérifie que les tables de tous les utilisateurs existent
+  const verifyAllUserTables = async (): Promise<boolean> => {
+    try {
+      const API_URL = getApiUrl();
+      const response = await fetch(`${API_URL}/users.php?action=ensure_tables&_t=${Date.now()}`, {
+        method: 'GET',
+        headers: {
+          ...getAuthHeaders(),
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP ${response.status} lors de la vérification des tables`);
+      }
+      
+      const data = await response.json();
+      console.log("Résultat de la vérification des tables:", data);
+      
+      toast({
+        title: "Vérification terminée",
+        description: `Tables vérifiées pour ${data.results?.length || 0} utilisateurs`,
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("Erreur lors de la vérification des tables:", error);
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Erreur lors de la vérification des tables",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
 
   return {
     utilisateurs,
@@ -217,6 +252,7 @@ export const useAdminUsers = () => {
     loadUtilisateurs,
     handleConnectAsUser,
     deleteUser,
+    verifyAllUserTables,
     retryCount
   };
 };

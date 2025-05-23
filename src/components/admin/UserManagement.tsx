@@ -6,7 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Download, Trash2, Database, Info } from 'lucide-react';
+import { 
+  Loader2, 
+  RefreshCw, 
+  UserPlus, 
+  LogIn, 
+  AlertCircle, 
+  Eye, 
+  EyeOff, 
+  Download, 
+  Trash2, 
+  Database, 
+  Info, 
+  CheckCircle,
+  AlertTriangle
+} from 'lucide-react';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import UserForm from './UserForm';
 import { getCurrentUser, getLastConnectionError, getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
@@ -17,6 +31,7 @@ import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { clearUsersCache } from '@/services';
 import UserTables from './UserTables';
+import { syncAllUserTables } from '@/utils/userTableVerification';
 import type { Utilisateur } from '@/types/auth';
 
 interface UserManagementProps {
@@ -26,7 +41,7 @@ interface UserManagementProps {
 
 const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementProps) => {
   const { toast } = useToast();
-  const { utilisateurs, loading, error, loadUtilisateurs, handleConnectAsUser, deleteUser } = useAdminUsers();
+  const { utilisateurs, loading, error, loadUtilisateurs, handleConnectAsUser, deleteUser, verifyAllUserTables } = useAdminUsers();
   const [newUserOpen, setNewUserOpen] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({});
@@ -36,6 +51,16 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const [connectingUser, setConnectingUser] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [forceRefreshing, setForceRefreshing] = useState(false);
+  const [verifyingTables, setVerifyingTables] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<{
+    inProgress: boolean;
+    success: boolean | null;
+    message: string | null;
+  }>({
+    inProgress: false,
+    success: null,
+    message: null
+  });
 
   useEffect(() => {
     // Recharger les données au montage
@@ -151,6 +176,46 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     }
   };
   
+  const handleVerifyAllTables = async () => {
+    setVerifyingTables(true);
+    setVerificationStatus({
+      inProgress: true,
+      success: null,
+      message: "Vérification des tables en cours..."
+    });
+    
+    try {
+      const result = await syncAllUserTables();
+      
+      setVerificationStatus({
+        inProgress: false,
+        success: result.success,
+        message: `Vérification terminée pour ${result.results.length} utilisateurs.`
+      });
+      
+      toast({
+        title: result.success ? "Vérification réussie" : "Vérification terminée",
+        description: `${result.results.length} utilisateurs traités.`,
+        variant: result.success ? "default" : "warning"
+      });
+      
+    } catch (error) {
+      setVerificationStatus({
+        inProgress: false,
+        success: false,
+        message: error instanceof Error ? error.message : "Erreur lors de la vérification des tables."
+      });
+      
+      toast({
+        title: "Erreur de vérification",
+        description: error instanceof Error ? error.message : "Une erreur s'est produite lors de la vérification des tables.",
+        variant: "destructive"
+      });
+    } finally {
+      setVerifyingTables(false);
+    }
+  };
+  
   const importManagerData = async () => {
     setImportingData(true);
     try {
@@ -236,7 +301,20 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
             disabled={loading || forceRefreshing}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${(loading || forceRefreshing) ? 'animate-spin' : ''}`} />
-            Actualiser depuis la base de données
+            Actualiser
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={handleVerifyAllTables}
+            disabled={verifyingTables}
+          >
+            {verifyingTables ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Database className="h-4 w-4 mr-2" />
+            )}
+            Vérifier toutes les tables
           </Button>
         </div>
       </div>
@@ -245,6 +323,19 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
         <Alert variant="destructive" className="mb-4">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{connectionError}</AlertDescription>
+        </Alert>
+      )}
+      
+      {verificationStatus.message && (
+        <Alert variant={verificationStatus.success ? "default" : "warning"} className="mb-4">
+          {verificationStatus.inProgress ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : verificationStatus.success ? (
+            <CheckCircle className="h-4 w-4" />
+          ) : (
+            <AlertTriangle className="h-4 w-4" />
+          )}
+          <AlertDescription>{verificationStatus.message}</AlertDescription>
         </Alert>
       )}
 
