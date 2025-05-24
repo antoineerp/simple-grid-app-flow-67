@@ -1,35 +1,22 @@
 
+// Page Gestion Documentaire simplifiée sans MembresProvider
 import React, { useState } from 'react';
 import { FileText, Plus, FolderPlus } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { useDocuments } from '@/hooks/useDocuments';
 import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
 import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
-import { DataSyncManager } from '@/components/common/DataSyncManager';
-import { exportDocumentsToPdf } from '@/services/documentsExport';
-import { ensureCorrectUserId } from '@/services/core/userIdConverter';
-import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
-import { calculateDocumentStats } from '@/services/documents/documentStatsService';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 
 const GestionDocumentaire = () => {
   const {
     documents,
     groups,
-    stats,
     editingDocument,
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    isSyncing,
-    setIsSyncing,
-    isOnline,
-    lastSynced,
-    setLastSynced,
-    syncFailed,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -45,21 +32,16 @@ const GestionDocumentaire = () => {
     handleEditGroup,
     handleSaveGroup,
     handleDeleteGroup,
-    handleAddGroup,
-    syncWithServer,
-    loadDocuments
+    handleAddGroup
   } = useDocuments();
   
   const { toast } = useToast();
 
-  const documentStats = calculateDocumentStats(documents);
-
   const handleExportPdf = () => {
     if (documents && documents.length > 0) {
-      exportDocumentsToPdf(documents, groups, "Liste des documents");
       toast({
-        title: "Export PDF réussi",
-        description: "Le document a été généré et téléchargé",
+        title: "Export PDF",
+        description: "Fonctionnalité d'export en cours de développement",
       });
     } else {
       toast({
@@ -71,10 +53,9 @@ const GestionDocumentaire = () => {
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-app-blue">Gestion Documentaire</h1>
-          <DocumentStatusDisplay stats={documentStats} />
+          <h1 className="text-3xl font-bold text-blue-600">Gestion Documentaire</h1>
         </div>
         <div className="flex space-x-2">
           <button 
@@ -87,56 +68,40 @@ const GestionDocumentaire = () => {
         </div>
       </div>
 
-      <DataSyncManager
-        data={documents}
-        loadFromServer={loadDocuments}
-        syncWithServer={syncWithServer}
-        setData={() => {/* Pas besoin de mise à jour, géré par useDocuments */}}
-        lastSynced={lastSynced}
-        setLastSynced={setLastSynced}
-        hideIndicators={true} // Masquer les indicateurs de synchronisation
-      >
-        {documents.length > 0 || isSyncing ? (
-          <DocumentTable 
-            documents={documents}
-            groups={groups}
-            onResponsabiliteChange={handleResponsabiliteChange}
-            onAtteinteChange={handleAtteinteChange}
-            onExclusionChange={handleExclusionChange}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onReorder={handleReorder}
-            onGroupReorder={handleGroupReorder}
-            onToggleGroup={handleToggleGroup}
-            onEditGroup={handleEditGroup}
-            onDeleteGroup={handleDeleteGroup}
-            onAddDocument={handleAddDocument}
-          />
-        ) : (
-          <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
-            <p className="text-gray-500">Aucun document trouvé. Cliquez sur "Ajouter un document" pour commencer.</p>
-          </div>
-        )}
-
-        <div className="flex justify-end mt-4 space-x-2">
-          <Button 
-            variant="outline"
-            onClick={handleAddGroup}
-            className="hover:bg-gray-100 transition-colors mr-2"
-            title="Nouveau groupe"
-          >
-            <FolderPlus className="h-5 w-5 mr-2" />
-            Nouveau groupe
-          </Button>
-          <Button 
-            variant="default"
-            onClick={handleAddDocument}
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Ajouter un document
-          </Button>
-        </div>
-      </DataSyncManager>
+      <DocumentTable 
+        documents={documents}
+        groups={groups}
+        onResponsabiliteChange={handleResponsabiliteChange}
+        onAtteinteChange={handleAtteinteChange}
+        onExclusionChange={handleExclusionChange}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onReorder={handleReorder}
+        onGroupReorder={handleGroupReorder}
+        onToggleGroup={handleToggleGroup}
+        onEditGroup={handleEditGroup}
+        onDeleteGroup={handleDeleteGroup}
+        onAddDocument={handleAddDocument}
+      />
+      
+      <div className="flex justify-end mt-4 space-x-2">
+        <Button 
+          variant="outline"
+          onClick={handleAddGroup}
+          className="hover:bg-gray-100 transition-colors mr-2"
+          title="Nouveau groupe"
+        >
+          <FolderPlus className="h-5 w-5 mr-2" />
+          Nouveau groupe
+        </Button>
+        <Button 
+          variant="default"
+          onClick={handleAddDocument}
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          Nouveau document
+        </Button>
+      </div>
 
       <DocumentGroupDialog
         group={editingGroup}

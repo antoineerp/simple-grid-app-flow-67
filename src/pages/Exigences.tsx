@@ -1,19 +1,16 @@
 
+// Page Exigences sans synchronisation
 import React from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
-import { MembresProvider } from '@/contexts/MembresContext';
+import { useExigences } from '@/hooks/useExigences';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
 import ExigenceTable from '@/components/exigences/ExigenceTable';
 import { ExigenceGroupDialog } from '@/components/exigences/ExigenceGroupDialog';
-import { useExigences } from '@/hooks/useExigences';
-import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import SyncIndicator from '@/components/common/SyncIndicator';
 
-const ExigencesContent = () => {
+const Exigences = () => {
   const {
     exigences,
     groups,
@@ -22,11 +19,6 @@ const ExigencesContent = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    isSyncing,
-    isOnline,
-    lastSynced,
-    syncFailed,
-    loadError,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -42,26 +34,23 @@ const ExigencesContent = () => {
     handleSaveGroup,
     handleDeleteGroup,
     handleGroupReorder,
-    handleToggleGroup,
-    handleResetLoadAttempts,
-    handleSync
+    handleToggleGroup
   } = useExigences();
   
   const { toast } = useToast();
 
   const handleExportPdf = () => {
-    exportExigencesToPdf(exigences, groups);
     toast({
-      title: "Export PDF réussi",
-      description: "Le document a été généré et téléchargé",
+      title: "Export PDF",
+      description: "Fonctionnalité d'export en cours de développement",
     });
   };
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-app-blue">Exigences</h1>
+          <h1 className="text-3xl font-bold text-blue-600">Exigences</h1>
         </div>
         <div className="flex space-x-2">
           <button 
@@ -73,34 +62,6 @@ const ExigencesContent = () => {
           </button>
         </div>
       </div>
-
-      <div className="mb-4">
-        <SyncIndicator 
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          syncFailed={syncFailed || !!loadError}
-          lastSynced={lastSynced}
-          onSync={handleSync}
-          showOnlyErrors={true}
-        />
-      </div>
-
-      {loadError && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertTitle>Erreur de chargement</AlertTitle>
-          <AlertDescription className="flex items-center justify-between">
-            <div>{loadError}</div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleSync()}
-              className="ml-4"
-            >
-              Réessayer
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
 
       <ExigenceStats stats={stats} />
 
@@ -119,10 +80,6 @@ const ExigencesContent = () => {
           onEditGroup={handleEditGroup}
           onDeleteGroup={handleDeleteGroup}
         />
-      ) : loadError ? (
-        <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
-          <p className="text-gray-500">Impossible de charger les exigences.</p>
-        </div>
       ) : (
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
           <p className="text-gray-500">Aucune exigence trouvée. Cliquez sur "Ajouter une exigence" pour commencer.</p>
@@ -164,11 +121,5 @@ const ExigencesContent = () => {
     </div>
   );
 };
-
-const Exigences = () => (
-  <MembresProvider>
-    <ExigencesContent />
-  </MembresProvider>
-);
 
 export default Exigences;

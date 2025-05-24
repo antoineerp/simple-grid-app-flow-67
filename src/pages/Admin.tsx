@@ -1,116 +1,93 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, AlertCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useAdminUsers } from '@/hooks/useAdminUsers';
-import { ScrollArea } from "@/components/ui/scroll-area";
-import UserTable from '@/components/admin/UserTable';
-import UserTables from '@/components/admin/UserTables';
-import CreateUserDialog from '@/components/admin/CreateUserDialog';
-import { Alert, AlertDescription } from "@/components/ui/alert";
+// Page Administration
+import React from 'react';
+import { Shield, Users, Database, Settings } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-interface AdminProps {
-  currentDatabaseUser: string | null;
-  onUserConnect: (identifiant: string) => void;
-}
+export default function Admin() {
+  const { user, isAdmin } = useAuth();
 
-const Admin: React.FC<AdminProps> = ({ currentDatabaseUser, onUserConnect }) => {
-  const { toast } = useToast();
-  const { utilisateurs, loading, error, loadUtilisateurs, handleConnectAsUser, deleteUser } = useAdminUsers();
-
-  useEffect(() => {
-    console.log("Admin: Chargement initial des utilisateurs depuis la base de données Infomaniak");
-    loadUtilisateurs();
-  }, [loadUtilisateurs]);
-
-  const handleUserConnect = async (identifiantTechnique: string) => {
-    const success = await handleConnectAsUser(identifiantTechnique);
-    if (success && onUserConnect) {
-      onUserConnect(identifiantTechnique);
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    const success = await deleteUser(userId);
-    if (success) {
-      await loadUtilisateurs();
-    }
-  };
-
-  const handleUserCreated = () => {
-    console.log("Admin: Nouvel utilisateur créé, rechargement de la liste");
-    loadUtilisateurs();
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Administration</h1>
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => loadUtilisateurs()} 
-            disabled={loading}
-          >
-            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-            Rafraîchir
-          </Button>
-          
-          <CreateUserDialog onUserCreated={handleUserCreated} />
+  if (!isAdmin) {
+    return (
+      <div className="p-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Accès refusé</h1>
+          <p>Vous n'avez pas les droits d'administration nécessaires.</p>
         </div>
       </div>
+    );
+  }
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Erreur de connexion à la base de données Infomaniak: {error}
-          </AlertDescription>
-        </Alert>
-      )}
+  return (
+    <div className="p-8">
+      <div className="flex items-center mb-6">
+        <Shield className="w-8 h-8 text-blue-600 mr-3" />
+        <h1 className="text-3xl font-bold text-blue-600">Administration</h1>
+      </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="md:col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card>
           <CardHeader>
-            <CardTitle>Utilisateurs de la base de données Infomaniak</CardTitle>
+            <CardTitle className="flex items-center">
+              <Users className="w-5 h-5 mr-2" />
+              Gestion des utilisateurs
+            </CardTitle>
+            <CardDescription>
+              Gérer les comptes utilisateurs et leurs permissions
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {error ? (
-              <div className="p-4 text-red-500">
-                Erreur de connexion à la base de données Infomaniak: {error}. 
-                <Button 
-                  variant="link" 
-                  onClick={loadUtilisateurs}
-                  className="h-auto p-0 pl-2"
-                >
-                  Réessayer
-                </Button>
-              </div>
-            ) : (
-              <ScrollArea className="h-[400px]">
-                <UserTable 
-                  users={utilisateurs}
-                  loading={loading}
-                  currentUser={currentDatabaseUser || ''}
-                  onConnect={handleUserConnect}
-                  onDelete={handleDeleteUser}
-                />
-              </ScrollArea>
-            )}
+            <Button className="w-full">
+              Gérer les utilisateurs
+            </Button>
           </CardContent>
         </Card>
-        
-        {currentDatabaseUser && (
-          <Card className="md:col-span-2">
-            <UserTables userId={currentDatabaseUser} />
-          </Card>
-        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Database className="w-5 h-5 mr-2" />
+              Base de données
+            </CardTitle>
+            <CardDescription>
+              Configuration et maintenance de la base de données
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full">
+              Configuration DB
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Settings className="w-5 h-5 mr-2" />
+              Paramètres système
+            </CardTitle>
+            <CardDescription>
+              Configuration générale de l'application
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full">
+              Paramètres
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-4">Informations système</h2>
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <p><strong>Utilisateur connecté :</strong> {user?.email}</p>
+          <p><strong>Rôle :</strong> {user?.role}</p>
+          <p><strong>ID technique :</strong> {user?.identifiant_technique}</p>
+        </div>
       </div>
     </div>
   );
-};
-
-export default Admin;
+}

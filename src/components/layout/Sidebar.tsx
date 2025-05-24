@@ -1,5 +1,5 @@
 
-// Sidebar simplifié et propre
+// Sidebar corrigé avec les bons noms de menu
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,24 +9,23 @@ import {
   FileText, 
   Settings,
   Shield,
-  BookOpen,
   MessageSquare,
-  BarChart3
+  BarChart3,
+  FileCheck
 } from 'lucide-react';
-import type { NavItem } from '@/types';
 
-const navigationItems: NavItem[] = [
+const navigationItems = [
   { path: '/dashboard', label: 'Tableau de bord', icon: Home },
   { path: '/pilotage', label: 'Pilotage', icon: BarChart3 },
-  { path: '/membres', label: 'Membres', icon: Users },
-  { path: '/documents', label: 'Documents', icon: FileText },
-  { path: '/bibliotheque', label: 'Bibliothèque', icon: BookOpen },
+  { path: '/exigences', label: 'Exigences', icon: FileCheck },
+  { path: '/gestion-documentaire', label: 'Gestion documentaire', icon: FileText },
+  { path: '/ressources-humaines', label: 'Ressources Humaines', icon: Users },
   { path: '/collaboration', label: 'Collaboration', icon: MessageSquare },
   { path: '/settings', label: 'Paramètres', icon: Settings }
 ];
 
-const adminNavigationItems: NavItem[] = [
-  { path: '/admin', label: 'Administration', icon: Shield }
+const adminNavigationItems = [
+  { path: '/administration', label: 'Administration', icon: Shield }
 ];
 
 export function Sidebar() {

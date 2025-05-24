@@ -1,5 +1,5 @@
 
-// Layout principal simplifié
+// Layout simplifié sans synchronisation
 import React from 'react';
 import { Sidebar } from './Sidebar';
 import { useAuth } from '@/hooks/useAuth';
