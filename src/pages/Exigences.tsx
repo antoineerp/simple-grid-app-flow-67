@@ -53,29 +53,6 @@ const Exigences = () => {
     total: exigences.length
   };
 
-  // Transform exigences to match expected format
-  const transformedExigences = exigences.map(e => ({
-    ...e,
-    exclusion: e.excluded || false,
-    atteinte: e.etat as 'NC' | 'PC' | 'C' | null,
-    responsabilites: e.responsabilites || { r: [], a: [], c: [], i: [] },
-    date_creation: e.date_creation || new Date(),
-    date_modification: e.date_modification || new Date()
-  }));
-
-  // Transform groups to match expected format
-  const transformedGroups = groups.map(g => ({
-    ...g,
-    items: g.items.map(item => ({
-      ...item,
-      exclusion: item.excluded || false,
-      atteinte: item.etat as 'NC' | 'PC' | 'C' | null,
-      responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
-      date_creation: item.date_creation || new Date(),
-      date_modification: item.date_modification || new Date()
-    }))
-  }));
-
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -95,10 +72,10 @@ const Exigences = () => {
 
       <ExigenceStats stats={stats} />
 
-      {transformedExigences.length > 0 ? (
+      {exigences.length > 0 ? (
         <ExigenceTable 
-          exigences={transformedExigences}
-          groups={transformedGroups}
+          exigences={exigences}
+          groups={groups}
           onResponsabiliteChange={handleResponsabiliteChange}
           onAtteinteChange={handleAtteinteChange}
           onExclusionChange={handleExclusionChange}
@@ -135,31 +112,14 @@ const Exigences = () => {
       </div>
 
       <ExigenceForm 
-        exigence={editingExigence ? {
-          ...editingExigence,
-          exclusion: editingExigence.excluded || false,
-          atteinte: editingExigence.etat as 'NC' | 'PC' | 'C' | null,
-          responsabilites: editingExigence.responsabilites || { r: [], a: [], c: [], i: [] },
-          date_creation: editingExigence.date_creation || new Date(),
-          date_modification: editingExigence.date_modification || new Date()
-        } : null}
+        exigence={editingExigence}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSave={handleSaveExigence}
       />
 
       <ExigenceGroupDialog
-        group={editingGroup ? {
-          ...editingGroup,
-          items: editingGroup.items.map(item => ({
-            ...item,
-            exclusion: item.excluded || false,
-            atteinte: item.etat as 'NC' | 'PC' | 'C' | null,
-            responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
-            date_creation: item.date_creation || new Date(),
-            date_modification: item.date_modification || new Date()
-          }))
-        } : null}
+        group={editingGroup}
         open={groupDialogOpen}
         onOpenChange={setGroupDialogOpen}
         onSave={handleSaveGroup}

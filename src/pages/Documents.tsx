@@ -50,37 +50,6 @@ const Documents = () => {
     }
   };
 
-  // Helper function to cast etat to correct type
-  const castEtat = (etat: any): 'NC' | 'PC' | 'C' | 'EX' | null => {
-    if (etat === 'NC' || etat === 'PC' || etat === 'C' || etat === 'EX') {
-      return etat;
-    }
-    return null;
-  };
-
-  // Transform documents to match expected format
-  const transformedDocuments = documents.map(doc => ({
-    ...doc,
-    responsabilites: doc.responsabilites || { r: [], a: [], c: [], i: [] },
-    fichier_path: doc.fichier_path || null,
-    etat: castEtat(doc.etat),
-    date_creation: doc.date_creation || new Date(),
-    date_modification: doc.date_modification || new Date()
-  }));
-
-  // Transform groups to match expected format
-  const transformedGroups = groups.map(group => ({
-    ...group,
-    items: group.items.map(item => ({
-      ...item,
-      responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
-      fichier_path: item.fichier_path || null,
-      etat: castEtat(item.etat),
-      date_creation: item.date_creation || new Date(),
-      date_modification: item.date_modification || new Date()
-    }))
-  }));
-
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -99,8 +68,8 @@ const Documents = () => {
       </div>
 
       <DocumentTable 
-        documents={transformedDocuments}
-        groups={transformedGroups}
+        documents={documents}
+        groups={groups}
         onResponsabiliteChange={handleResponsabiliteChange}
         onAtteinteChange={handleAtteinteChange}
         onExclusionChange={handleExclusionChange}
@@ -134,31 +103,14 @@ const Documents = () => {
       </div>
 
       <DocumentForm 
-        document={editingDocument ? {
-          ...editingDocument,
-          responsabilites: editingDocument.responsabilites || { r: [], a: [], c: [], i: [] },
-          fichier_path: editingDocument.fichier_path || null,
-          etat: castEtat(editingDocument.etat),
-          date_creation: editingDocument.date_creation || new Date(),
-          date_modification: editingDocument.date_modification || new Date()
-        } : null}
+        document={editingDocument}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSave={handleSaveDocument}
       />
 
       <DocumentGroupDialog
-        group={editingGroup ? {
-          ...editingGroup,
-          items: editingGroup.items.map(item => ({
-            ...item,
-            responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
-            fichier_path: item.fichier_path || null,
-            etat: castEtat(item.etat),
-            date_creation: item.date_creation || new Date(),
-            date_modification: item.date_modification || new Date()
-          }))
-        } : null}
+        group={editingGroup}
         open={groupDialogOpen}
         onOpenChange={setGroupDialogOpen}
         onSave={handleSaveGroup}

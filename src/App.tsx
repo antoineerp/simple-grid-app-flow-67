@@ -12,7 +12,6 @@ import { getCurrentUser, getLastConnectionError } from './services/core/database
 import { checkAuth } from './services/auth/authService';
 import LoginGuard from './components/auth/LoginGuard';
 import AdminGuard from './components/auth/AdminGuard';
-import ApiDocumentation from './pages/ApiDocumentation';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(checkAuth());
@@ -54,6 +53,11 @@ function App() {
               <Dashboard />
             </MainLayout>
           } />
+          <Route path="/documents" element={
+            <MainLayout>
+              <Documents />
+            </MainLayout>
+          } />
           <Route path="/gestion-documentaire" element={
             <MainLayout>
               <Documents />
@@ -69,10 +73,20 @@ function App() {
               <RessourcesHumaines />
             </MainLayout>
           } />
+          <Route path="/membres" element={
+            <MainLayout>
+              <RessourcesHumaines />
+            </MainLayout>
+          } />
           
           {/* Routes protégées nécessitant un rôle d'administrateur */}
           <Route element={<AdminGuard isLoggedIn={isLoggedIn} />}>
             <Route path="/admin" element={
+              <MainLayout>
+                <Admin />
+              </MainLayout>
+            } />
+            <Route path="/administration" element={
               <MainLayout>
                 <Admin />
               </MainLayout>
@@ -82,9 +96,6 @@ function App() {
 
         {/* Redirection si l'utilisateur n'est pas connecté */}
         <Route path="*" element={<Navigate to="/" />} />
-        
-        {/* Ajout de la route pour la documentation API */}
-        <Route path="/api-docs" element={<ApiDocumentation />} />
       </Routes>
     </Router>
   );
