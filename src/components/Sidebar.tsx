@@ -39,7 +39,10 @@ const Sidebar = () => {
             onError={(e) => {
               console.log('Logo image failed to load, showing text instead');
               e.currentTarget.style.display = 'none';
-              e.currentTarget.nextElementSibling!.style.display = 'block';
+              const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+              if (nextElement) {
+                nextElement.style.display = 'block';
+              }
             }}
           />
           <div className="text-lg font-semibold text-gray-800 text-center hidden">
@@ -51,12 +54,17 @@ const Sidebar = () => {
       {/* Navigation principale */}
       <nav className="flex-1 py-4 space-y-1">
         {navigationItems.map((item) => (
-          <SidebarNavItem key={item.path} item={item} />
+          <SidebarNavItem 
+            key={item.path} 
+            to={item.path}
+            icon={item.icon}
+            label={item.label}
+          />
         ))}
       </nav>
 
       {/* Navigation Admin - UNIQUEMENT pour les admins */}
-      {checkPermission(userRole, 'manage_users') && (
+      {checkPermission(userRole, 'isAdmin') && (
         <div className="border-t border-gray-200 py-4">
           <div className="px-6 py-2">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -65,7 +73,12 @@ const Sidebar = () => {
           </div>
           <div className="space-y-1">
             {adminNavigationItems.map((item) => (
-              <SidebarNavItem key={item.path} item={item} />
+              <SidebarNavItem 
+                key={item.path} 
+                to={item.path}
+                icon={item.icon}
+                label={item.label}
+              />
             ))}
           </div>
         </div>

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import type { Utilisateur } from '@/types/auth';
+import { UserRole } from '@/types/roles';
 
 export const useAuth = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(getIsLoggedIn());
@@ -26,7 +27,7 @@ export const useAuth = () => {
             // S'assurer que le rôle est correctement défini
             const finalUser = {
               ...userData,
-              role: userData.role || userRole || 'utilisateur'
+              role: (userData.role || userRole || 'utilisateur') as UserRole
             };
             console.log('useAuth - Final user object:', finalUser);
             setUser(finalUser);
@@ -42,7 +43,7 @@ export const useAuth = () => {
               id: 0,
               email: currentUserId,
               identifiant_technique: currentUserId,
-              role: userRole || 'utilisateur',
+              role: (userRole || 'utilisateur') as UserRole,
               nom: '',
               prenom: ''
             });
