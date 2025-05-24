@@ -2,7 +2,7 @@
 // Service d'authentification unifié
 import { apiClient } from '@/lib/api';
 import { APP_CONFIG } from '@/lib/config';
-import { User, AuthState } from '@/types';
+import { User, AuthState, UserRole } from '@/types'; // Ajout de l'import UserRole
 
 interface LoginCredentials {
   username: string;

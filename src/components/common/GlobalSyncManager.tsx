@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useSyncContext } from '@/features/sync/hooks/useSyncContext';
 import SyncDebugger from '@/features/sync/components/SyncDebugger';
@@ -11,7 +10,7 @@ const enableDebugging = import.meta.env.DEV;
 const GlobalSyncManager: React.FC = () => {
   const { syncAll, isOnline, forceProcessQueue } = useSyncContext();
   const [initialSyncDone, setInitialSyncDone] = useState(false);
-  const { isLoggedIn } = useAuth();
+  const { isAuthenticated } = useAuth(); // Changé de isLoggedIn à isAuthenticated
   const mountedRef = useRef<boolean>(false);
   const initRef = useRef<boolean>(false);
   const lastSyncRef = useRef<number>(Date.now());
@@ -157,7 +156,7 @@ const GlobalSyncManager: React.FC = () => {
   
   // Synchronisation initiale et périodique
   useEffect(() => {
-    if (!mountedRef.current || !isLoggedIn) return;
+    if (!mountedRef.current || !isAuthenticated) return; // Changé de isLoggedIn à isAuthenticated
     
     try {
       console.log(`GlobalSyncManager - Initialisation de la synchronisation pour ${currentUserRef.current}`);
@@ -231,7 +230,7 @@ const GlobalSyncManager: React.FC = () => {
     } catch (error) {
       console.error(`GlobalSyncManager - Erreur lors de l'initialisation de la synchronisation pour ${currentUserRef.current}:`, error);
     }
-  }, [syncAll, isOnline, initialSyncDone, forceProcessQueue, isLoggedIn]);
+  }, [syncAll, isOnline, initialSyncDone, forceProcessQueue, isAuthenticated]); // Changé de isLoggedIn à isAuthenticated
   
   // Afficher le débogueur uniquement en développement
   return <SyncDebugger enabled={enableDebugging} />;
