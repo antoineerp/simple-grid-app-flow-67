@@ -6,6 +6,7 @@ import { Exigence, ExigenceGroup } from '@/types/exigences';
 
 const exigencesService = {
   getExigences: async (): Promise<Exigence[]> => {
+    // Retourner des données vides par défaut
     return [];
   },
   createExigence: async (exigence: Omit<Exigence, 'id'>): Promise<Exigence> => {
@@ -37,7 +38,7 @@ export function useExigences() {
   const [groups, setGroups] = useState<ExigenceGroup[]>([]);
 
   const {
-    data: exigences = [],
+    data: exigencesData = [],
     isLoading,
     error,
     refetch
@@ -80,7 +81,7 @@ export function useExigences() {
   });
 
   // Transformer les données pour correspondre aux types attendus
-  const transformedExigences: Exigence[] = exigences.map(ex => ({
+  const exigences: Exigence[] = exigencesData.map(ex => ({
     ...ex,
     responsabilites: ex.responsabilites || { r: [], a: [], c: [], i: [] },
     exclusion: ex.exclusion || false,
@@ -102,7 +103,7 @@ export function useExigences() {
   }));
 
   return {
-    exigences: transformedExigences,
+    exigences,
     groups: transformedGroups,
     editingExigence,
     editingGroup,

@@ -6,6 +6,7 @@ import { Document, DocumentGroup } from '@/types/documents';
 
 const documentsService = {
   getDocuments: async (): Promise<Document[]> => {
+    // Retourner des données vides par défaut
     return [];
   },
   createDocument: async (document: Omit<Document, 'id'>): Promise<Document> => {
@@ -36,7 +37,7 @@ export function useDocuments() {
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
 
   const {
-    data: documents = [],
+    data: documentsData = [],
     isLoading,
     error,
     refetch
@@ -79,7 +80,7 @@ export function useDocuments() {
   });
 
   // Transformer les données pour correspondre aux types attendus
-  const transformedDocuments: Document[] = documents.map(doc => ({
+  const documents: Document[] = documentsData.map(doc => ({
     ...doc,
     responsabilites: doc.responsabilites || { r: [], a: [], c: [], i: [] },
     etat: doc.etat || null,
@@ -99,7 +100,7 @@ export function useDocuments() {
   }));
 
   return {
-    documents: transformedDocuments,
+    documents,
     groups: transformedGroups,
     editingDocument,
     editingGroup,
