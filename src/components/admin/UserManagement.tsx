@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -28,7 +29,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { adminImportFromManager } from '@/services/core/userInitializationService';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
-import { clearUsersCache } from '@/services';
+import { clearUsersCache } from '@/services/users/userService';
 import UserTables from './UserTables';
 import { syncAllUserTables } from '@/utils/userTableVerification';
 import type { Utilisateur } from '@/types/auth';

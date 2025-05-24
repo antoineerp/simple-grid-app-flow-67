@@ -25,9 +25,12 @@ export {
   deleteUser,
   getAllUsers,
   createUser,
-  // Ne pas réexporter ces fonctions pour éviter les conflits
-  userService,
-  // Ces fonctions sont déjà exportées directement dans userService
+  // Exporter ces fonctions spécifiquement pour qu'elles soient disponibles
+  clearUsersCache,
+  connectAsUser,
+  verifyAllUserTables,
+  // Export du service complet
+  userService
 } from './users/userService';
 
 // Note: Ces services seront progressivement migrés vers 
