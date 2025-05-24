@@ -1,10 +1,10 @@
+
 import React from 'react';
 import Pilotage from './pages/Pilotage';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import RessourcesHumaines from './pages/RessourcesHumaines';
 import Exigences from './pages/Exigences';
-import Bibliotheque from './pages/Bibliotheque';
 import Collaboration from './pages/Collaboration';
 import Admin from './pages/Admin';
 import Diagnostic from './pages/Diagnostic';
@@ -40,38 +40,16 @@ const routes = [
     element: <Exigences />,
   },
   {
-    path: '/bibliotheque',
-    element: <Bibliotheque />,
-  },
-  {
     path: '/collaboration',
     element: <Collaboration />,
   },
   {
     path: '/administration',
-    element: <Admin 
-      currentDatabaseUser={getCurrentUser()}
-      onUserConnect={(identifiant: string) => {
-        // Dispatch a custom event that App.tsx is listening for
-        const event = new CustomEvent('database-user-changed', {
-          detail: { user: identifiant }
-        });
-        window.dispatchEvent(event);
-      }}
-    />,
+    element: <Admin />,
   },
   {
     path: '/admin',
-    element: <Admin 
-      currentDatabaseUser={getCurrentUser()}
-      onUserConnect={(identifiant: string) => {
-        // Dispatch a custom event that App.tsx is listening for
-        const event = new CustomEvent('database-user-changed', {
-          detail: { user: identifiant }
-        });
-        window.dispatchEvent(event);
-      }}
-    />,
+    element: <Admin />,
   },
   {
     path: '/diagnostic',

@@ -50,6 +50,29 @@ const Documents = () => {
     }
   };
 
+  // Transform documents to match expected format
+  const transformedDocuments = documents.map(doc => ({
+    ...doc,
+    responsabilites: doc.responsabilites || { r: [], a: [], c: [], i: [] },
+    fichier_path: doc.fichier_path || null,
+    etat: doc.etat || null,
+    date_creation: doc.date_creation || new Date(),
+    date_modification: doc.date_modification || new Date()
+  }));
+
+  // Transform groups to match expected format
+  const transformedGroups = groups.map(group => ({
+    ...group,
+    items: group.items.map(item => ({
+      ...item,
+      responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
+      fichier_path: item.fichier_path || null,
+      etat: item.etat || null,
+      date_creation: item.date_creation || new Date(),
+      date_modification: item.date_modification || new Date()
+    }))
+  }));
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -68,12 +91,12 @@ const Documents = () => {
       </div>
 
       <DocumentTable 
-        documents={documents}
-        groups={groups}
+        documents={transformedDocuments}
+        groups={transformedGroups}
         onResponsabiliteChange={handleResponsabiliteChange}
         onAtteinteChange={handleAtteinteChange}
         onExclusionChange={handleExclusionChange}
-        onEdit={handleEdit}
+        onEdit={(id) => handleEdit(documents.find(d => d.id === id)!)}
         onDelete={handleDelete}
         onReorder={handleReorder}
         onGroupReorder={handleGroupReorder}
@@ -103,14 +126,31 @@ const Documents = () => {
       </div>
 
       <DocumentForm 
-        document={editingDocument}
+        document={editingDocument ? {
+          ...editingDocument,
+          responsabilites: editingDocument.responsabilites || { r: [], a: [], c: [], i: [] },
+          fichier_path: editingDocument.fichier_path || null,
+          etat: editingDocument.etat || null,
+          date_creation: editingDocument.date_creation || new Date(),
+          date_modification: editingDocument.date_modification || new Date()
+        } : null}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSave={handleSaveDocument}
       />
 
       <DocumentGroupDialog
-        group={editingGroup}
+        group={editingGroup ? {
+          ...editingGroup,
+          items: editingGroup.items.map(item => ({
+            ...item,
+            responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
+            fichier_path: item.fichier_path || null,
+            etat: item.etat || null,
+            date_creation: item.date_creation || new Date(),
+            date_modification: item.date_modification || new Date()
+          }))
+        } : null}
         open={groupDialogOpen}
         onOpenChange={setGroupDialogOpen}
         onSave={handleSaveGroup}

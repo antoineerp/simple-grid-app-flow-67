@@ -102,7 +102,7 @@ const Exigences = () => {
           onResponsabiliteChange={handleResponsabiliteChange}
           onAtteinteChange={handleAtteinteChange}
           onExclusionChange={handleExclusionChange}
-          onEdit={(exigence) => handleEdit(exigence)}
+          onEdit={(id) => handleEdit(exigences.find(e => e.id === id)!)}
           onDelete={(id) => handleDelete(id)}
           onReorder={handleReorder}
           onGroupReorder={handleGroupReorder}
@@ -135,14 +135,31 @@ const Exigences = () => {
       </div>
 
       <ExigenceForm 
-        exigence={editingExigence}
+        exigence={editingExigence ? {
+          ...editingExigence,
+          exclusion: editingExigence.excluded || false,
+          atteinte: editingExigence.etat as 'NC' | 'PC' | 'C' | null,
+          responsabilites: editingExigence.responsabilites || { r: [], a: [], c: [], i: [] },
+          date_creation: editingExigence.date_creation || new Date(),
+          date_modification: editingExigence.date_modification || new Date()
+        } : null}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSave={handleSaveExigence}
       />
 
       <ExigenceGroupDialog
-        group={editingGroup}
+        group={editingGroup ? {
+          ...editingGroup,
+          items: editingGroup.items.map(item => ({
+            ...item,
+            exclusion: item.excluded || false,
+            atteinte: item.etat as 'NC' | 'PC' | 'C' | null,
+            responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
+            date_creation: item.date_creation || new Date(),
+            date_modification: item.date_modification || new Date()
+          }))
+        } : null}
         open={groupDialogOpen}
         onOpenChange={setGroupDialogOpen}
         onSave={handleSaveGroup}
