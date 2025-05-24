@@ -1,65 +1,25 @@
 
-# Activer le moteur de réécriture
+# Configuration API unifiée
 RewriteEngine On
 
-# Définir le type MIME pour JavaScript et CSS
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType application/javascript .es.js
-AddType text/css .css
-
-# Force PHP errors to show
-php_flag display_errors on
-php_value error_reporting E_ALL
-
-# CORS Headers
+# En-têtes CORS
 <IfModule mod_headers.c>
     Header always set Access-Control-Allow-Origin "*"
     Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
     Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-    
-    # Caching headers for API endpoints
-    <FilesMatch "\.(php)$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires 0
-    </FilesMatch>
-    
-    # Cache for JS/CSS files
-    <FilesMatch "\.(js|css|mjs|es.js)$">
-        Header set Cache-Control "max-age=3600, public"
-    </FilesMatch>
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
 </IfModule>
-
-# Gérer la requête OPTIONS pour CORS preflight
-RewriteRule ^(.*)$ $1 [E=HTTP_ORIGIN:%{HTTP:ORIGIN}]
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ $1 [R=200,L]
-
-# Vérifier que les fichiers PHP existent
-<Files *.php>
-    Order Allow,Deny
-    Allow from all
-</Files>
-
-# Exclusion explicite pour diagnostic-complet.php - pas d'authentification requise
-<Files diagnostic-complet.php>
-    # Désactiver toutes les règles de réécriture pour ce fichier
-    RewriteEngine Off
-    # Assurer que l'accès est autorisé
-    Order Allow,Deny
-    Allow from all
-    # Ajouter des headers spécifiques
-    <IfModule mod_headers.c>
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Access-Control-Allow-Origin "*"
-    </IfModule>
-</Files>
-
-# Rediriger les erreurs 404 API vers index.php
-ErrorDocument 404 /api/index.php
 
 # Assurer que PHP est correctement interprété
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
+
+# Rediriger toutes les requêtes vers index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Gérer les requêtes OPTIONS pour CORS
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ index.php [QSA,L]
