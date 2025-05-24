@@ -1,5 +1,5 @@
 
-// Configuration API - Version unifiée
+// Configuration API - UNIQUEMENT base de données Infomaniak
 
 // Récupère l'URL de base de l'API
 export const getApiUrl = (): string => {
@@ -23,7 +23,7 @@ export const getAuthHeaders = () => {
   };
 };
 
-// Fonction pour tester la connexion à l'API
+// Fonction pour tester la connexion à l'API - UNIQUEMENT base de données
 export const testApiConnection = async (): Promise<{ 
   success: boolean; 
   message: string; 
@@ -31,9 +31,10 @@ export const testApiConnection = async (): Promise<{
 }> => {
   try {
     const apiUrl = getApiUrl();
-    console.log("Test de connexion à l'API:", apiUrl);
+    console.log("Test de connexion EXCLUSIVEMENT à la base de données Infomaniak:", apiUrl);
     
-    const response = await fetch(`${apiUrl}/test?action=connection&_t=${Date.now()}`, {
+    // Utiliser UNIQUEMENT l'endpoint de test de la base de données
+    const response = await fetch(`${apiUrl}/test?action=test_db&_t=${Date.now()}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -42,32 +43,37 @@ export const testApiConnection = async (): Promise<{
     });
     
     if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
+      throw new Error(`ERREUR BASE DE DONNÉES: HTTP ${response.status} - ${response.statusText}`);
     }
     
     const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(`ERREUR BASE DE DONNÉES: ${data.message || "Test de connexion à la base de données échoué"}`);
+    }
+    
     return {
       success: true,
-      message: data.message || "Connexion API réussie",
+      message: `✅ Connexion à la base de données Infomaniak réussie: ${data.message || "Base de données accessible"}`,
       details: data
     };
   } catch (error) {
-    console.error("Erreur de connexion API:", error);
+    console.error("❌ Erreur de connexion à la base de données Infomaniak:", error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : "Erreur inconnue",
+      message: `❌ ERREUR BASE DE DONNÉES: ${error instanceof Error ? error.message : "Connexion à la base de données Infomaniak impossible"}`,
       details: { error }
     };
   }
 };
 
-// Fonction unifiée pour gérer les requêtes fetch
+// Fonction unifiée pour gérer les requêtes fetch - UNIQUEMENT base de données
 export const fetchWithErrorHandling = async (
   url: string, 
   options: RequestInit = {}
 ): Promise<any> => {
   try {
-    console.log(`Requête à ${url}`);
+    console.log(`Requête à la base de données Infomaniak: ${url}`);
     
     const urlWithTimestamp = url.includes('?') 
       ? `${url}&_t=${Date.now()}` 
@@ -86,11 +92,11 @@ export const fetchWithErrorHandling = async (
     const response = await fetch(urlWithTimestamp, mergedOptions);
     
     if (!response.ok) {
-      let errorMessage = `HTTP Error: ${response.status} ${response.statusText}`;
+      let errorMessage = `ERREUR BASE DE DONNÉES: HTTP ${response.status} ${response.statusText}`;
       try {
         const errorData = await response.json();
         if (errorData && errorData.message) {
-          errorMessage = errorData.message;
+          errorMessage = `ERREUR BASE DE DONNÉES: ${errorData.message}`;
         }
       } catch (parseError) {
         // Utiliser le message d'erreur par défaut
@@ -107,11 +113,11 @@ export const fetchWithErrorHandling = async (
     try {
       return JSON.parse(responseText);
     } catch (e) {
-      console.error("Erreur de parsing JSON:", e);
-      throw new Error("Réponse invalide: impossible de parser le JSON");
+      console.error("Erreur de parsing JSON depuis la base de données:", e);
+      throw new Error("ERREUR BASE DE DONNÉES: Réponse invalide - impossible de parser le JSON");
     }
   } catch (error) {
-    console.error("Erreur fetch:", error);
+    console.error("❌ Erreur fetch base de données:", error);
     throw error;
   }
 };

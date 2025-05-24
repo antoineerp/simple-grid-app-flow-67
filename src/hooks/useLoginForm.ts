@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { login } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
 import { LoginResponse } from '@/types/auth';
-import { getApiUrl } from '@/config/apiConfig';
 
 export interface LoginFormValues {
   username: string;
@@ -28,44 +27,6 @@ export const useLoginForm = () => {
     }
   });
   
-  // Fonction pour tester si le serveur PHP fonctionne
-  const testPhpServer = async (): Promise<{success: boolean; message: string}> => {
-    try {
-      const API_URL = getApiUrl();
-      console.log("Test du serveur PHP:", `${API_URL}/login-test.php?test=1`);
-      
-      const response = await fetch(`${API_URL}/login-test.php?test=1&_t=${Date.now()}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        }
-      });
-      
-      const responseText = await response.text();
-      
-      // Vérifier si la réponse contient du PHP non exécuté
-      if (responseText.includes('<?php')) {
-        console.error("Le serveur ne traite pas les fichiers PHP:", responseText.substring(0, 100));
-        return {
-          success: false,
-          message: "Le serveur ne traite pas les fichiers PHP. Vérifiez la configuration du serveur."
-        };
-      }
-      
-      return {
-        success: true,
-        message: "Le serveur PHP fonctionne correctement"
-      };
-    } catch (error) {
-      console.error("Erreur lors du test du serveur PHP:", error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : "Erreur inconnue"
-      };
-    }
-  };
-  
   const handleSubmit = useCallback(async (values: LoginFormValues) => {
     setIsLoading(true);
     setError(null);
@@ -73,34 +34,18 @@ export const useLoginForm = () => {
     setHasServerError(false);
     setHasAuthError(false);
     
-    console.log('Tentative de connexion pour:', values.username);
-    
-    // Tester d'abord si le serveur PHP fonctionne
-    const phpServerTest = await testPhpServer();
-    if (!phpServerTest.success) {
-      setHasServerError(true);
-      setError(phpServerTest.message);
-      setIsLoading(false);
-      
-      toast({
-        title: "Erreur serveur",
-        description: phpServerTest.message,
-        variant: "destructive",
-      });
-      
-      return;
-    }
+    console.log('Connexion UNIQUEMENT via la base de données Infomaniak pour:', values.username);
     
     try {
       // Stocker l'email pour une utilisation future
       localStorage.setItem('userEmail', values.username);
       
-      // Utiliser le service de connexion standard
+      // Utiliser UNIQUEMENT le service de connexion à la base de données Infomaniak
       const result = await login(values.username, values.password);
       
       if (result.success && result.token) {
-        console.log("Connexion réussie, token reçu:", result.token.substring(0, 20) + "...");
-        console.log("Données utilisateur:", result.user);
+        console.log("Connexion réussie via la base de données Infomaniak, token reçu:", result.token.substring(0, 20) + "...");
+        console.log("Données utilisateur depuis la base de données:", result.user);
         
         // Enregistrer le token avant la navigation
         sessionStorage.setItem('authToken', result.token);
@@ -117,7 +62,7 @@ export const useLoginForm = () => {
           localStorage.setItem('currentDatabaseUser', values.username);
         }
         
-        console.log("ID utilisateur défini:", localStorage.getItem('userId'));
+        console.log("ID utilisateur défini depuis la base de données:", localStorage.getItem('userId'));
         
         // Stocker les données utilisateur et le rôle explicitement
         if (result.user) {
@@ -130,10 +75,10 @@ export const useLoginForm = () => {
         
         toast({
           title: "Connexion réussie",
-          description: `Bienvenue ${result.user?.prenom || ''} ${result.user?.nom || ''}`,
+          description: `Bienvenue ${result.user?.prenom || ''} ${result.user?.nom || ''} - Connecté via la base de données Infomaniak`,
         });
         
-        console.log("Connexion réussie, redirection vers /pilotage");
+        console.log("Connexion réussie via la base de données, redirection vers /pilotage");
         
         try {
           // Navigation simplifiée, plus robuste
@@ -151,39 +96,29 @@ export const useLoginForm = () => {
           window.location.href = '/pilotage';
         }
       } else {
-        console.error("Échec de connexion:", result.message);
-        setError(result.message || 'Échec de la connexion');
+        console.error("ERREUR: Échec de connexion à la base de données Infomaniak:", result.message);
+        setError(`ERREUR DE BASE DE DONNÉES: ${result.message || 'Connexion à la base de données Infomaniak impossible'}`);
         
-        if (result.message?.includes('base de données') || result.message?.includes('database')) {
-          setHasDbError(true);
-        } else if (result.message?.includes('serveur') || result.message?.includes('server') || result.message?.includes('env.php')) {
-          setHasServerError(true);
-        } else {
-          setHasAuthError(true);
-        }
+        // Marquer explicitement comme erreur de base de données
+        setHasDbError(true);
         
         toast({
-          title: "Erreur de connexion",
-          description: result.message || "Identifiants invalides",
+          title: "Erreur de connexion à la base de données",
+          description: `Impossible de se connecter à la base de données Infomaniak: ${result.message || "Erreur inconnue"}`,
           variant: "destructive",
         });
       }
     } catch (err) {
-      console.error("Exception lors de la connexion:", err);
-      const errorMessage = err instanceof Error ? err.message : "Erreur lors de la connexion";
+      console.error("EXCEPTION: Erreur critique lors de la connexion à la base de données Infomaniak:", err);
+      const errorMessage = `ERREUR DE CONNEXION BASE DE DONNÉES: ${err instanceof Error ? err.message : "Erreur lors de la connexion à la base de données Infomaniak"}`;
       setError(errorMessage);
       
-      if (errorMessage.includes('base de données') || errorMessage.includes('database')) {
-        setHasDbError(true);
-      } else if (errorMessage.includes('serveur') || errorMessage.includes('server') || errorMessage.includes('env.php')) {
-        setHasServerError(true);
-      } else {
-        setHasAuthError(true);
-      }
+      // Marquer comme erreur de base de données
+      setHasDbError(true);
       
       toast({
-        title: "Erreur",
-        description: errorMessage,
+        title: "Erreur critique",
+        description: "Impossible de se connecter à la base de données Infomaniak. Vérifiez votre connexion.",
         variant: "destructive",
       });
     } finally {
