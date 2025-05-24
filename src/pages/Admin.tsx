@@ -2,16 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, UserPlus, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import UserForm from "@/components/admin/UserForm";
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import UserTable from '@/components/admin/UserTable';
 import UserTables from '@/components/admin/UserTables';
+import CreateUserDialog from '@/components/admin/CreateUserDialog';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
-// Définition des props pour Admin
 interface AdminProps {
   currentDatabaseUser: string | null;
   onUserConnect: (identifiant: string) => void;
@@ -19,10 +18,13 @@ interface AdminProps {
 
 const Admin: React.FC<AdminProps> = ({ currentDatabaseUser, onUserConnect }) => {
   const { toast } = useToast();
-  const [formOpen, setFormOpen] = useState(false);
   const { utilisateurs, loading, error, loadUtilisateurs, handleConnectAsUser, deleteUser } = useAdminUsers();
 
-  // Gérer l'action de connexion en tant qu'utilisateur
+  useEffect(() => {
+    console.log("Admin: Chargement initial des utilisateurs depuis la base de données Infomaniak");
+    loadUtilisateurs();
+  }, [loadUtilisateurs]);
+
   const handleUserConnect = async (identifiantTechnique: string) => {
     const success = await handleConnectAsUser(identifiantTechnique);
     if (success && onUserConnect) {
@@ -30,13 +32,16 @@ const Admin: React.FC<AdminProps> = ({ currentDatabaseUser, onUserConnect }) => 
     }
   };
 
-  // Gérer l'action de suppression d'un utilisateur
   const handleDeleteUser = async (userId: string) => {
     const success = await deleteUser(userId);
     if (success) {
-      // Recharger manuellement les utilisateurs pour s'assurer qu'ils sont à jour
       await loadUtilisateurs();
     }
+  };
+
+  const handleUserCreated = () => {
+    console.log("Admin: Nouvel utilisateur créé, rechargement de la liste");
+    loadUtilisateurs();
   };
 
   return (
@@ -54,31 +59,28 @@ const Admin: React.FC<AdminProps> = ({ currentDatabaseUser, onUserConnect }) => 
             Rafraîchir
           </Button>
           
-          <Dialog open={formOpen} onOpenChange={setFormOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <UserPlus className="h-4 w-4 mr-2" />
-                Nouvel utilisateur
-              </Button>
-            </DialogTrigger>
-            <UserForm 
-              onClose={() => setFormOpen(false)} 
-              onSuccess={() => loadUtilisateurs()}
-              onUserConnect={handleUserConnect}
-            />
-          </Dialog>
+          <CreateUserDialog onUserCreated={handleUserCreated} />
         </div>
       </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Erreur de connexion à la base de données Infomaniak: {error}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>Liste des utilisateurs</CardTitle>
+            <CardTitle>Utilisateurs de la base de données Infomaniak</CardTitle>
           </CardHeader>
           <CardContent>
             {error ? (
               <div className="p-4 text-red-500">
-                Erreur: {error}. 
+                Erreur de connexion à la base de données Infomaniak: {error}. 
                 <Button 
                   variant="link" 
                   onClick={loadUtilisateurs}

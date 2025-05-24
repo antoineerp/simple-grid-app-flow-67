@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { fetchWithErrorHandling } from '@/config/apiConfig';
@@ -50,19 +49,19 @@ export const deleteUser = async (userId: string) => {
 export const getAllUsers = async (): Promise<Utilisateur[]> => {
   try {
     const API_URL = getApiUrl();
-    console.log("Récupération de tous les utilisateurs directement de la base de données...");
+    console.log("Récupération de tous les utilisateurs directement depuis la base de données Infomaniak...");
     
     const result = await fetchWithErrorHandling(`${API_URL}/users`);
     
-    if (result && result.records && Array.isArray(result.records)) {
-      console.log(`${result.records.length} utilisateurs récupérés avec succès de la base de données`);
+    if (result && result.success && result.records && Array.isArray(result.records)) {
+      console.log(`${result.records.length} utilisateurs récupérés avec succès de la base de données Infomaniak`);
       return result.records;
     }
     
-    console.warn("Format de réponse inattendu:", result);
+    console.warn("Aucun utilisateur trouvé dans la base de données:", result);
     return [];
   } catch (error) {
-    console.error("Erreur lors de la récupération des utilisateurs:", error);
+    console.error("Erreur lors de la récupération des utilisateurs depuis la base de données:", error);
     return [];
   }
 };
@@ -70,7 +69,7 @@ export const getAllUsers = async (): Promise<Utilisateur[]> => {
 export const userExists = async (userId: string): Promise<boolean> => {
   try {
     const API_URL = getApiUrl();
-    console.log(`Vérification de l'existence de l'utilisateur ${userId} dans la base de données...`);
+    console.log(`Vérification de l'existence de l'utilisateur ${userId} dans la base de données Infomaniak...`);
     
     const result = await fetchWithErrorHandling(`${API_URL}/test?action=user_exists&userId=${userId}`);
     return result && result.success === true;
@@ -80,16 +79,24 @@ export const userExists = async (userId: string): Promise<boolean> => {
   }
 };
 
-export const createUser = async (userData: any) => {
+export const createUser = async (userData: {
+  nom: string;
+  prenom: string;
+  email: string;
+  mot_de_passe: string;
+  role: string;
+}): Promise<{ success: boolean; message?: string; user?: any }> => {
   try {
     const API_URL = getApiUrl();
-    console.log(`Création d'un nouvel utilisateur dans la base de données...`, userData);
+    console.log(`Création d'un nouvel utilisateur dans la base de données Infomaniak...`, { ...userData, mot_de_passe: '***' });
     
-    return await fetchWithErrorHandling(`${API_URL}/users`, {
+    const result = await fetchWithErrorHandling(`${API_URL}/users`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(userData)
     });
+    
+    return result;
   } catch (error) {
     console.error("Erreur lors de la création de l'utilisateur:", error);
     throw error;
@@ -103,7 +110,7 @@ export const connectAsUser = async (identifiantTechnique: string): Promise<boole
     
     const userExistsCheck = await userExists(identifiantTechnique);
     if (!userExistsCheck) {
-      console.error(`L'utilisateur ${identifiantTechnique} n'existe pas dans la base de données`);
+      console.error(`L'utilisateur ${identifiantTechnique} n'existe pas dans la base de données Infomaniak`);
       return false;
     }
     
