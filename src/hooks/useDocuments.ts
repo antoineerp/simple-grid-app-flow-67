@@ -2,32 +2,21 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-
-interface Document {
-  id: string;
-  nom: string;
-  fichier_path: string | null;
-  responsabilites?: any;
-  etat?: string;
-  groupId?: string;
-  excluded?: boolean;
-  date_creation?: Date;
-  date_modification?: Date;
-}
-
-interface DocumentGroup {
-  id: string;
-  name: string;
-  expanded: boolean;
-  items: Document[];
-}
+import { Document, DocumentGroup } from '@/types/documents';
 
 const documentsService = {
   getDocuments: async (): Promise<Document[]> => {
     return [];
   },
   createDocument: async (document: Omit<Document, 'id'>): Promise<Document> => {
-    return { ...document, id: crypto.randomUUID(), fichier_path: null };
+    return { 
+      ...document, 
+      id: crypto.randomUUID(),
+      responsabilites: document.responsabilites || { r: [], a: [], c: [], i: [] },
+      etat: document.etat || null,
+      date_creation: new Date(),
+      date_modification: new Date()
+    };
   },
   updateDocument: async (document: Document): Promise<Document> => {
     return document;
@@ -89,17 +78,29 @@ export function useDocuments() {
     },
   });
 
-  const stats = {
-    total: documents.length,
-    completed: documents.filter(d => d.etat === 'complete').length,
-    pending: documents.filter(d => d.etat === 'pending').length,
-    excluded: documents.filter(d => d.excluded).length,
-  };
+  // Transformer les données pour correspondre aux types attendus
+  const transformedDocuments: Document[] = documents.map(doc => ({
+    ...doc,
+    responsabilites: doc.responsabilites || { r: [], a: [], c: [], i: [] },
+    etat: doc.etat || null,
+    date_creation: doc.date_creation || new Date(),
+    date_modification: doc.date_modification || new Date()
+  }));
+
+  const transformedGroups: DocumentGroup[] = groups.map(group => ({
+    ...group,
+    items: group.items.map(item => ({
+      ...item,
+      responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
+      etat: item.etat || null,
+      date_creation: item.date_creation || new Date(),
+      date_modification: item.date_modification || new Date()
+    }))
+  }));
 
   return {
-    documents,
-    groups,
-    stats,
+    documents: transformedDocuments,
+    groups: transformedGroups,
     editingDocument,
     editingGroup,
     dialogOpen,
@@ -117,10 +118,18 @@ export function useDocuments() {
       setDialogOpen(true);
     },
     handleSaveDocument: (doc: Document) => {
+      const docWithDefaults: Document = {
+        ...doc,
+        responsabilites: doc.responsabilites || { r: [], a: [], c: [], i: [] },
+        etat: doc.etat || null,
+        date_creation: doc.date_creation || new Date(),
+        date_modification: new Date()
+      };
+      
       if (editingDocument) {
-        updateMutation.mutate(doc);
+        updateMutation.mutate(docWithDefaults);
       } else {
-        createMutation.mutate(doc);
+        createMutation.mutate(docWithDefaults);
       }
       setDialogOpen(false);
     },
@@ -133,10 +142,34 @@ export function useDocuments() {
     handleReorder: () => {},
     handleGroupReorder: () => {},
     handleToggleGroup: () => {},
-    handleEditGroup: () => {},
-    handleSaveGroup: () => {},
+    handleEditGroup: (group: DocumentGroup) => {
+      setEditingGroup(group);
+      setGroupDialogOpen(true);
+    },
+    handleSaveGroup: (group: DocumentGroup) => {
+      const transformedGroup: DocumentGroup = {
+        ...group,
+        items: group.items.map(item => ({
+          ...item,
+          responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
+          etat: item.etat || null,
+          date_creation: item.date_creation || new Date(),
+          date_modification: item.date_modification || new Date()
+        }))
+      };
+      
+      if (editingGroup) {
+        setGroups(prev => prev.map(g => g.id === group.id ? transformedGroup : g));
+      } else {
+        setGroups(prev => [...prev, transformedGroup]);
+      }
+      setGroupDialogOpen(false);
+    },
     handleDeleteGroup: () => {},
-    handleAddGroup: () => {},
+    handleAddGroup: () => {
+      setEditingGroup(null);
+      setGroupDialogOpen(true);
+    },
     syncWithServer: refetch
   };
 }

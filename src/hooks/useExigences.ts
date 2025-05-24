@@ -2,32 +2,22 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-
-interface Exigence {
-  id: string;
-  nom: string;
-  description?: string;
-  responsabilites?: any;
-  etat?: string;
-  groupId?: string;
-  excluded?: boolean;
-  date_creation?: Date;
-  date_modification?: Date;
-}
-
-interface ExigenceGroup {
-  id: string;
-  name: string;
-  expanded: boolean;
-  items: Exigence[];
-}
+import { Exigence, ExigenceGroup } from '@/types/exigences';
 
 const exigencesService = {
   getExigences: async (): Promise<Exigence[]> => {
     return [];
   },
   createExigence: async (exigence: Omit<Exigence, 'id'>): Promise<Exigence> => {
-    return { ...exigence, id: crypto.randomUUID() };
+    return { 
+      ...exigence, 
+      id: crypto.randomUUID(),
+      responsabilites: exigence.responsabilites || { r: [], a: [], c: [], i: [] },
+      exclusion: exigence.exclusion || false,
+      atteinte: exigence.atteinte || null,
+      date_creation: new Date(),
+      date_modification: new Date()
+    };
   },
   updateExigence: async (exigence: Exigence): Promise<Exigence> => {
     return exigence;
@@ -89,9 +79,31 @@ export function useExigences() {
     },
   });
 
+  // Transformer les données pour correspondre aux types attendus
+  const transformedExigences: Exigence[] = exigences.map(ex => ({
+    ...ex,
+    responsabilites: ex.responsabilites || { r: [], a: [], c: [], i: [] },
+    exclusion: ex.exclusion || false,
+    atteinte: ex.atteinte || null,
+    date_creation: ex.date_creation || new Date(),
+    date_modification: ex.date_modification || new Date()
+  }));
+
+  const transformedGroups: ExigenceGroup[] = groups.map(group => ({
+    ...group,
+    items: group.items.map(item => ({
+      ...item,
+      responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
+      exclusion: item.exclusion || false,
+      atteinte: item.atteinte || null,
+      date_creation: item.date_creation || new Date(),
+      date_modification: item.date_modification || new Date()
+    }))
+  }));
+
   return {
-    exigences,
-    groups,
+    exigences: transformedExigences,
+    groups: transformedGroups,
     editingExigence,
     editingGroup,
     dialogOpen,
@@ -107,10 +119,19 @@ export function useExigences() {
       setDialogOpen(true);
     },
     handleSaveExigence: (exigence: Exigence) => {
+      const exigenceWithDefaults: Exigence = {
+        ...exigence,
+        responsabilites: exigence.responsabilites || { r: [], a: [], c: [], i: [] },
+        exclusion: exigence.exclusion || false,
+        atteinte: exigence.atteinte || null,
+        date_creation: exigence.date_creation || new Date(),
+        date_modification: new Date()
+      };
+      
       if (editingExigence) {
-        updateMutation.mutate(exigence);
+        updateMutation.mutate(exigenceWithDefaults);
       } else {
-        createMutation.mutate(exigence);
+        createMutation.mutate(exigenceWithDefaults);
       }
       setDialogOpen(false);
     },
@@ -123,9 +144,34 @@ export function useExigences() {
     handleReorder: () => {},
     handleGroupReorder: () => {},
     handleToggleGroup: () => {},
-    handleEditGroup: () => {},
-    handleSaveGroup: () => {},
+    handleEditGroup: (group: ExigenceGroup) => {
+      setEditingGroup(group);
+      setGroupDialogOpen(true);
+    },
+    handleSaveGroup: (group: ExigenceGroup) => {
+      const transformedGroup: ExigenceGroup = {
+        ...group,
+        items: group.items.map(item => ({
+          ...item,
+          responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
+          exclusion: item.exclusion || false,
+          atteinte: item.atteinte || null,
+          date_creation: item.date_creation || new Date(),
+          date_modification: item.date_modification || new Date()
+        }))
+      };
+      
+      if (editingGroup) {
+        setGroups(prev => prev.map(g => g.id === group.id ? transformedGroup : g));
+      } else {
+        setGroups(prev => [...prev, transformedGroup]);
+      }
+      setGroupDialogOpen(false);
+    },
     handleDeleteGroup: () => {},
-    handleAddGroup: () => {}
+    handleAddGroup: () => {
+      setEditingGroup(null);
+      setGroupDialogOpen(true);
+    }
   };
 }
