@@ -20,49 +20,70 @@ const Sidebar = () => {
   // Convert string to UserRole type
   const userRole = userRoleString as UserRole;
   
-  // Check if user has admin permissions
-  const isAdmin = checkPermission(userRole, 'isAdmin');
+  console.log('Sidebar - User role:', userRole, 'User:', user);
 
   return (
-    <aside className="w-64 bg-gray-50 border-r h-full overflow-y-auto">
-      <nav className="flex flex-col p-4">
-        {/* Items de navigation standards */}
+    <div className="h-full w-64 bg-white shadow-lg flex flex-col">
+      {/* Header avec logo */}
+      <div className="p-6 border-b border-gray-200">
+        <a 
+          href={sidebarLinkUrl} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="block"
+        >
+          <img 
+            src={sidebarImageUrl} 
+            alt="Qualite.cloud" 
+            className="h-8 w-auto mx-auto"
+            onError={(e) => {
+              console.log('Logo image failed to load, showing text instead');
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.nextElementSibling!.style.display = 'block';
+            }}
+          />
+          <div className="text-lg font-semibold text-gray-800 text-center hidden">
+            Qualite.cloud
+          </div>
+        </a>
+      </div>
+
+      {/* Navigation principale */}
+      <nav className="flex-1 py-4 space-y-1">
         {navigationItems.map((item) => (
-          <SidebarNavItem
-            key={item.path}
-            to={item.path}
-            icon={item.icon}
-            label={item.label}
-          />
+          <SidebarNavItem key={item.path} item={item} />
         ))}
-        
-        {/* Items de navigation pour administrateurs uniquement */}
-        {isAdmin && adminNavigationItems.map((item) => (
-          <SidebarNavItem
-            key={item.path}
-            to={item.path}
-            icon={item.icon}
-            label={item.label}
-          />
-        ))}
-        
-        <div className="mt-auto pt-8 flex items-center justify-center">
-          <a href={sidebarLinkUrl} target="_blank" rel="noopener noreferrer">
-            <img 
-              src={sidebarImageUrl}
-              alt="Qualite.cloud - Couteau suisse de la qualité"
-              className="w-32 h-auto opacity-90 transition-all duration-200 hover:opacity-100"
-              onError={(e) => {
-                console.log("Erreur de chargement de l'image du sidebar");
-                const target = e.target as HTMLImageElement;
-                // Fallback vers une autre image ou masquer en cas d'erreur
-                target.style.display = 'none';
-              }}
-            />
-          </a>
-        </div>
       </nav>
-    </aside>
+
+      {/* Navigation Admin - UNIQUEMENT pour les admins */}
+      {checkPermission(userRole, 'manage_users') && (
+        <div className="border-t border-gray-200 py-4">
+          <div className="px-6 py-2">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Administration
+            </h3>
+          </div>
+          <div className="space-y-1">
+            {adminNavigationItems.map((item) => (
+              <SidebarNavItem key={item.path} item={item} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Footer avec utilisateur connecté */}
+      <div className="border-t border-gray-200 p-4">
+        <div className="text-sm text-gray-600">
+          <div>Connecté en tant que:</div>
+          <div className="font-medium text-gray-900 truncate">
+            {user?.email || userId || 'Utilisateur'}
+          </div>
+          <div className="text-xs text-gray-500">
+            Rôle: {userRole}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

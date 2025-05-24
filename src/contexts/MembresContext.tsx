@@ -1,10 +1,10 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import { Membre } from '@/types/membres';
-import { getMembres as getMembresService } from '@/services/users/membresService';
+import { loadMembresFromServer } from '@/services/membres/membresService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useToast } from '@/hooks/use-toast';
-import { getIsLoggedIn } from '@/services/auth/authService';
+import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 
 interface MembresContextProps {
   membres: Membre[];
@@ -31,39 +31,17 @@ interface MembresProviderProps {
   children: ReactNode;
 }
 
-// Membres par défaut pour éviter une page vide
-const defaultMembres: Membre[] = [
-  {
-    id: '1',
-    nom: 'Dupont',
-    prenom: 'Jean',
-    fonction: 'Directeur',
-    initiales: 'JD',
-    date_creation: new Date()
-  },
-  {
-    id: '2',
-    nom: 'Martin',
-    prenom: 'Sophie',
-    fonction: 'Responsable RH',
-    initiales: 'SM',
-    date_creation: new Date()
-  }
-];
-
 export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) => {
-  const [membres, setMembres] = useState<Membre[]>(defaultMembres);
+  const [membres, setMembres] = useState<Membre[]>([]);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false); // Start as false to avoid immediate loading state
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [syncFailed, setSyncFailed] = useState<boolean>(false);
   const { isOnline } = useNetworkStatus();
   const initialized = useRef<boolean>(false);
   const mountedRef = useRef<boolean>(true);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const consecutiveErrorsRef = useRef<number>(0);
   const { toast } = useToast();
-  const authErrorShownRef = useRef<boolean>(false);
 
   // Nettoyer les timeouts au démontage
   useEffect(() => {
@@ -79,190 +57,112 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
     };
   }, []);
 
-  // Utiliser un useCallback pour rendre la fonction réutilisable et stable
   const loadMembres = useCallback(async (forceRefresh = false) => {
-    // Ne pas charger les membres si l'utilisateur n'est pas connecté
+    // VÉRIFICATION STRICTE: Ne pas charger si l'utilisateur n'est pas connecté
     if (!getIsLoggedIn()) {
-      console.log("MembresProvider: Utilisateur non connecté, chargement des membres ignoré");
+      console.log("MembresProvider: ERREUR - Utilisateur non connecté, impossible de charger les membres depuis la base de données Infomaniak");
+      setError(new Error("Utilisateur non connecté - impossible d'accéder à la base de données Infomaniak"));
+      return;
+    }
+
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      console.log("MembresProvider: ERREUR - Aucun utilisateur courant identifié pour la base de données Infomaniak");
+      setError(new Error("Aucun utilisateur courant - impossible d'accéder à la base de données Infomaniak"));
       return;
     }
 
     if (!mountedRef.current) return;
     
-    // Si déjà en chargement, ne pas lancer un nouveau chargement
     if (isLoading) {
-      console.log("MembresProvider: Déjà en cours de chargement, requête ignorée");
+      console.log("MembresProvider: Déjà en cours de chargement depuis la base de données Infomaniak");
       return;
     }
-    
-    // Limiter la durée de chargement à 15 secondes maximum
-    if (loadingTimeoutRef.current) {
-      clearTimeout(loadingTimeoutRef.current);
-    }
-    
-    loadingTimeoutRef.current = setTimeout(() => {
-      if (mountedRef.current && isLoading) {
-        console.log("MembresProvider: Timeout de chargement atteint");
-        setIsLoading(false);
-      }
-    }, 15000);
-    
-    if (initialized.current && !forceRefresh) {
-      console.log("MembresProvider: Les membres sont déjà initialisés et aucun rechargement forcé n'est demandé");
-      return;
-    }
+
+    // NE PAS utiliser de cache local - TOUJOURS aller chercher en base de données
+    console.log(`MembresProvider: CHARGEMENT EXCLUSIF depuis la base de données Infomaniak pour l'utilisateur: ${currentUser}`);
     
     try {
-      console.log(`MembresProvider: ${initialized.current ? "Rechargement" : "Première initialisation"} des membres`);
       setIsLoading(true);
+      setError(null);
       
-      if (isOnline) {
-        try {
-          const loadedMembres = await getMembresService(forceRefresh);
-          
-          if (!mountedRef.current) return;
-          
-          if (loadedMembres && loadedMembres.length > 0) {
-            console.log(`MembresProvider: ${loadedMembres.length} membres chargés depuis le service`);
-            setMembres(loadedMembres);
-            initialized.current = true;
-            consecutiveErrorsRef.current = 0;
-            setSyncFailed(false);
-            authErrorShownRef.current = false;
-          } else {
-            // Conserver les membres actuels si aucun nouveau membre n'est chargé
-            console.log("MembresProvider: Aucun membre chargé depuis le service");
-            
-            // Si ce n'est pas la première initialisation et qu'on n'a pas de membres, ne pas écraser avec les valeurs par défaut
-            if (!initialized.current && membres.length === 0) {
-              console.log("MembresProvider: Utilisation des valeurs par défaut pour la première initialisation");
-            }
-          }
-          
-          setLastSynced(new Date());
-          setSyncFailed(false);
-          setError(null);
-        } catch (serviceError) {
-          if (!mountedRef.current) return;
-          
-          console.error("MembresProvider: Erreur du service de membres:", serviceError);
-          
-          // Check for authentication error
-          const isAuthError = serviceError instanceof Error && 
-                              (serviceError.message.includes("authentifi") || 
-                               serviceError.message.includes("auth") || 
-                               serviceError.message.includes("token") ||
-                               serviceError.message.includes("permission"));
-          
-          // Display authentication error only once
-          if (isAuthError && !authErrorShownRef.current) {
-            toast({
-              title: "Problème d'authentification",
-              description: "Vous n'êtes pas authentifié ou votre session a expiré",
-              variant: "destructive",
-              duration: 5000
-            });
-            authErrorShownRef.current = true;
-          } 
-          // For other errors, track consecutive failures
-          else if (!isAuthError) {
-            // Incrémenter le compteur d'erreurs consécutives
-            consecutiveErrorsRef.current++;
-            
-            // Afficher un toast d'erreur uniquement après plusieurs échecs
-            if (consecutiveErrorsRef.current >= 2) {
-              toast({
-                title: "Problème de synchronisation",
-                description: "Les données des membres n'ont pas pu être synchronisées",
-                variant: "destructive",
-                duration: 5000
-              });
-            }
-          }
-          
-          setError(serviceError instanceof Error ? serviceError : new Error(String(serviceError)));
-          setSyncFailed(true);
-          
-          // Ne pas modifier les membres existants en cas d'erreur
-        }
-      } else {
-        console.log("MembresProvider: Mode hors ligne, utilisation des données existantes");
+      if (!isOnline) {
+        throw new Error("Connexion internet requise pour accéder à la base de données Infomaniak");
       }
+
+      // CHARGEMENT EXCLUSIF depuis la base de données Infomaniak
+      const loadedMembres = await loadMembresFromServer(currentUser);
+      
+      if (!mountedRef.current) return;
+      
+      console.log(`MembresProvider: ${loadedMembres.length} membres chargés EXCLUSIVEMENT depuis la base de données Infomaniak`);
+      
+      // MISE À JOUR STRICTE : Utiliser uniquement les données de la base
+      setMembres(loadedMembres);
+      setLastSynced(new Date());
+      setSyncFailed(false);
+      setError(null);
+      initialized.current = true;
+      
     } catch (err) {
       if (!mountedRef.current) return;
       
-      console.error('MembresProvider: Erreur lors du chargement des membres:', err);
-      setError(err instanceof Error ? err : new Error(String(err)));
+      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue lors de l\'accès à la base de données Infomaniak';
+      console.error("MembresProvider: ERREUR CRITIQUE - Impossible d'accéder à la base de données Infomaniak:", errorMessage);
+      
+      setError(new Error(`ERREUR BASE DE DONNÉES INFOMANIAK: ${errorMessage}`));
       setSyncFailed(true);
+      
+      // AFFICHER UNE ERREUR CLAIRE À L'UTILISATEUR
+      toast({
+        title: "Erreur de base de données",
+        description: `Impossible d'accéder à la base de données Infomaniak: ${errorMessage}`,
+        variant: "destructive",
+        duration: 10000
+      });
+      
+      // NE PAS utiliser de données de fallback - laisser vide en cas d'erreur
+      setMembres([]);
+      
     } finally {
       if (mountedRef.current) {
         setIsLoading(false);
-        
-        // Nettoyer le timeout
-        if (loadingTimeoutRef.current) {
-          clearTimeout(loadingTimeoutRef.current);
-          loadingTimeoutRef.current = null;
-        }
       }
     }
-  }, [isOnline, isLoading, membres.length, toast]);
+  }, [isOnline, isLoading, toast]);
 
-  // Charger les membres au démarrage avec un délai pour éviter les conflits d'initialisation
-  // Mais seulement si l'utilisateur est connecté
+  // Charger les membres au démarrage UNIQUEMENT si connecté
   useEffect(() => {
     if (!getIsLoggedIn()) {
-      console.log("MembresProvider: Utilisateur non connecté, pas de chargement initial");
+      console.log("MembresProvider: Utilisateur non connecté, aucun chargement depuis la base de données Infomaniak");
       return;
     }
 
     const initTimeout = setTimeout(() => {
       if (!mountedRef.current) return;
       
-      // Fonction asynchrone auto-exécutée
       loadMembres()
         .catch(error => {
-          console.error("MembresProvider: Erreur lors du chargement initial des membres:", error);
+          console.error("MembresProvider: Erreur lors du chargement initial depuis la base de données Infomaniak:", error);
         });
-    }, 500); // petit délai pour laisser les autres composants s'initialiser
+    }, 500);
     
     return () => clearTimeout(initTimeout);
   }, [loadMembres]);
 
-  // Effet supplémentaire pour surveiller les changements de connectivité
-  // Mais seulement si l'utilisateur est connecté
-  useEffect(() => {
-    if (!getIsLoggedIn()) return;
-
-    if (isOnline && lastSynced === null && !isLoading) {
-      console.log("MembresProvider: Connexion rétablie, tentative de rechargement des membres");
-      
-      // Délai avant de recharger pour laisser le temps à la connexion de se stabiliser
-      const reconnectTimeout = setTimeout(() => {
-        if (mountedRef.current) {
-          loadMembres(true).catch(error => {
-            console.error("MembresProvider: Erreur lors du rechargement après reconnexion:", error);
-          });
-        }
-      }, 2000);
-      
-      return () => clearTimeout(reconnectTimeout);
-    }
-  }, [isOnline, lastSynced, isLoading, loadMembres]);
-
   const resetSyncFailed = useCallback(() => {
     setSyncFailed(false);
-    consecutiveErrorsRef.current = 0;
-    authErrorShownRef.current = false;
+    setError(null);
   }, []);
 
   const refreshMembres = useCallback(async () => {
-    // Ne pas tenter de rafraîchir si l'utilisateur n'est pas connecté
     if (!getIsLoggedIn()) {
-      console.log("MembresProvider: Utilisateur non connecté, rafraîchissement ignoré");
+      console.log("MembresProvider: Utilisateur non connecté, impossible de rafraîchir depuis la base de données Infomaniak");
+      setError(new Error("Utilisateur non connecté - impossible de rafraîchir depuis la base de données Infomaniak"));
       return;
     }
 
-    console.log("MembresProvider: Rechargement forcé des membres");
+    console.log("MembresProvider: Rechargement forcé EXCLUSIVEMENT depuis la base de données Infomaniak");
     await loadMembres(true);
   }, [loadMembres]);
 

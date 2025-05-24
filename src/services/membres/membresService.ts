@@ -1,165 +1,120 @@
+
 import { Membre } from '@/types/membres';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 
 /**
- * Extrait un identifiant utilisateur valide pour les requêtes
- */
-const extractValidUserId = (userId: any): string => {
-  // Si l'entrée est undefined ou null
-  if (userId === undefined || userId === null) {
-    console.log("userId invalide (null/undefined), utilisation de l'ID par défaut");
-    return 'p71x6d_system';
-  }
-  
-  // Si c'est déjà une chaîne, la retourner directement (mais vérifier si c'est [object Object])
-  if (typeof userId === 'string') {
-    // Vérifier si la chaîne est [object Object]
-    if (userId === '[object Object]' || userId.includes('object')) {
-      console.log("userId est la chaîne '[object Object]', utilisation de l'ID par défaut");
-      return 'p71x6d_system';
-    }
-    return userId;
-  }
-  
-  // Si c'est un objet, essayer d'extraire un identifiant
-  if (typeof userId === 'object') {
-    // Journaliser l'identifiant reçu pour débogage
-    console.log("Identifiant objet reçu:", JSON.stringify(userId));
-    
-    // Propriétés potentielles pour extraire un ID
-    const idProperties = ['identifiant_technique', 'email', 'id'];
-    
-    for (const prop of idProperties) {
-      if (userId[prop] && typeof userId[prop] === 'string' && userId[prop].length > 0) {
-        console.log(`ID utilisateur extrait de l'objet: ${prop}=${userId[prop]}`);
-        return userId[prop];
-      }
-    }
-    
-    // Si toString() renvoie quelque chose d'autre que [object Object], l'utiliser
-    const userIdString = String(userId);
-    if (userIdString !== '[object Object]' && userIdString !== 'null' && userIdString !== 'undefined') {
-      console.log(`Conversion de l'objet en chaîne: ${userIdString}`);
-      return userIdString;
-    }
-  }
-  
-  console.log(`Utilisation de l'ID par défaut: p71x6d_system`);
-  return 'p71x6d_system'; // Valeur par défaut si rien n'est valide
-};
-
-/**
- * Charge les membres depuis le serveur Infomaniak uniquement
+ * CHARGEMENT EXCLUSIF DEPUIS LA BASE DE DONNÉES INFOMANIAK
+ * Aucun fallback local, aucun cache - UNIQUEMENT la base de données
  */
 export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]> => {
   try {
     const API_URL = getApiUrl();
     
-    // Extraire l'identifiant technique ou email de l'utilisateur
-    const userId = extractValidUserId(currentUser);
-    console.log(`Chargement des membres depuis le serveur pour l'utilisateur ${userId}`);
-    
-    // Vérifier que l'ID est bien une chaîne et non un objet
-    if (typeof userId !== 'string') {
-      throw new Error(`ID utilisateur invalide: ${typeof userId}`);
+    // Validation stricte de l'utilisateur
+    if (!currentUser || typeof currentUser !== 'string') {
+      throw new Error("Identifiant utilisateur invalide pour la base de données Infomaniak");
     }
     
-    // Utiliser encodeURIComponent pour encoder l'ID utilisateur en toute sécurité
-    const encodedUserId = encodeURIComponent(userId);
-    const url = `${API_URL}/membres-load.php?userId=${encodedUserId}`;
+    console.log(`CHARGEMENT EXCLUSIF depuis la base de données Infomaniak pour: ${currentUser}`);
     
-    // Ajouter un timestamp pour éviter la mise en cache
+    const encodedUserId = encodeURIComponent(currentUser);
+    const url = `${API_URL}/membres-load.php?userId=${encodedUserId}`;
     const urlWithTimestamp = `${url}&_t=${new Date().getTime()}`;
     
-    // Ajout d'un logging pour déboguer
-    console.log(`Requête membres: ${urlWithTimestamp}`);
+    console.log(`Requête vers base de données Infomaniak: ${urlWithTimestamp}`);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes de timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     
     try {
       const response = await fetch(urlWithTimestamp, {
         method: 'GET',
-        headers: getAuthHeaders(),
+        headers: {
+          ...getAuthHeaders(),
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
         cache: 'no-store',
         signal: controller.signal
       });
       
       clearTimeout(timeoutId);
       
-      // Debug: Journaliser le statut et le texte de la réponse
-      console.log(`Réponse membres statut: ${response.status}`);
+      console.log(`Réponse base de données Infomaniak - Status: ${response.status}`);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Erreur serveur (${response.status}) lors du chargement des membres:`, errorText);
-        throw new Error(`Erreur serveur: ${response.status}`);
+        console.error(`ERREUR base de données Infomaniak (${response.status}):`, errorText);
+        throw new Error(`Erreur base de données Infomaniak: ${response.status} - ${response.statusText}`);
       }
       
       const responseText = await response.text();
+      console.log(`Réponse base de données Infomaniak (${responseText.length} caractères):`, responseText.substring(0, 200));
       
-      // Debug: Journaliser les 200 premiers caractères de la réponse 
-      console.log(`Réponse membres début: ${responseText.substring(0, 200)}`);
-      
-      // Vérifier si la réponse est vide
       if (!responseText || !responseText.trim()) {
-        console.warn("Réponse vide du serveur");
+        console.warn("Réponse vide de la base de données Infomaniak");
         return [];
       }
       
-      // Vérifier si la réponse contient du HTML ou PHP (erreur)
+      // Vérifier que la réponse est bien du JSON et non du HTML/PHP
       if (responseText.includes('<?php') || responseText.includes('<html') || responseText.includes('<br')) {
-        console.error("La réponse contient du HTML/PHP au lieu de JSON:", responseText.substring(0, 200));
-        throw new Error("Le serveur a renvoyé une page HTML au lieu de données JSON");
+        console.error("ERREUR: La base de données Infomaniak a renvoyé du HTML/PHP au lieu de JSON:", responseText.substring(0, 200));
+        throw new Error("La base de données Infomaniak a renvoyé une page HTML au lieu de données JSON");
       }
       
       try {
         const result = JSON.parse(responseText);
         
         if (!result.success) {
-          throw new Error(result.message || "Erreur inconnue lors du chargement des membres");
+          throw new Error(result.message || "Erreur base de données Infomaniak lors du chargement des membres");
         }
         
-        // Transformer les dates string en objets Date
         const membres = result.membres || [];
+        console.log(`${membres.length} membres récupérés depuis la base de données Infomaniak`);
+        
+        // Transformer les dates et valider les données
         return membres.map((membre: any) => ({
           ...membre,
-          date_creation: membre.date_creation ? new Date(membre.date_creation) : new Date()
+          date_creation: membre.date_creation ? new Date(membre.date_creation) : new Date(),
+          initiales: membre.initiales || `${membre.prenom?.charAt(0) || ''}${membre.nom?.charAt(0) || ''}`
         }));
+        
       } catch (jsonError) {
-        console.error("Erreur lors du parsing JSON:", jsonError);
+        console.error("ERREUR parsing JSON depuis la base de données Infomaniak:", jsonError);
         console.error("Réponse brute:", responseText.substring(0, 500));
-        throw new Error("Format de réponse invalide");
+        throw new Error("Format de réponse invalide de la base de données Infomaniak");
       }
+      
     } catch (error) {
       if (error.name === 'AbortError') {
-        throw new Error("Délai d'attente dépassé lors du chargement des membres");
+        throw new Error("Délai d'attente dépassé lors de l'accès à la base de données Infomaniak");
       }
       throw error;
     }
+    
   } catch (error) {
-    console.error('Erreur lors du chargement des membres depuis le serveur:', error);
+    console.error('ERREUR CRITIQUE base de données Infomaniak:', error);
     throw error;
   }
 };
 
 /**
- * Synchronise les membres avec le serveur Infomaniak uniquement
+ * SYNCHRONISATION EXCLUSIVE AVEC LA BASE DE DONNÉES INFOMANIAK
  */
 export const syncMembresWithServer = async (membres: Membre[], currentUser: any): Promise<boolean> => {
   try {
     const API_URL = getApiUrl();
     
-    // Extraire l'identifiant technique ou email de l'utilisateur
-    const userId = extractValidUserId(currentUser);
-    console.log(`Synchronisation des membres pour l'utilisateur ${userId}`);
+    if (!currentUser || typeof currentUser !== 'string') {
+      throw new Error("Identifiant utilisateur invalide pour la synchronisation avec la base de données Infomaniak");
+    }
+    
+    console.log(`SYNCHRONISATION EXCLUSIVE avec la base de données Infomaniak pour: ${currentUser}`);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 secondes de timeout
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
     
     try {
-      // Préparer les données à envoyer - convertir les objets Date en chaînes
       const membresForSync = membres.map(membre => ({
         ...membre,
         date_creation: membre.date_creation instanceof Date 
@@ -167,76 +122,62 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: any)
           : membre.date_creation
       }));
       
-      // Journaliser pour le débogage
-      console.log(`Envoi de ${membresForSync.length} membres pour synchronisation`);
+      console.log(`Envoi de ${membresForSync.length} membres vers la base de données Infomaniak`);
       
       const response = await fetch(`${API_URL}/membres-sync.php`, {
         method: 'POST',
         headers: {
           ...getAuthHeaders(),
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
-        body: JSON.stringify({ userId, membres: membresForSync }),
+        body: JSON.stringify({ userId: currentUser, membres: membresForSync }),
         signal: controller.signal
       });
       
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        console.error(`Erreur lors de la synchronisation des membres: ${response.status}`);
-        
-        // Essayer de récupérer les détails de l'erreur
         const errorText = await response.text();
-        console.error("Détails de l'erreur:", errorText);
-        
-        if (errorText.trim().startsWith('{')) {
-          try {
-            const errorJson = JSON.parse(errorText);
-            throw new Error(errorJson.message || `Échec de la synchronisation: ${response.statusText}`);
-          } catch (e) {
-            console.error("Impossible de parser l'erreur JSON:", e);
-          }
-        }
-        
-        throw new Error(`Échec de la synchronisation: ${response.statusText}`);
+        console.error(`ERREUR synchronisation base de données Infomaniak: ${response.status}`, errorText);
+        throw new Error(`Échec synchronisation base de données Infomaniak: ${response.statusText}`);
       }
       
       const responseText = await response.text();
       
-      // Vérifier si la réponse est vide
       if (!responseText || !responseText.trim()) {
-        console.warn("Réponse vide du serveur lors de la synchronisation");
+        console.warn("Réponse vide lors de la synchronisation avec la base de données Infomaniak");
         return false;
       }
       
-      // Vérifier si la réponse contient du HTML ou PHP (erreur)
       if (responseText.includes('<?php') || responseText.includes('<html') || responseText.includes('<br')) {
-        console.error("La réponse de synchronisation contient du HTML/PHP au lieu de JSON:", responseText.substring(0, 200));
-        throw new Error("Le serveur a renvoyé une page HTML au lieu de données JSON");
+        console.error("ERREUR: Réponse HTML/PHP de la base de données Infomaniak au lieu de JSON:", responseText.substring(0, 200));
+        throw new Error("La base de données Infomaniak a renvoyé du HTML au lieu de JSON");
       }
       
       try {
         const result = JSON.parse(responseText);
-        console.log("Résultat de la synchronisation des membres:", result);
+        console.log("Résultat synchronisation base de données Infomaniak:", result);
         
         if (!result.success) {
-          throw new Error(result.message || "Erreur de synchronisation inconnue");
+          throw new Error(result.message || "Erreur synchronisation base de données Infomaniak");
         }
         
         return true;
       } catch (e) {
-        console.error("Erreur lors du parsing de la réponse:", e);
-        console.error("Réponse brute reçue:", responseText);
-        throw new Error("Impossible de traiter la réponse du serveur");
+        console.error("Erreur parsing réponse synchronisation base de données Infomaniak:", e);
+        throw new Error("Impossible de traiter la réponse de la base de données Infomaniak");
       }
+      
     } catch (error) {
       if (error.name === 'AbortError') {
-        throw new Error("Délai d'attente dépassé lors de la synchronisation");
+        throw new Error("Délai d'attente dépassé lors de la synchronisation avec la base de données Infomaniak");
       }
       throw error;
     }
+    
   } catch (error) {
-    console.error('Erreur de synchronisation des membres:', error);
+    console.error('ERREUR synchronisation base de données Infomaniak:', error);
     throw error;
   }
 };
