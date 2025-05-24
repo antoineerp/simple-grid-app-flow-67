@@ -4,6 +4,7 @@
 
 // Exporter le service API principal et ses sous-services
 export * from './api/apiService';
+export * from './api/directDbService';
 
 // Réexporter les services existants, mais renommer l'authService importé
 // pour éviter le conflit avec celui de apiService
@@ -33,5 +34,5 @@ export {
   userService
 } from './users/userService';
 
-// Note: Ces services seront progressivement migrés vers 
-// l'architecture centralisée dans apiService.ts
+// Note: Ces services sont maintenant configurés pour toujours se connecter directement
+// à la base de données Infomaniak et ne jamais utiliser le localStorage pour les données

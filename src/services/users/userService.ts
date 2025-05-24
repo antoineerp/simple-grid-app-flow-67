@@ -48,17 +48,17 @@ export const deleteUser = async (userId: string) => {
   }
 };
 
-// Récupérer tous les utilisateurs avec une méthode plus directe
+// Récupérer tous les utilisateurs avec une méthode directe vers la base de données
 export const getAllUsers = async (): Promise<Utilisateur[]> => {
   try {
     const API_URL = getApiUrl();
-    console.log("Récupération de tous les utilisateurs...");
+    console.log("Récupération de tous les utilisateurs directement de la base de données...");
     
-    // Appeler directement le script test.php avec l'action=users qui fonctionne
+    // Appel direct au backend PHP qui interroge la base de données
     const result = await fetchWithErrorHandling(`${API_URL}/test.php?action=users`);
     
     if (result && result.records && Array.isArray(result.records)) {
-      console.log(`${result.records.length} utilisateurs récupérés avec succès`);
+      console.log(`${result.records.length} utilisateurs récupérés avec succès de la base de données`);
       return result.records;
     }
     
@@ -112,7 +112,8 @@ export const connectAsUser = async (identifiantTechnique: string): Promise<boole
     });
     
     if (result && result.success) {
-      // Mettre à jour l'utilisateur dans le localStorage
+      // Stocker uniquement l'identifiant de l'utilisateur actuel pour référence
+      // mais pas les données elles-mêmes
       localStorage.setItem('currentDatabaseUser', identifiantTechnique);
       
       // Déclencher un événement pour notifier les composants
@@ -130,14 +131,9 @@ export const connectAsUser = async (identifiantTechnique: string): Promise<boole
   }
 };
 
-// Cache management - clear users cache
-let usersCache: any = null;
-let usersCacheTimestamp: number = 0;
-
+// Fonction pour vider le cache - maintenant elle ne fait rien car nous n'utilisons plus de cache
 export const clearUsersCache = () => {
-  usersCache = null;
-  usersCacheTimestamp = 0;
-  console.log('Cache des utilisateurs effacé');
+  console.log('Fonction clearUsersCache appelée - aucune action requise car nous n\'utilisons plus de cache local');
 };
 
 // Export le service utilisateur complet

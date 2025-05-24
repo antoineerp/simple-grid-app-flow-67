@@ -1,10 +1,11 @@
 
 /**
- * Service de gestion de la connexion utilisateur - Version simplifiée
- * Utilise le service de base de données centralisé
+ * Service de gestion de la connexion utilisateur - Version directe à la base de données
+ * Évite l'utilisation du localStorage pour stocker les données utilisateurs
  */
 
-import { db } from '@/services/database';
+import { fetchWithErrorHandling } from '@/config/apiConfig';
+import { getApiUrl } from '@/config/apiConfig';
 
 let currentUser: string = 'p71x6d_richard';
 let lastConnectionError: string | null = null;
@@ -45,19 +46,19 @@ export const getDatabaseConnectionCurrentUser = (): string => {
  */
 export const connectAsUser = async (userId: string): Promise<boolean> => {
   try {
-    const userExists = await db.userExists(userId);
+    const API_URL = getApiUrl();
+    console.log(`Tentative de connexion directe à la base de données en tant que: ${userId}`);
+    
+    // Vérifier si l'utilisateur existe
+    const response = await fetchWithErrorHandling(`${API_URL}/test.php?action=user_exists&userId=${userId}`);
+    const userExists = response && response.success;
+    
     if (!userExists) {
       lastConnectionError = `L'utilisateur ${userId} n'existe pas dans la base de données`;
       return false;
     }
     
     setCurrentUser(userId);
-    localStorage.setItem('currentUser', userId);
-    
-    // Récupérer les tables de l'utilisateur
-    const tables = await db.getUserTables(userId);
-    localStorage.setItem('userTables', JSON.stringify(tables));
-    
     lastConnectionError = null;
     return true;
   } catch (error) {
@@ -72,8 +73,6 @@ export const connectAsUser = async (userId: string): Promise<boolean> => {
  */
 export const disconnectUser = (): void => {
   setCurrentUser('');
-  localStorage.removeItem('currentUser');
-  localStorage.removeItem('userTables');
 };
 
 /**
@@ -95,7 +94,13 @@ export const getLastConnectionError = (): string | null => {
  */
 export const testDatabaseConnection = async (): Promise<{ success: boolean; message: string }> => {
   try {
-    return await db.testConnection();
+    const API_URL = getApiUrl();
+    const response = await fetchWithErrorHandling(`${API_URL}/test.php?action=test_connection`);
+    
+    return {
+      success: response && response.success,
+      message: response && response.message ? response.message : 'Test de connexion effectué'
+    };
   } catch (error) {
     return {
       success: false,
@@ -150,14 +155,16 @@ export const isSystemUser = (userId: string): boolean => {
 export const forceSafeUser = async (): Promise<boolean> => {
   try {
     const defaultUser = 'p71x6d_richard';
-    const currentUser = getCurrentUser();
+    const user = getCurrentUser();
     
-    if (!currentUser) {
+    if (!user) {
       setCurrentUser(defaultUser);
       return true;
     }
     
-    const userExists = await db.userExists(currentUser);
+    const API_URL = getApiUrl();
+    const response = await fetchWithErrorHandling(`${API_URL}/test.php?action=user_exists&userId=${user}`);
+    const userExists = response && response.success;
     
     if (!userExists) {
       setCurrentUser(defaultUser);

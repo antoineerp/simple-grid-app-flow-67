@@ -17,13 +17,13 @@ export const useAdminUsers = () => {
     setError(null);
     
     try {
-      console.log("Début du chargement des utilisateurs...");
+      console.log("Début du chargement des utilisateurs de la base de données...");
       
-      // Utiliser le service directement
+      // Utiliser le service pour charger directement depuis la base de données
       const users = await userService.getAllUsers();
       
       if (users && users.length > 0) {
-        console.log(`${users.length} utilisateurs chargés depuis l'API`);
+        console.log(`${users.length} utilisateurs chargés depuis la base de données`);
         setUtilisateurs(users);
         setError(null);
         setRetryCount(0);
@@ -65,7 +65,7 @@ export const useAdminUsers = () => {
     console.log(`Tentative de connexion en tant que: ${identifiantTechnique}`);
 
     try {
-      // Utiliser le service pour la connexion
+      // Utiliser le service pour la connexion directe à la base de données
       const success = await userService.connectAsUser(identifiantTechnique);
       
       if (success) {
@@ -98,16 +98,16 @@ export const useAdminUsers = () => {
     try {
       console.log(`Tentative de suppression de l'utilisateur avec ID: ${userId}`);
       
-      // Utiliser le service pour la suppression
+      // Utiliser le service pour la suppression depuis la base de données
       const result = await userService.deleteUser(userId);
       
       if (result && result.success) {
-        // Recharger la liste des utilisateurs
+        // Recharger la liste des utilisateurs directement depuis la base de données
         await loadUtilisateurs();
         
         toast({
           title: "Utilisateur supprimé",
-          description: "L'utilisateur a été supprimé avec succès",
+          description: "L'utilisateur a été supprimé avec succès de la base de données",
         });
         
         return true;
@@ -133,7 +133,7 @@ export const useAdminUsers = () => {
     }
   };
   
-  // Ajout de la méthode verifyAllUserTables
+  // Vérifier toutes les tables utilisateurs directement dans la base de données
   const verifyAllUserTables = async () => {
     try {
       return await userService.verifyAllUserTables();
