@@ -1,14 +1,12 @@
 
-// Hook pour les documents - base de données uniquement
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 
-// Types simplifiés pour les documents
 interface Document {
   id: string;
   nom: string;
-  fichier_path?: string;
+  fichier_path: string | null;
   responsabilites?: any;
   etat?: string;
   groupId?: string;
@@ -24,14 +22,12 @@ interface DocumentGroup {
   items: Document[];
 }
 
-// Service API simulé - à remplacer par vrais appels API
 const documentsService = {
   getDocuments: async (): Promise<Document[]> => {
-    // Simuler un appel API vers la base de données
     return [];
   },
   createDocument: async (document: Omit<Document, 'id'>): Promise<Document> => {
-    return { ...document, id: crypto.randomUUID() };
+    return { ...document, id: crypto.randomUUID(), fichier_path: null };
   },
   updateDocument: async (document: Document): Promise<Document> => {
     return document;

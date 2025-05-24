@@ -54,7 +54,7 @@ function App() {
               <Dashboard />
             </MainLayout>
           } />
-          <Route path="/documents" element={
+          <Route path="/gestion-documentaire" element={
             <MainLayout>
               <Documents />
             </MainLayout>
@@ -74,7 +74,7 @@ function App() {
           <Route element={<AdminGuard isLoggedIn={isLoggedIn} />}>
             <Route path="/admin" element={
               <MainLayout>
-                <Admin currentDatabaseUser={currentDatabaseUser} onUserConnect={handleUserConnect} />
+                <Admin />
               </MainLayout>
             } />
           </Route>

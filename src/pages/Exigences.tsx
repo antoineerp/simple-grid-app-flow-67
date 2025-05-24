@@ -1,5 +1,4 @@
 
-// Page Exigences sans synchronisation
 import React from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { useExigences } from '@/hooks/useExigences';
@@ -14,7 +13,6 @@ const Exigences = () => {
   const {
     exigences,
     groups,
-    stats,
     editingExigence,
     editingGroup,
     dialogOpen,
@@ -46,6 +44,38 @@ const Exigences = () => {
     });
   };
 
+  // Transform stats to match expected format
+  const stats = {
+    exclusion: exigences.filter(e => e.excluded).length,
+    nonConforme: exigences.filter(e => e.etat === 'NC').length,
+    partiellementConforme: exigences.filter(e => e.etat === 'PC').length,
+    conforme: exigences.filter(e => e.etat === 'C').length,
+    total: exigences.length
+  };
+
+  // Transform exigences to match expected format
+  const transformedExigences = exigences.map(e => ({
+    ...e,
+    exclusion: e.excluded || false,
+    atteinte: e.etat as 'NC' | 'PC' | 'C' | null,
+    responsabilites: e.responsabilites || { r: [], a: [], c: [], i: [] },
+    date_creation: e.date_creation || new Date(),
+    date_modification: e.date_modification || new Date()
+  }));
+
+  // Transform groups to match expected format
+  const transformedGroups = groups.map(g => ({
+    ...g,
+    items: g.items.map(item => ({
+      ...item,
+      exclusion: item.excluded || false,
+      atteinte: item.etat as 'NC' | 'PC' | 'C' | null,
+      responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
+      date_creation: item.date_creation || new Date(),
+      date_modification: item.date_modification || new Date()
+    }))
+  }));
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -65,15 +95,15 @@ const Exigences = () => {
 
       <ExigenceStats stats={stats} />
 
-      {exigences.length > 0 ? (
+      {transformedExigences.length > 0 ? (
         <ExigenceTable 
-          exigences={exigences}
-          groups={groups}
+          exigences={transformedExigences}
+          groups={transformedGroups}
           onResponsabiliteChange={handleResponsabiliteChange}
           onAtteinteChange={handleAtteinteChange}
           onExclusionChange={handleExclusionChange}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
+          onEdit={(exigence) => handleEdit(exigence)}
+          onDelete={(id) => handleDelete(id)}
           onReorder={handleReorder}
           onGroupReorder={handleGroupReorder}
           onToggleGroup={handleToggleGroup}

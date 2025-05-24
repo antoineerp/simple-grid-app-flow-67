@@ -1,10 +1,8 @@
 
-// Hook pour les exigences - base de données uniquement
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 
-// Types pour les exigences
 interface Exigence {
   id: string;
   nom: string;
@@ -24,7 +22,6 @@ interface ExigenceGroup {
   items: Exigence[];
 }
 
-// Service API simulé
 const exigencesService = {
   getExigences: async (): Promise<Exigence[]> => {
     return [];
@@ -92,17 +89,9 @@ export function useExigences() {
     },
   });
 
-  const stats = {
-    total: exigences.length,
-    completed: exigences.filter(e => e.etat === 'complete').length,
-    pending: exigences.filter(e => e.etat === 'pending').length,
-    excluded: exigences.filter(e => e.excluded).length,
-  };
-
   return {
     exigences,
     groups,
-    stats,
     editingExigence,
     editingGroup,
     dialogOpen,
