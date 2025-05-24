@@ -35,35 +35,15 @@ jobs:
 
     - name: Prepare deployment directory
       run: |
-        # Création des dossiers nécessaires
-        mkdir -p deploy/assets
+        # Création du dossier de déploiement
+        mkdir -p deploy
+        
+        # Copie du CONTENU de dist/ vers deploy/ (pas le dossier dist/ lui-même)
+        echo "Copie du contenu de dist/ vers deploy/..."
+        cp -r dist/* deploy/
+        
+        # Création des dossiers API
         mkdir -p deploy/api
-        mkdir -p deploy/api/config
-        mkdir -p deploy/api/services
-        mkdir -p deploy/api/controllers
-        mkdir -p deploy/api/models
-        mkdir -p deploy/api/models/traits
-        mkdir -p deploy/api/middleware
-        mkdir -p deploy/api/operations
-        mkdir -p deploy/api/utils
-        mkdir -p deploy/public/lovable-uploads
-        mkdir -p deploy/dist
-        
-        # Copie du dossier dist complet
-        echo "Copie du dossier dist complet..."
-        cp -r dist/ deploy/dist/
-        
-        # Copie des fichiers compilés directement dans assets
-        echo "Copie des assets vers le dossier deploy/assets..."
-        cp -r dist/assets/* deploy/assets/
-        
-        # Debug - compter les fichiers copiés dans assets
-        echo "Nombre de fichiers dans deploy/assets:"
-        find deploy/assets -type f | wc -l
-        
-        # Copie des autres fichiers nécessaires
-        cp dist/index.html deploy/
-        cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         
         # Copie des fichiers de l'API
         if [ -d "api" ]; then
@@ -74,6 +54,7 @@ jobs:
         fi
         
         # Copie des uploads si existants
+        mkdir -p deploy/public/lovable-uploads
         if [ -d "public/lovable-uploads" ]; then
           echo "Copie des uploads..."
           cp -r public/lovable-uploads/* deploy/public/lovable-uploads/ || echo "Copie des uploads échouée"
@@ -81,8 +62,8 @@ jobs:
           echo "Dossier uploads non trouvé"
         fi
         
-        echo "Structure du dossier de déploiement:"
-        find deploy -type f | sort
+        echo "Structure finale du dossier de déploiement:"
+        find deploy -type f | head -20
 
     - name: Sync to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
