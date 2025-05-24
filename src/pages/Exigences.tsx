@@ -46,10 +46,10 @@ const Exigences = () => {
 
   // Transform stats to match expected format
   const stats = {
-    exclusion: exigences.filter(e => e.excluded).length,
-    nonConforme: exigences.filter(e => e.etat === 'NC').length,
-    partiellementConforme: exigences.filter(e => e.etat === 'PC').length,
-    conforme: exigences.filter(e => e.etat === 'C').length,
+    exclusion: exigences.filter(e => e.exclusion).length,
+    nonConforme: exigences.filter(e => e.atteinte === 'NC').length,
+    partiellementConforme: exigences.filter(e => e.atteinte === 'PC').length,
+    conforme: exigences.filter(e => e.atteinte === 'C').length,
     total: exigences.length
   };
 
