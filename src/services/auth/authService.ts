@@ -30,7 +30,7 @@ export const logout = () => {
   localStorage.removeItem('currentDatabaseUser');
 };
 
-// Fonction de login unifiée
+// Fonction de login corrigée - utilise UNIQUEMENT l'endpoint /auth
 export const login = async (username: string, password: string): Promise<LoginResponse> => {
   try {
     console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
@@ -43,6 +43,8 @@ export const login = async (username: string, password: string): Promise<LoginRe
       },
       body: JSON.stringify({ username, password }),
     });
+    
+    console.log("Réponse complète de l'API:", response);
     
     if (response.success && response.token) {
       // Store token and user information
@@ -62,6 +64,8 @@ export const login = async (username: string, password: string): Promise<LoginRe
       }
       
       console.log("Connexion réussie avec les données:", response);
+    } else {
+      console.error("Réponse d'authentification invalide:", response);
     }
     
     return response;

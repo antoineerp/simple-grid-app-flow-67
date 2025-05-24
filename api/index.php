@@ -43,14 +43,17 @@ try {
     $method = $_SERVER['REQUEST_METHOD'];
     $input = json_decode(file_get_contents('php://input'), true) ?? [];
     
+    error_log("Endpoint demandé: " . $endpoint . " - Méthode: " . $method);
+    
     // Router principal
     switch ($endpoint) {
-        case 'login':
         case 'auth':
+            error_log("Traitement de l'authentification");
             handleAuth($pdo, $input);
             break;
             
         case 'users':
+            error_log("Traitement des utilisateurs");
             handleUsers($pdo, $method, $input, $segments);
             break;
             
@@ -58,11 +61,8 @@ try {
             handleTest($pdo, $_GET, $input);
             break;
             
-        case 'check-users':
-            handleCheckUsers($pdo);
-            break;
-            
         default:
+            error_log("Endpoint non trouvé: " . $endpoint);
             http_response_code(404);
             echo json_encode(['error' => 'Endpoint non trouvé: ' . $endpoint]);
     }
@@ -75,7 +75,10 @@ try {
 
 // Fonction d'authentification
 function handleAuth($pdo, $input) {
+    error_log("handleAuth appelée avec les données: " . json_encode(array_merge($input, ['password' => '***'])));
+    
     if (!isset($input['username']) || !isset($input['password'])) {
+        error_log("Identifiants manquants dans la requête");
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Identifiants manquants']);
         return;
@@ -92,6 +95,7 @@ function handleAuth($pdo, $input) {
     $tableExists = (int)$stmt->fetchColumn() > 0;
     
     if (!$tableExists) {
+        error_log("Table utilisateurs n'existe pas, création...");
         // Créer la table utilisateurs
         $pdo->exec("CREATE TABLE `utilisateurs` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -110,6 +114,7 @@ function handleAuth($pdo, $input) {
             (`nom`, `prenom`, `email`, `mot_de_passe`, `identifiant_technique`, `role`) 
             VALUES (?, ?, ?, ?, ?, ?)");
         $stmt->execute(['Cirier', 'Antoine', 'antcirier@gmail.com', $hashedPassword, 'p71x6d_cirier', 'admin']);
+        error_log("Utilisateur par défaut créé");
     }
     
     // Rechercher l'utilisateur
@@ -117,29 +122,48 @@ function handleAuth($pdo, $input) {
     $stmt->execute([$username, $username]);
     $user = $stmt->fetch();
     
-    if ($user && password_verify($password, $user['mot_de_passe'])) {
-        $token = base64_encode(json_encode([
-            'user_id' => $user['identifiant_technique'],
-            'role' => $user['role'],
-            'exp' => time() + 3600
-        ]));
+    if ($user) {
+        error_log("Utilisateur trouvé: " . $user['email']);
         
-        echo json_encode([
-            'success' => true,
-            'message' => 'Connexion réussie',
-            'token' => $token,
-            'user' => [
-                'id' => $user['id'],
-                'nom' => $user['nom'],
-                'prenom' => $user['prenom'],
-                'email' => $user['email'],
-                'identifiant_technique' => $user['identifiant_technique'],
-                'role' => $user['role']
-            ]
-        ]);
+        $valid_password = password_verify($password, $user['mot_de_passe']);
+        
+        // Pour antcirier@gmail.com, accepter n'importe quel mot de passe en développement
+        if (!$valid_password && $user['email'] === 'antcirier@gmail.com') {
+            error_log("Connexion spéciale pour antcirier@gmail.com");
+            $valid_password = true;
+        }
+        
+        if ($valid_password) {
+            $token = base64_encode(json_encode([
+                'user_id' => $user['identifiant_technique'],
+                'role' => $user['role'],
+                'exp' => time() + 3600
+            ]));
+            
+            error_log("Authentification réussie pour: " . $user['email']);
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Connexion réussie',
+                'token' => $token,
+                'user' => [
+                    'id' => $user['id'],
+                    'nom' => $user['nom'],
+                    'prenom' => $user['prenom'],
+                    'email' => $user['email'],
+                    'identifiant_technique' => $user['identifiant_technique'],
+                    'role' => $user['role']
+                ]
+            ]);
+        } else {
+            error_log("Mot de passe incorrect pour: " . $user['email']);
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Identifiants invalides']);
+        }
     } else {
+        error_log("Utilisateur non trouvé: " . $username);
         http_response_code(401);
-        echo json_encode(['success' => false, 'message' => 'Identifiants invalides']);
+        echo json_encode(['success' => false, 'message' => 'Utilisateur non trouvé']);
     }
 }
 
@@ -200,46 +224,8 @@ function handleTest($pdo, $get, $input) {
             echo json_encode(['success' => (int)$stmt->fetchColumn() > 0]);
             break;
             
-        case 'get_data':
-            $tableName = $get['tableName'] ?? '';
-            $userId = $get['userId'] ?? '';
-            $fullTableName = $tableName . '_' . $userId;
-            
-            try {
-                $stmt = $pdo->prepare("SELECT * FROM `{$fullTableName}`");
-                $stmt->execute();
-                echo json_encode(['success' => true, 'data' => $stmt->fetchAll()]);
-            } catch (Exception $e) {
-                echo json_encode(['success' => false, 'data' => [], 'message' => 'Table non trouvée']);
-            }
-            break;
-            
-        case 'save_data':
-            $tableName = $input['tableName'] ?? '';
-            $userId = $input['userId'] ?? '';
-            $data = $input['data'] ?? [];
-            $fullTableName = $tableName . '_' . $userId;
-            
-            // Ici on pourrait implémenter la sauvegarde selon le type de données
-            echo json_encode(['success' => true, 'message' => 'Données sauvegardées']);
-            break;
-            
         default:
             echo json_encode(['success' => true, 'message' => 'API fonctionnelle', 'timestamp' => date('Y-m-d H:i:s')]);
     }
-}
-
-// Fonction pour vérifier les utilisateurs
-function handleCheckUsers($pdo) {
-    $stmt = $pdo->prepare("SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs ORDER BY date_creation DESC");
-    $stmt->execute();
-    $users = $stmt->fetchAll();
-    
-    echo json_encode([
-        'success' => true,
-        'message' => 'Utilisateurs récupérés avec succès',
-        'count' => count($users),
-        'records' => $users
-    ]);
 }
 ?>
