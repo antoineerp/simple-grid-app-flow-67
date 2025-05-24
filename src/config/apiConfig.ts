@@ -5,6 +5,13 @@
 export const getApiUrl = (): string => {
   // Utilise l'URL actuelle comme base pour l'API
   const baseUrl = window.location.origin;
+  
+  // Pour le développement local, utiliser une URL fixe
+  if (baseUrl.includes('localhost') || baseUrl.includes('lovable.app') || baseUrl.includes('lovableproject.com')) {
+    console.log('Environnement de développement détecté - utilisation de l\'API directe');
+    return `${baseUrl}/api`;
+  }
+  
   return `${baseUrl}/api`;
 };
 
@@ -34,8 +41,8 @@ export const testApiConnection = async (): Promise<{
     const apiUrl = getApiUrl();
     console.log("Test de connexion à l'API:", apiUrl);
     
-    // Test direct de l'API test.php qui a plus de chances de fonctionner
-    const response = await fetch(`${apiUrl}/test.php?_t=${Date.now()}`, {
+    // Test direct de login-test.php qui est plus fiable pour les tests
+    const response = await fetch(`${apiUrl}/login-test.php?test=1&_t=${Date.now()}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -43,7 +50,23 @@ export const testApiConnection = async (): Promise<{
       }
     });
     
+    // Si le serveur PHP ne fonctionne pas, essayer un test avec .json pour voir si le serveur répond
     if (!response.ok) {
+      try {
+        const jsonTest = await fetch(`${apiUrl}/test-connection.json?_t=${Date.now()}`);
+        if (jsonTest.ok) {
+          return {
+            success: false,
+            message: "Le serveur répond mais les scripts PHP ne sont pas exécutés. Veuillez vérifier la configuration du serveur.",
+            details: {
+              tip: "Les fichiers PHP ne sont pas exécutés correctement. Vérifiez que PHP est installé et configuré sur votre serveur."
+            }
+          };
+        }
+      } catch (e) {
+        // Ignore l'erreur et continue
+      }
+      
       throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
     }
     
@@ -52,7 +75,13 @@ export const testApiConnection = async (): Promise<{
     // Vérifier si la réponse contient du PHP non exécuté
     if (responseText.includes('<?php')) {
       console.error("Réponse PHP non exécutée:", responseText.substring(0, 100));
-      throw new Error("Le serveur renvoie du code PHP au lieu de JSON. Vérifiez la configuration du serveur.");
+      return {
+        success: false,
+        message: "Le serveur renvoie du code PHP au lieu de JSON. Vérifiez la configuration du serveur.",
+        details: {
+          tip: "Votre serveur ne traite pas les fichiers PHP. Assurez-vous que PHP est correctement installé et configuré."
+        }
+      };
     }
     
     // Essayer de parser la réponse en JSON
@@ -65,7 +94,14 @@ export const testApiConnection = async (): Promise<{
       };
     } catch (e) {
       console.error("Erreur lors du parsing JSON:", e);
-      throw new Error("Réponse invalide: impossible de parser le JSON");
+      return {
+        success: false,
+        message: "Réponse invalide: impossible de parser le JSON",
+        details: { 
+          response: responseText.substring(0, 255),
+          error: e
+        }
+      };
     }
   } catch (error) {
     console.error("Erreur de connexion API:", error);
@@ -124,6 +160,11 @@ export const fetchWithErrorHandling = async (
     if (responseText.includes('<?php')) {
       console.error("Réponse PHP non exécutée:", responseText.substring(0, 100));
       throw new Error("Le serveur renvoie du code PHP au lieu de JSON. Vérifiez la configuration du serveur.");
+    }
+    
+    // Si la réponse est vide, renvoyer un objet vide
+    if (!responseText.trim()) {
+      return {};
     }
     
     try {

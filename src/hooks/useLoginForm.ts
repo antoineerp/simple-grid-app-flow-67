@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { login } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
 import { LoginResponse } from '@/types/auth';
+import { getApiUrl } from '@/config/apiConfig';
 
 export interface LoginFormValues {
   username: string;
@@ -27,6 +28,44 @@ export const useLoginForm = () => {
     }
   });
   
+  // Fonction pour tester si le serveur PHP fonctionne
+  const testPhpServer = async (): Promise<{success: boolean; message: string}> => {
+    try {
+      const API_URL = getApiUrl();
+      console.log("Test du serveur PHP:", `${API_URL}/login-test.php?test=1`);
+      
+      const response = await fetch(`${API_URL}/login-test.php?test=1&_t=${Date.now()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      const responseText = await response.text();
+      
+      // Vérifier si la réponse contient du PHP non exécuté
+      if (responseText.includes('<?php')) {
+        console.error("Le serveur ne traite pas les fichiers PHP:", responseText.substring(0, 100));
+        return {
+          success: false,
+          message: "Le serveur ne traite pas les fichiers PHP. Vérifiez la configuration du serveur."
+        };
+      }
+      
+      return {
+        success: true,
+        message: "Le serveur PHP fonctionne correctement"
+      };
+    } catch (error) {
+      console.error("Erreur lors du test du serveur PHP:", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Erreur inconnue"
+      };
+    }
+  };
+  
   const handleSubmit = useCallback(async (values: LoginFormValues) => {
     setIsLoading(true);
     setError(null);
@@ -35,6 +74,22 @@ export const useLoginForm = () => {
     setHasAuthError(false);
     
     console.log('Tentative de connexion pour:', values.username);
+    
+    // Tester d'abord si le serveur PHP fonctionne
+    const phpServerTest = await testPhpServer();
+    if (!phpServerTest.success) {
+      setHasServerError(true);
+      setError(phpServerTest.message);
+      setIsLoading(false);
+      
+      toast({
+        title: "Erreur serveur",
+        description: phpServerTest.message,
+        variant: "destructive",
+      });
+      
+      return;
+    }
     
     try {
       // Stocker l'email pour une utilisation future
