@@ -50,12 +50,20 @@ const Documents = () => {
     }
   };
 
+  // Helper function to cast etat to correct type
+  const castEtat = (etat: any): 'NC' | 'PC' | 'C' | 'EX' | null => {
+    if (etat === 'NC' || etat === 'PC' || etat === 'C' || etat === 'EX') {
+      return etat;
+    }
+    return null;
+  };
+
   // Transform documents to match expected format
   const transformedDocuments = documents.map(doc => ({
     ...doc,
     responsabilites: doc.responsabilites || { r: [], a: [], c: [], i: [] },
     fichier_path: doc.fichier_path || null,
-    etat: doc.etat || null,
+    etat: castEtat(doc.etat),
     date_creation: doc.date_creation || new Date(),
     date_modification: doc.date_modification || new Date()
   }));
@@ -67,7 +75,7 @@ const Documents = () => {
       ...item,
       responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
       fichier_path: item.fichier_path || null,
-      etat: item.etat || null,
+      etat: castEtat(item.etat),
       date_creation: item.date_creation || new Date(),
       date_modification: item.date_modification || new Date()
     }))
@@ -130,7 +138,7 @@ const Documents = () => {
           ...editingDocument,
           responsabilites: editingDocument.responsabilites || { r: [], a: [], c: [], i: [] },
           fichier_path: editingDocument.fichier_path || null,
-          etat: editingDocument.etat || null,
+          etat: castEtat(editingDocument.etat),
           date_creation: editingDocument.date_creation || new Date(),
           date_modification: editingDocument.date_modification || new Date()
         } : null}
@@ -146,7 +154,7 @@ const Documents = () => {
             ...item,
             responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
             fichier_path: item.fichier_path || null,
-            etat: item.etat || null,
+            etat: castEtat(item.etat),
             date_creation: item.date_creation || new Date(),
             date_modification: item.date_modification || new Date()
           }))
