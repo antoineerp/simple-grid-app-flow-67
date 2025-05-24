@@ -1,21 +1,27 @@
 
+// Point d'entrée simplifié
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './index.css';
-import router from './router';
 import { RouterProvider } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { router } from '@/router';
+import { Toaster } from '@/components/ui/toaster';
+import './index.css';
 
-// Create a client
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
+      <RouterProvider router={router} />
+      <Toaster />
     </QueryClientProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 );
