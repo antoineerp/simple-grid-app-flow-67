@@ -7,6 +7,7 @@ import Documents from './pages/Documents';
 import Exigences from './pages/Exigences';
 import RessourcesHumaines from './pages/RessourcesHumaines';
 import Admin from './pages/Admin';
+import NotFound from './pages/NotFound';
 import MainLayout from './layout/MainLayout';
 import { getCurrentUser, getLastConnectionError } from './services/core/databaseConnectionService';
 import { checkAuth } from './services/auth/authService';
@@ -44,6 +45,7 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Page d'accueil - accessible à tous */}
         <Route path="/" element={<Index />} />
         
         {/* Routes protégées nécessitant une connexion */}
@@ -94,8 +96,11 @@ function App() {
           </Route>
         </Route>
 
-        {/* Redirection si l'utilisateur n'est pas connecté */}
-        <Route path="*" element={<Navigate to="/" />} />
+        {/* Page 404 pour les routes non trouvées */}
+        <Route path="/404" element={<NotFound />} />
+        
+        {/* Redirection pour toutes les autres routes */}
+        <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
     </Router>
   );
