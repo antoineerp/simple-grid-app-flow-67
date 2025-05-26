@@ -15,8 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 error_log("API Request: " . $_SERVER['REQUEST_METHOD'] . " " . $_SERVER['REQUEST_URI']);
 
 try {
-    // Configuration de la base de données INFOMANIAK UNIQUEMENT
-    $host = "p71x6d.myd.infomaniak.com";
+    // Configuration de la base de données INFOMANIAK avec les vraies données
+    $host = "h2web432.infomaniak.ch";
     $dbname = "p71x6d_richard";
     $username = "p71x6d_richard";
     $password = "Trottinette43!";
@@ -26,6 +26,8 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
+    
+    error_log("Connexion réussie à la base Infomaniak: {$host}/{$dbname}");
     
     $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
     $segments = explode('/', trim($requestUri, '/'));
@@ -54,9 +56,13 @@ try {
             break;
             
         default:
-            error_log("Endpoint non trouvé: " . $endpoint);
-            http_response_code(404);
-            echo json_encode(['error' => 'Endpoint non trouvé: ' . $endpoint]);
+            echo json_encode([
+                'success' => true,
+                'message' => 'API Infomaniak fonctionnelle',
+                'host' => $host,
+                'database' => $dbname,
+                'timestamp' => date('Y-m-d H:i:s')
+            ]);
     }
     
 } catch (Exception $e) {

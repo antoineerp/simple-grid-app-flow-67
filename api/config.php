@@ -1,18 +1,18 @@
 
 <?php
-// Configuration centralisée de l'application
+// Configuration centralisée pour Infomaniak - DONNÉES RÉELLES
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-User-ID");
 
-// Configuration de la base de données
-define('DB_HOST', 'p71x6d.myd.infomaniak.com');
+// Configuration RÉELLE de la base de données Infomaniak
+define('DB_HOST', 'h2web432.infomaniak.ch');
 define('DB_NAME', 'p71x6d_richard');
 define('DB_USER', 'p71x6d_richard');
 define('DB_PASS', 'Trottinette43!');
 
-// Fonction pour obtenir une connexion à la base de données
+// Fonction pour obtenir une connexion à la base de données Infomaniak
 function getDbConnection() {
     try {
         $pdo = new PDO(
@@ -25,10 +25,12 @@ function getDbConnection() {
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]
         );
+        error_log("Connexion réussie à la base Infomaniak: " . DB_HOST . "/" . DB_NAME);
         return $pdo;
     } catch (PDOException $e) {
+        error_log("ERREUR connexion Infomaniak: " . $e->getMessage());
         http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Database connection failed: ' . $e->getMessage()]);
+        echo json_encode(['success' => false, 'message' => 'Erreur de connexion à la base Infomaniak: ' . $e->getMessage()]);
         exit;
     }
 }
