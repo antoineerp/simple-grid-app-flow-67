@@ -1,122 +1,123 @@
 
-import { APP_CONFIG } from '@/lib/config';
 import { ApiResponse } from '@/types/api';
+import { Exigence, ExigenceGroup } from '@/types/exigences';
+import { Document } from '@/types';
 
+// Service API simplifié avec données mockées
 class ApiService {
-  private baseUrl: string;
-  private currentUserId: string | null = null;
-
-  constructor() {
-    this.baseUrl = APP_CONFIG.api.baseUrl;
-  }
-
-  setCurrentUser(userId: string) {
-    this.currentUserId = userId;
-  }
-
-  private getHeaders(): HeadersInit {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-
-    if (this.currentUserId) {
-      headers['X-User-ID'] = this.currentUserId;
+  private mockExigences: Exigence[] = [
+    {
+      id: '1',
+      nom: 'Nouvelle exigence 1',
+      description: 'Description de l\'exigence',
+      exclusion: false,
+      atteinte: 'non_conforme',
+      ordre: 1
     }
+  ];
 
-    return headers;
-  }
+  private mockDocuments: Document[] = [
+    { id: '1', nom: 'Documents organisationnels', groupId: 'group1' },
+    { id: '2', nom: 'Documents techniques', groupId: 'group2' },
+    { id: '3', nom: 'Document de référence' },
+    { id: '4', nom: 'Document technique' },
+    { id: '5', nom: 'N.GCV' }
+  ];
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-    const url = `${this.baseUrl}${endpoint}`;
+  async getExigences(): Promise<ApiResponse<Exigence[]>> {
+    // Simuler un délai d'API
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...this.getHeaders(),
-        ...options.headers,
-      },
-    });
+    return {
+      success: true,
+      data: this.mockExigences,
+      message: 'Exigences récupérées avec succès'
+    };
+  }
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  async createExigence(exigence: Omit<Exigence, 'id'>): Promise<ApiResponse<Exigence>> {
+    const newExigence: Exigence = {
+      ...exigence,
+      id: Date.now().toString(),
+      date_creation: new Date()
+    };
+    
+    this.mockExigences.push(newExigence);
+    
+    return {
+      success: true,
+      data: newExigence,
+      message: 'Exigence créée avec succès'
+    };
+  }
+
+  async updateExigence(exigence: Exigence): Promise<ApiResponse<Exigence>> {
+    const index = this.mockExigences.findIndex(e => e.id === exigence.id);
+    if (index !== -1) {
+      this.mockExigences[index] = { ...exigence, date_modification: new Date() };
+      return {
+        success: true,
+        data: this.mockExigences[index],
+        message: 'Exigence mise à jour avec succès'
+      };
     }
-
-    return response.json();
+    
+    return {
+      success: false,
+      message: 'Exigence non trouvée'
+    };
   }
 
-  // Auth
+  async deleteExigence(id: string): Promise<ApiResponse<void>> {
+    const index = this.mockExigences.findIndex(e => e.id === id);
+    if (index !== -1) {
+      this.mockExigences.splice(index, 1);
+      return {
+        success: true,
+        message: 'Exigence supprimée avec succès'
+      };
+    }
+    
+    return {
+      success: false,
+      message: 'Exigence non trouvée'
+    };
+  }
+
+  async getDocuments(): Promise<ApiResponse<Document[]>> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    return {
+      success: true,
+      data: this.mockDocuments,
+      message: 'Documents récupérés avec succès'
+    };
+  }
+
   async login(username: string, password: string): Promise<ApiResponse<{ token: string; user: any }>> {
-    return this.request('/auth.php', {
-      method: 'POST',
-      body: JSON.stringify({ username, password }),
-    });
-  }
-
-  // Users
-  async getUsers(): Promise<ApiResponse<any[]>> {
-    return this.request('/users.php');
-  }
-
-  async createUser(userData: any): Promise<ApiResponse<any>> {
-    return this.request('/users.php', {
-      method: 'POST',
-      body: JSON.stringify(userData),
-    });
-  }
-
-  // Documents
-  async getDocuments(): Promise<ApiResponse<any[]>> {
-    return this.request('/documents.php');
-  }
-
-  async createDocument(document: any): Promise<ApiResponse<any>> {
-    return this.request('/documents.php', {
-      method: 'POST',
-      body: JSON.stringify(document),
-    });
-  }
-
-  async updateDocument(document: any): Promise<ApiResponse<any>> {
-    return this.request('/documents.php', {
-      method: 'PUT',
-      body: JSON.stringify(document),
-    });
-  }
-
-  async deleteDocument(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/documents.php?id=${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Exigences
-  async getExigences(): Promise<ApiResponse<any[]>> {
-    return this.request('/exigences.php');
-  }
-
-  async createExigence(exigence: any): Promise<ApiResponse<any>> {
-    return this.request('/exigences.php', {
-      method: 'POST',
-      body: JSON.stringify(exigence),
-    });
-  }
-
-  async updateExigence(exigence: any): Promise<ApiResponse<any>> {
-    return this.request('/exigences.php', {
-      method: 'PUT',
-      body: JSON.stringify(exigence),
-    });
-  }
-
-  async deleteExigence(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/exigences.php?id=${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Status
-  async getStatus(): Promise<ApiResponse<any>> {
-    return this.request('/status.php');
+    // Simulation de connexion
+    if (username && password) {
+      return {
+        success: true,
+        data: {
+          token: 'mock-token-' + Date.now(),
+          user: {
+            id: 1,
+            nom: 'Utilisateur',
+            prenom: 'Test',
+            email: username,
+            identifiant_technique: 'test_user',
+            role: 'admin'
+          }
+        },
+        message: 'Connexion réussie'
+      };
+    }
+    
+    return {
+      success: false,
+      message: 'Identifiants invalides'
+    };
   }
 }
 

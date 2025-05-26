@@ -84,7 +84,7 @@ export function useExigences() {
   return {
     exigences,
     groups,
-    isLoading, // Add the missing isLoading property
+    isLoading,
     editingExigence,
     editingGroup,
     dialogOpen,

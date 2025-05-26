@@ -1,31 +1,26 @@
 
-export interface ExigenceGroup {
-  id: string;
-  name: string;
-  expanded: boolean;
-  items: Exigence[];
-}
-
 export interface Exigence {
   id: string;
   nom: string;
-  responsabilites: {
-    r: string[];
-    a: string[];
-    c: string[];
-    i: string[];
+  description?: string;
+  responsabilites?: {
+    responsable?: string;
+    approbateur?: string;
+    consultant?: string;
+    informe?: string;
   };
-  exclusion: boolean;
-  atteinte: 'NC' | 'PC' | 'C' | null;
-  date_creation: Date;
-  date_modification: Date;
+  exclusion?: boolean;
+  atteinte?: 'non_conforme' | 'partiellement_conforme' | 'conforme';
   groupId?: string;
+  ordre?: number;
+  date_creation?: Date;
+  date_modification?: Date;
 }
 
-export interface ExigenceStats {
-  exclusion: number;
-  nonConforme: number;
-  partiellementConforme: number;
-  conforme: number;
-  total: number;
+export interface ExigenceGroup {
+  id: string;
+  nom: string;
+  description?: string;
+  ordre?: number;
+  expanded?: boolean;
 }
