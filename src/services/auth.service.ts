@@ -1,6 +1,6 @@
 
 import { APP_CONFIG } from '@/lib/config';
-import { ApiResponse, User, AuthState } from '@/types/api';
+import { ApiResponse, User, AuthState } from '@/types';
 
 class AuthService {
   getAuthState(): AuthState {

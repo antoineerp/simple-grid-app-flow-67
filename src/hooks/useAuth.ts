@@ -1,8 +1,7 @@
 
-// Hook d'authentification simplifié
 import { useState, useEffect } from 'react';
 import { authService } from '@/services/auth.service';
-import { AuthState, User } from '@/types';
+import { AuthState } from '@/types';
 
 export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>(() => 
