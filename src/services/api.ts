@@ -1,5 +1,6 @@
 
 import { APP_CONFIG } from '@/lib/config';
+import { ApiResponse } from '@/types/api';
 
 class ApiService {
   private baseUrl: string;
@@ -25,7 +26,7 @@ class ApiService {
     return headers;
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
     
     const response = await fetch(url, {
@@ -44,7 +45,7 @@ class ApiService {
   }
 
   // Auth
-  async login(username: string, password: string) {
+  async login(username: string, password: string): Promise<ApiResponse<{ token: string; user: any }>> {
     return this.request('/auth.php', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
@@ -52,11 +53,11 @@ class ApiService {
   }
 
   // Users
-  async getUsers() {
+  async getUsers(): Promise<ApiResponse<any[]>> {
     return this.request('/users.php');
   }
 
-  async createUser(userData: any) {
+  async createUser(userData: any): Promise<ApiResponse<any>> {
     return this.request('/users.php', {
       method: 'POST',
       body: JSON.stringify(userData),
@@ -64,57 +65,57 @@ class ApiService {
   }
 
   // Documents
-  async getDocuments() {
+  async getDocuments(): Promise<ApiResponse<any[]>> {
     return this.request('/documents.php');
   }
 
-  async createDocument(document: any) {
+  async createDocument(document: any): Promise<ApiResponse<any>> {
     return this.request('/documents.php', {
       method: 'POST',
       body: JSON.stringify(document),
     });
   }
 
-  async updateDocument(document: any) {
+  async updateDocument(document: any): Promise<ApiResponse<any>> {
     return this.request('/documents.php', {
       method: 'PUT',
       body: JSON.stringify(document),
     });
   }
 
-  async deleteDocument(id: string) {
+  async deleteDocument(id: string): Promise<ApiResponse<any>> {
     return this.request(`/documents.php?id=${id}`, {
       method: 'DELETE',
     });
   }
 
   // Exigences
-  async getExigences() {
+  async getExigences(): Promise<ApiResponse<any[]>> {
     return this.request('/exigences.php');
   }
 
-  async createExigence(exigence: any) {
+  async createExigence(exigence: any): Promise<ApiResponse<any>> {
     return this.request('/exigences.php', {
       method: 'POST',
       body: JSON.stringify(exigence),
     });
   }
 
-  async updateExigence(exigence: any) {
+  async updateExigence(exigence: any): Promise<ApiResponse<any>> {
     return this.request('/exigences.php', {
       method: 'PUT',
       body: JSON.stringify(exigence),
     });
   }
 
-  async deleteExigence(id: string) {
+  async deleteExigence(id: string): Promise<ApiResponse<any>> {
     return this.request(`/exigences.php?id=${id}`, {
       method: 'DELETE',
     });
   }
 
   // Status
-  async getStatus() {
+  async getStatus(): Promise<ApiResponse<any>> {
     return this.request('/status.php');
   }
 }

@@ -1,9 +1,9 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Document, DocumentGroup } from '@/types/documents';
 import { apiService } from '@/services/api';
+import { ApiResponse } from '@/types/api';
 
 export function useDocuments() {
   const { toast } = useToast();
@@ -78,7 +78,7 @@ export function useDocuments() {
     }
   });
 
-  const documents: Document[] = response?.success ? response.data : [];
+  const documents: Document[] = (response as ApiResponse)?.success ? (response as ApiResponse).data : [];
 
   return {
     documents,

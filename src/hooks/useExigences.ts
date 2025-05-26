@@ -1,9 +1,9 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Exigence, ExigenceGroup } from '@/types/exigences';
 import { apiService } from '@/services/api';
+import { ApiResponse } from '@/types/api';
 
 export function useExigences() {
   const { toast } = useToast();
@@ -78,7 +78,7 @@ export function useExigences() {
     }
   });
 
-  const exigences: Exigence[] = response?.success ? response.data : [];
+  const exigences: Exigence[] = (response as ApiResponse)?.success ? (response as ApiResponse).data : [];
 
   return {
     exigences,

@@ -1,6 +1,7 @@
 
 import { apiService } from './api';
 import { APP_CONFIG } from '@/lib/config';
+import { ApiResponse } from '@/types/api';
 
 interface User {
   id: number;
@@ -21,24 +22,31 @@ interface LoginResponse {
 class AuthService {
   async login(username: string, password: string): Promise<LoginResponse> {
     try {
-      const response = await apiService.login(username, password);
+      const response: ApiResponse<{ token: string; user: User }> = await apiService.login(username, password);
       
-      if (response.success && response.token && response.user) {
+      if (response.success && response.data?.token && response.data?.user) {
         // Stocker les informations d'authentification
-        localStorage.setItem(APP_CONFIG.auth.tokenKey, response.token);
-        localStorage.setItem(APP_CONFIG.auth.userKey, JSON.stringify(response.user));
-        localStorage.setItem(APP_CONFIG.auth.roleKey, response.user.role);
+        localStorage.setItem(APP_CONFIG.auth.tokenKey, response.data.token);
+        localStorage.setItem(APP_CONFIG.auth.userKey, JSON.stringify(response.data.user));
+        localStorage.setItem(APP_CONFIG.auth.roleKey, response.data.user.role);
         
         // Configurer l'API service avec l'utilisateur actuel
-        apiService.setCurrentUser(response.user.identifiant_technique);
+        apiService.setCurrentUser(response.data.user.identifiant_technique);
         
-        return response;
+        return {
+          success: true,
+          token: response.data.token,
+          user: response.data.user
+        };
       }
       
       throw new Error(response.message || 'Échec de la connexion');
     } catch (error) {
       console.error('Erreur de connexion:', error);
-      throw error;
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Erreur de connexion'
+      };
     }
   }
 
