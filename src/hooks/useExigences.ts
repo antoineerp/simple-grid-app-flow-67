@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -83,6 +84,7 @@ export function useExigences() {
   return {
     exigences,
     groups,
+    isLoading, // Add the missing isLoading property
     editingExigence,
     editingGroup,
     dialogOpen,
