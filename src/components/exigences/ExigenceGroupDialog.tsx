@@ -28,11 +28,11 @@ export const ExigenceGroupDialog = ({
   onSave,
   isEditing
 }: ExigenceGroupDialogProps) => {
-  const [name, setName] = React.useState(group?.name || '');
+  const [name, setName] = React.useState(group?.nom || group?.name || '');
 
   React.useEffect(() => {
     if (group) {
-      setName(group.name);
+      setName(group.nom || group.name || '');
     } else {
       setName('');
     }
@@ -41,7 +41,8 @@ export const ExigenceGroupDialog = ({
   const handleSave = () => {
     const updatedGroup: ExigenceGroup = {
       id: group?.id || Math.random().toString(36).substr(2, 9),
-      name,
+      nom: name,
+      name: name,
       expanded: group?.expanded || false,
       items: group?.items || []
     };

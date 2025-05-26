@@ -19,7 +19,12 @@ const ExigenceForm: React.FC<ExigenceFormProps> = ({ exigence, open, onOpenChang
   const [formData, setFormData] = useState<Exigence>({
     id: exigence?.id || '',
     nom: exigence?.nom || '',
-    responsabilites: exigence?.responsabilites || { r: [], a: [], c: [], i: [] },
+    responsabilites: {
+      r: [],
+      a: [],
+      c: [],
+      i: []
+    },
     exclusion: exigence?.exclusion || false,
     atteinte: exigence?.atteinte || null,
     date_creation: exigence?.date_creation || new Date(),
@@ -29,13 +34,13 @@ const ExigenceForm: React.FC<ExigenceFormProps> = ({ exigence, open, onOpenChang
   useEffect(() => {
     if (exigence) {
       setFormData({
-        id: exigence.id,
-        nom: exigence.nom,
-        responsabilites: exigence.responsabilites,
-        exclusion: exigence.exclusion,
-        atteinte: exigence.atteinte,
-        date_creation: exigence.date_creation,
-        date_modification: exigence.date_modification
+        ...exigence,
+        responsabilites: exigence.responsabilites || {
+          r: [],
+          a: [],
+          c: [],
+          i: []
+        }
       });
     }
   }, [exigence]);

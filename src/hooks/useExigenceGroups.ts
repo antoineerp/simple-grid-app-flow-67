@@ -15,13 +15,13 @@ export const useExigenceGroups = (
       setGroups(prev => prev.map(g => g.id === group.id ? group : g));
       toast({
         title: "Groupe mis à jour",
-        description: `Le groupe ${group.name} a été mis à jour avec succès`,
+        description: `Le groupe ${group.nom || group.name} a été mis à jour avec succès`,
       });
     } else {
       setGroups(prev => [...prev, group]);
       toast({
         title: "Nouveau groupe",
-        description: `Le groupe ${group.name} a été créé`,
+        description: `Le groupe ${group.nom || group.name} a été créé`,
       });
     }
   }, [setGroups, toast]);

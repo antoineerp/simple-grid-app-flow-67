@@ -15,7 +15,10 @@ export const useExigenceMutations = (
         exigence.id === id 
           ? { 
               ...exigence, 
-              responsabilites: { ...exigence.responsabilites, [type]: values },
+              responsabilites: { 
+                ...exigence.responsabilites, 
+                [type]: values 
+              },
               date_modification: new Date()
             } 
           : exigence
@@ -70,7 +73,12 @@ export const useExigenceMutations = (
     const newExigence: Exigence = {
       id: newId,
       nom: `Nouvelle exigence ${newId}`,
-      responsabilites: { r: [], a: [], c: [], i: [] },
+      responsabilites: { 
+        r: [], 
+        a: [], 
+        c: [], 
+        i: [] 
+      },
       exclusion: false,
       atteinte: null,
       date_creation: new Date(),

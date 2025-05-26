@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
@@ -102,7 +103,6 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
         </TableHeader>
         <TableBody>
           {groups.map((group, groupIndex) => {
-            // For each group, get its items
             const groupItems = exigences.filter(e => e.groupId === group.id);
             
             return (
@@ -142,7 +142,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                       <ChevronDown 
                         className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} 
                       />
-                      <span className="font-bold text-app-blue text-sm">{group.name}</span>
+                      <span className="font-bold text-app-blue text-sm">{group.nom || group.name}</span>
                     </div>
                   </TableCell>
                   <TableCell className="py-3 px-4 text-right">
@@ -201,28 +201,28 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                     
                     <TableCell className="py-3 px-1 text-center">
                       <ResponsableSelector 
-                        selectedInitiales={exigence.responsabilites.r}
+                        selectedInitiales={exigence.responsabilites?.r || []}
                         onChange={(values) => onResponsabiliteChange(exigence.id, 'r', values)}
                         type="r"
                       />
                     </TableCell>
                     <TableCell className="py-3 px-1 text-center">
                       <ResponsableSelector 
-                        selectedInitiales={exigence.responsabilites.a}
+                        selectedInitiales={exigence.responsabilites?.a || []}
                         onChange={(values) => onResponsabiliteChange(exigence.id, 'a', values)}
                         type="a"
                       />
                     </TableCell>
                     <TableCell className="py-3 px-1 text-center">
                       <ResponsableSelector 
-                        selectedInitiales={exigence.responsabilites.c}
+                        selectedInitiales={exigence.responsabilites?.c || []}
                         onChange={(values) => onResponsabiliteChange(exigence.id, 'c', values)}
                         type="c"
                       />
                     </TableCell>
                     <TableCell className="py-3 px-1 text-center">
                       <ResponsableSelector 
-                        selectedInitiales={exigence.responsabilites.i}
+                        selectedInitiales={exigence.responsabilites?.i || []}
                         onChange={(values) => onResponsabiliteChange(exigence.id, 'i', values)}
                         type="i"
                       />
@@ -315,28 +315,28 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
               
               <TableCell className="py-3 px-1 text-center">
                 <ResponsableSelector 
-                  selectedInitiales={exigence.responsabilites.r}
+                  selectedInitiales={exigence.responsabilites?.r || []}
                   onChange={(values) => onResponsabiliteChange(exigence.id, 'r', values)}
                   type="r"
                 />
               </TableCell>
               <TableCell className="py-3 px-1 text-center">
                 <ResponsableSelector 
-                  selectedInitiales={exigence.responsabilites.a}
+                  selectedInitiales={exigence.responsabilites?.a || []}
                   onChange={(values) => onResponsabiliteChange(exigence.id, 'a', values)}
                   type="a"
                 />
               </TableCell>
               <TableCell className="py-3 px-1 text-center">
                 <ResponsableSelector 
-                  selectedInitiales={exigence.responsabilites.c}
+                  selectedInitiales={exigence.responsabilites?.c || []}
                   onChange={(values) => onResponsabiliteChange(exigence.id, 'c', values)}
                   type="c"
                 />
               </TableCell>
               <TableCell className="py-3 px-1 text-center">
                 <ResponsableSelector 
-                  selectedInitiales={exigence.responsabilites.i}
+                  selectedInitiales={exigence.responsabilites?.i || []}
                   onChange={(values) => onResponsabiliteChange(exigence.id, 'i', values)}
                   type="i"
                 />

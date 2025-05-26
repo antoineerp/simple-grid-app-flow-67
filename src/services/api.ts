@@ -5,13 +5,21 @@ import { Document } from '@/types';
 
 // Service API simplifié avec données mockées
 class ApiService {
+  private currentUser: string = '';
+
   private mockExigences: Exigence[] = [
     {
       id: '1',
       nom: 'Nouvelle exigence 1',
       description: 'Description de l\'exigence',
       exclusion: false,
-      atteinte: 'non_conforme',
+      atteinte: 'NC',
+      responsabilites: {
+        r: [],
+        a: [],
+        c: [],
+        i: []
+      },
       ordre: 1
     }
   ];
@@ -23,6 +31,10 @@ class ApiService {
     { id: '4', nom: 'Document technique' },
     { id: '5', nom: 'N.GCV' }
   ];
+
+  setCurrentUser(userId: string): void {
+    this.currentUser = userId;
+  }
 
   async getExigences(): Promise<ApiResponse<Exigence[]>> {
     // Simuler un délai d'API
