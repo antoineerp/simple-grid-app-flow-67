@@ -3,30 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Exigence, ExigenceGroup } from '@/types/exigences';
-
-const exigencesService = {
-  getExigences: async (): Promise<Exigence[]> => {
-    // Retourner des données vides par défaut
-    return [];
-  },
-  createExigence: async (exigence: Omit<Exigence, 'id'>): Promise<Exigence> => {
-    return { 
-      ...exigence, 
-      id: crypto.randomUUID(),
-      responsabilites: exigence.responsabilites || { r: [], a: [], c: [], i: [] },
-      exclusion: exigence.exclusion || false,
-      atteinte: exigence.atteinte || null,
-      date_creation: new Date(),
-      date_modification: new Date()
-    };
-  },
-  updateExigence: async (exigence: Exigence): Promise<Exigence> => {
-    return exigence;
-  },
-  deleteExigence: async (id: string): Promise<void> => {
-    // Supprimer de la base de données
-  }
-};
+import { apiService } from '@/services/api';
 
 export function useExigences() {
   const { toast } = useToast();
@@ -38,17 +15,17 @@ export function useExigences() {
   const [groups, setGroups] = useState<ExigenceGroup[]>([]);
 
   const {
-    data: exigencesData = [],
+    data: response,
     isLoading,
     error,
     refetch
   } = useQuery({
     queryKey: ['exigences'],
-    queryFn: exigencesService.getExigences,
+    queryFn: () => apiService.getExigences(),
   });
 
   const createMutation = useMutation({
-    mutationFn: exigencesService.createExigence,
+    mutationFn: (exigence: Omit<Exigence, 'id'>) => apiService.createExigence(exigence),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['exigences'] });
       toast({
@@ -56,10 +33,17 @@ export function useExigences() {
         description: "Exigence créée avec succès"
       });
     },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   });
 
   const updateMutation = useMutation({
-    mutationFn: exigencesService.updateExigence,
+    mutationFn: (exigence: Exigence) => apiService.updateExigence(exigence),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['exigences'] });
       toast({
@@ -67,10 +51,17 @@ export function useExigences() {
         description: "Exigence mise à jour avec succès"
       });
     },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   });
 
   const deleteMutation = useMutation({
-    mutationFn: exigencesService.deleteExigence,
+    mutationFn: (id: string) => apiService.deleteExigence(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['exigences'] });
       toast({
@@ -78,33 +69,20 @@ export function useExigences() {
         description: "Exigence supprimée avec succès"
       });
     },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   });
 
-  // Transformer les données pour correspondre aux types attendus
-  const exigences: Exigence[] = exigencesData.map(ex => ({
-    ...ex,
-    responsabilites: ex.responsabilites || { r: [], a: [], c: [], i: [] },
-    exclusion: ex.exclusion || false,
-    atteinte: ex.atteinte || null,
-    date_creation: ex.date_creation || new Date(),
-    date_modification: ex.date_modification || new Date()
-  }));
-
-  const transformedGroups: ExigenceGroup[] = groups.map(group => ({
-    ...group,
-    items: group.items.map(item => ({
-      ...item,
-      responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
-      exclusion: item.exclusion || false,
-      atteinte: item.atteinte || null,
-      date_creation: item.date_creation || new Date(),
-      date_modification: item.date_modification || new Date()
-    }))
-  }));
+  const exigences: Exigence[] = response?.success ? response.data : [];
 
   return {
     exigences,
-    groups: transformedGroups,
+    groups,
     editingExigence,
     editingGroup,
     dialogOpen,
@@ -120,19 +98,10 @@ export function useExigences() {
       setDialogOpen(true);
     },
     handleSaveExigence: (exigence: Exigence) => {
-      const exigenceWithDefaults: Exigence = {
-        ...exigence,
-        responsabilites: exigence.responsabilites || { r: [], a: [], c: [], i: [] },
-        exclusion: exigence.exclusion || false,
-        atteinte: exigence.atteinte || null,
-        date_creation: exigence.date_creation || new Date(),
-        date_modification: new Date()
-      };
-      
       if (editingExigence) {
-        updateMutation.mutate(exigenceWithDefaults);
+        updateMutation.mutate(exigence);
       } else {
-        createMutation.mutate(exigenceWithDefaults);
+        createMutation.mutate(exigence);
       }
       setDialogOpen(false);
     },
@@ -150,23 +119,10 @@ export function useExigences() {
       setGroupDialogOpen(true);
     },
     handleSaveGroup: (group: ExigenceGroup) => {
-      const transformedGroup: ExigenceGroup = {
-        ...group,
-        items: group.items.map(item => ({
-          ...item,
-          responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
-          exclusion: item.exclusion || false,
-          atteinte: item.atteinte || null,
-          date_creation: item.date_creation || new Date(),
-          date_modification: item.date_modification || new Date()
-        }))
-      };
-      
-      if (editingGroup) {
-        setGroups(prev => prev.map(g => g.id === group.id ? transformedGroup : g));
-      } else {
-        setGroups(prev => [...prev, transformedGroup]);
-      }
+      setGroups(prev => editingGroup ? 
+        prev.map(g => g.id === group.id ? group : g) : 
+        [...prev, group]
+      );
       setGroupDialogOpen(false);
     },
     handleDeleteGroup: () => {},

@@ -1,25 +1,26 @@
 
-# Configuration API unifiée
 RewriteEngine On
 
 # En-têtes CORS
 <IfModule mod_headers.c>
     Header always set Access-Control-Allow-Origin "*"
     Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization, X-User-ID"
     Header set Cache-Control "no-cache, no-store, must-revalidate"
 </IfModule>
+
+# Gérer les requêtes OPTIONS pour CORS
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ - [R=200,L]
 
 # Assurer que PHP est correctement interprété
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
 
-# Rediriger toutes les requêtes vers index.php
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
-
-# Gérer les requêtes OPTIONS pour CORS
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ index.php [QSA,L]
+# Redirection pour les routes d'API spécifiques
+RewriteRule ^auth/?$ auth.php [L]
+RewriteRule ^users/?$ users.php [L]
+RewriteRule ^documents/?$ documents.php [L]
+RewriteRule ^exigences/?$ exigences.php [L]
+RewriteRule ^status/?$ status.php [L]

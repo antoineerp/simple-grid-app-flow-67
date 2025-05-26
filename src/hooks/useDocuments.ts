@@ -3,29 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Document, DocumentGroup } from '@/types/documents';
-
-const documentsService = {
-  getDocuments: async (): Promise<Document[]> => {
-    // Retourner des données vides par défaut
-    return [];
-  },
-  createDocument: async (document: Omit<Document, 'id'>): Promise<Document> => {
-    return { 
-      ...document, 
-      id: crypto.randomUUID(),
-      responsabilites: document.responsabilites || { r: [], a: [], c: [], i: [] },
-      etat: document.etat || null,
-      date_creation: new Date(),
-      date_modification: new Date()
-    };
-  },
-  updateDocument: async (document: Document): Promise<Document> => {
-    return document;
-  },
-  deleteDocument: async (id: string): Promise<void> => {
-    // Supprimer de la base de données
-  }
-};
+import { apiService } from '@/services/api';
 
 export function useDocuments() {
   const { toast } = useToast();
@@ -37,17 +15,17 @@ export function useDocuments() {
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
 
   const {
-    data: documentsData = [],
+    data: response,
     isLoading,
     error,
     refetch
   } = useQuery({
     queryKey: ['documents'],
-    queryFn: documentsService.getDocuments,
+    queryFn: () => apiService.getDocuments(),
   });
 
   const createMutation = useMutation({
-    mutationFn: documentsService.createDocument,
+    mutationFn: (document: Omit<Document, 'id'>) => apiService.createDocument(document),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       toast({
@@ -55,10 +33,17 @@ export function useDocuments() {
         description: "Document créé avec succès"
       });
     },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   });
 
   const updateMutation = useMutation({
-    mutationFn: documentsService.updateDocument,
+    mutationFn: (document: Document) => apiService.updateDocument(document),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       toast({
@@ -66,10 +51,17 @@ export function useDocuments() {
         description: "Document mis à jour avec succès"
       });
     },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   });
 
   const deleteMutation = useMutation({
-    mutationFn: documentsService.deleteDocument,
+    mutationFn: (id: string) => apiService.deleteDocument(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       toast({
@@ -77,31 +69,20 @@ export function useDocuments() {
         description: "Document supprimé avec succès"
       });
     },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   });
 
-  // Transformer les données pour correspondre aux types attendus
-  const documents: Document[] = documentsData.map(doc => ({
-    ...doc,
-    responsabilites: doc.responsabilites || { r: [], a: [], c: [], i: [] },
-    etat: doc.etat || null,
-    date_creation: doc.date_creation || new Date(),
-    date_modification: doc.date_modification || new Date()
-  }));
-
-  const transformedGroups: DocumentGroup[] = groups.map(group => ({
-    ...group,
-    items: group.items.map(item => ({
-      ...item,
-      responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
-      etat: item.etat || null,
-      date_creation: item.date_creation || new Date(),
-      date_modification: item.date_modification || new Date()
-    }))
-  }));
+  const documents: Document[] = response?.success ? response.data : [];
 
   return {
     documents,
-    groups: transformedGroups,
+    groups,
     editingDocument,
     editingGroup,
     dialogOpen,
@@ -119,18 +100,10 @@ export function useDocuments() {
       setDialogOpen(true);
     },
     handleSaveDocument: (doc: Document) => {
-      const docWithDefaults: Document = {
-        ...doc,
-        responsabilites: doc.responsabilites || { r: [], a: [], c: [], i: [] },
-        etat: doc.etat || null,
-        date_creation: doc.date_creation || new Date(),
-        date_modification: new Date()
-      };
-      
       if (editingDocument) {
-        updateMutation.mutate(docWithDefaults);
+        updateMutation.mutate(doc);
       } else {
-        createMutation.mutate(docWithDefaults);
+        createMutation.mutate(doc);
       }
       setDialogOpen(false);
     },
@@ -148,22 +121,10 @@ export function useDocuments() {
       setGroupDialogOpen(true);
     },
     handleSaveGroup: (group: DocumentGroup) => {
-      const transformedGroup: DocumentGroup = {
-        ...group,
-        items: group.items.map(item => ({
-          ...item,
-          responsabilites: item.responsabilites || { r: [], a: [], c: [], i: [] },
-          etat: item.etat || null,
-          date_creation: item.date_creation || new Date(),
-          date_modification: item.date_modification || new Date()
-        }))
-      };
-      
-      if (editingGroup) {
-        setGroups(prev => prev.map(g => g.id === group.id ? transformedGroup : g));
-      } else {
-        setGroups(prev => [...prev, transformedGroup]);
-      }
+      setGroups(prev => editingGroup ? 
+        prev.map(g => g.id === group.id ? group : g) : 
+        [...prev, group]
+      );
       setGroupDialogOpen(false);
     },
     handleDeleteGroup: () => {},
