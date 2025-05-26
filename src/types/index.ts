@@ -1,4 +1,3 @@
-
 // Types centralisés
 export type UserRole = 'admin' | 'gestionnaire' | 'utilisateur';
 
@@ -47,4 +46,11 @@ export interface NavItem {
   path: string;
   label: string;
   icon: React.ComponentType<any>;
+}
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  status?: number;
 }

@@ -1,333 +1,226 @@
 
-import React, { useState, useEffect, ChangeEvent } from 'react';
-import { useToast } from "@/hooks/use-toast";
-import { MembresProvider } from '@/contexts/MembresContext';
-import { exportPilotageToOdf } from "@/services/pdfExport";
-import { useUnifiedSync } from '@/hooks/useUnifiedSync';
-import { syncEvents } from '@/services/sync/UnifiedSyncService';
-import PilotageHeader from '@/components/pilotage/PilotageHeader';
-import PilotageActions from '@/components/pilotage/PilotageActions';
-import PilotageDocumentsTable from '@/components/pilotage/PilotageDocumentsTable';
-import DocumentDialog from '@/components/pilotage/DocumentDialog';
-import ExigenceSummary from '@/components/pilotage/ExigenceSummary';
-import DocumentSummary from '@/components/pilotage/DocumentSummary';
-import ResponsabilityMatrix from '@/components/pilotage/ResponsabilityMatrix';
-import { SyncItem } from '@/services/sync/UnifiedSyncService';
-
-// Interface pour les documents de pilotage
-interface PilotageDocument extends SyncItem {
-  id: string;
-  nom: string;
-  fichier_path: string | null;
-  responsabilites: {
-    r: string[];
-    a: string[];
-    c: string[];
-    i: string[];
-  };
-  etat: "NC" | "PC" | "C" | null;
-  date_creation: Date;
-  date_modification: Date;
-  excluded: boolean;
-  groupId?: string;
-  ordre?: number;
-}
-
-// Interface pour la table des documents (format du composant existant)
-interface DialogDocument {
-  id: number;
-  ordre: number;
-  nom: string;
-  lien: string | null;
-}
-
-// Fonction de conversion de PilotageDocument à DialogDocument
-const convertToDialogDocument = (doc: PilotageDocument): DialogDocument => {
-  return {
-    id: parseInt(doc.id) || Math.floor(Math.random() * 10000),
-    ordre: doc.ordre || 0,
-    nom: doc.nom,
-    lien: doc.fichier_path
-  };
-};
-
-// Fonction de conversion de DialogDocument à PilotageDocument (partiel)
-const convertToPartialPilotageDocument = (doc: DialogDocument): Partial<PilotageDocument> => {
-  return {
-    id: doc.id.toString(),
-    nom: doc.nom,
-    fichier_path: doc.lien,
-    ordre: doc.ordre
-  };
-};
+import React from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { FileText, BarChart3, Plus, Download } from 'lucide-react';
 
 const Pilotage = () => {
-  const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentDialogDocument, setCurrentDialogDocument] = useState<DialogDocument>({
-    id: 0,
-    ordre: 0,
-    nom: '',
-    lien: null
-  });
-
-  // Utiliser notre hook unifié
-  const {
-    data: documents,
-    isSyncing,
-    lastSynced,
-    syncFailed,
-    isOnline,
-    createItem,
-    updateItem,
-    deleteItem,
-    reorderItems,
-    syncData
-  } = useUnifiedSync<PilotageDocument>({
-    tableName: 'pilotage_documents',
-    autoSync: true,
-    syncInterval: 30000,  // 30 secondes
-    endpoint: 'documents-sync.php',
-    itemFactory: (data) => ({
-      id: data?.id || '',
-      nom: data?.nom || 'Nouveau document',
-      fichier_path: data?.fichier_path || null,
-      responsabilites: data?.responsabilites || { r: [], a: [], c: [], i: [] },
-      etat: data?.etat || null,
-      date_creation: new Date(),
-      date_modification: new Date(),
-      excluded: data?.excluded || false,
-      groupId: data?.groupId || undefined,
-      ordre: data?.ordre || 0
-    }) as PilotageDocument
-  });
-
-  // Écouter les événements de synchronisation pour les documents et exigences
-  useEffect(() => {
-    // Fonction pour forcer la mise à jour lorsque des données sont modifiées ailleurs
-    const handleDocumentUpdate = () => {
-      console.log("Pilotage: Événement de mise à jour des documents détecté, synchronisation...");
-      syncData('manual').catch(console.error);
-    };
-    
-    const handleExigenceUpdate = () => {
-      console.log("Pilotage: Événement de mise à jour des exigences détecté");
-      // Mettre à jour les synthèses, pas besoin de synchroniser les documents
-      // Ce sera géré par les composants de synthèse
-    };
-    
-    // S'abonner aux événements
-    const unsubscribeDocuments = syncEvents.subscribe('pilotage_documents', handleDocumentUpdate);
-    const unsubscribeExigences = syncEvents.subscribe('exigences', handleExigenceUpdate);
-    
-    // Écouter également les changements dans le localStorage
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key && (e.key.includes('documents_') || e.key.includes('exigences_'))) {
-        console.log(`Pilotage: Changement détecté dans le storage pour ${e.key}`);
-        syncData('manual').catch(console.error);
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      unsubscribeDocuments();
-      unsubscribeExigences();
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [syncData]);
-
-  // Convertir les documents pour l'affichage dans le composant de table existant
-  const convertedDocuments = documents.map(doc => convertToDialogDocument(doc));
-
-  // Gestionnaires d'événements
-  const handleAddDocument = () => {
-    const newOrderValue = documents.length > 0 
-      ? Math.max(...documents.map(doc => doc.ordre || 0)) + 1 
-      : 1;
-      
-    // Générer un ID unique pour éviter les doublons
-    const newId = `doc_${Date.now().toString()}`;
-    
-    const newDocData: Partial<PilotageDocument> = { 
-      id: newId,
-      nom: 'Nouveau document',
-      ordre: newOrderValue,
-      etat: null
-    };
-    
-    const newDocument = createItem(newDocData);
-    
-    // Convertir pour l'affichage dans le dialogue
-    const dialogDoc = convertToDialogDocument(newDocument);
-    setCurrentDialogDocument(dialogDoc);
-    
-    setIsEditing(false);
-    setIsDialogOpen(true);
-  };
-
-  const handleEditDocument = (doc: DialogDocument) => {
-    setCurrentDialogDocument(doc);
-    setIsEditing(true);
-    setIsDialogOpen(true);
-  };
-
-  const handleDeleteDocument = (id: number) => {
-    // Trouver l'ID correspondant dans notre liste de documents
-    const docToDelete = documents.find(d => parseInt(d.id) === id || d.id === id.toString());
-    if (docToDelete) {
-      const success = deleteItem(docToDelete.id);
-      if (success) {
-        toast({
-          title: "Document supprimé",
-          description: "Le document a été supprimé avec succès"
-        });
-      } else {
-        toast({
-          title: "Erreur",
-          description: "Impossible de supprimer le document",
-          variant: "destructive"
-        });
-      }
-    } else {
-      console.error(`Document avec ID ${id} introuvable pour suppression`);
-      toast({
-        title: "Erreur",
-        description: "Document introuvable",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setCurrentDialogDocument(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSaveDocument = () => {
-    if (currentDialogDocument) {
-      // Convertir en format PilotageDocument
-      const docData = convertToPartialPilotageDocument(currentDialogDocument);
-      
-      if (isEditing) {
-        // Trouver le document correspondant dans notre liste
-        const docToUpdate = documents.find(d => 
-          parseInt(d.id) === currentDialogDocument.id || 
-          d.id === currentDialogDocument.id.toString()
-        );
-        
-        if (docToUpdate) {
-          // Mettre à jour le document existant
-          updateItem(docToUpdate.id, docData);
-          toast({
-            title: "Document mis à jour",
-            description: "Le document a été mis à jour avec succès"
-          });
-        } else {
-          toast({
-            title: "Erreur",
-            description: "Document introuvable",
-            variant: "destructive"
-          });
-        }
-      } else {
-        // Créer un nouveau document
-        const newDoc = createItem(docData);
-        if (newDoc) {
-          toast({
-            title: "Document créé",
-            description: "Le nouveau document a été créé avec succès"
-          });
-        }
-      }
-      
-      setIsDialogOpen(false);
-    }
-  };
-
-  const handleReorder = (startIndex: number, endIndex: number) => {
-    // Réorganiser les documents
-    reorderItems(startIndex, endIndex);
-    
-    toast({
-      title: "Ordre mis à jour",
-      description: "L'ordre des documents a été mis à jour avec succès",
-    });
-  };
-
-  const handleExportPdf = () => {
-    exportPilotageToOdf(documents);
-    toast({
-      title: "Export PDF",
-      description: "Les documents ont été exportés au format PDF",
-    });
-  };
-
-  // Fonction pour déclencher la synchronisation manuelle
-  const handleSync = async () => {
-    try {
-      const success = await syncData("manual");
-      if (success) {
-        toast({
-          title: "Synchronisation",
-          description: "Les documents ont été synchronisés avec succès",
-        });
-      } else {
-        toast({
-          title: "Synchronisation",
-          description: "Aucun document à synchroniser ou erreur de synchronisation",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error("Erreur lors de la synchronisation:", error);
-      toast({
-        title: "Erreur de synchronisation",
-        description: "Une erreur est survenue lors de la synchronisation",
-        variant: "destructive"
-      });
-    }
-  };
+  const documents = [
+    { id: 1, nom: "Charte institutionnelle", lien: "Voir le document" },
+    { id: 2, nom: "Objectifs stratégiques", lien: "Aucun lien" },
+    { id: 3, nom: "Objectifs opérationnels", lien: "Voir le document" },
+    { id: 4, nom: "Risques", lien: "Aucun lien" }
+  ];
 
   return (
-    <MembresProvider>
-      <div className="p-8">
-        <PilotageHeader 
-          onExport={handleExportPdf}
-          onSync={handleSync}
-          isSyncing={isSyncing}
-          syncFailed={syncFailed}
-          lastSynced={lastSynced}
-          isOnline={isOnline}
-        />
-
-        <PilotageDocumentsTable 
-          documents={convertedDocuments}
-          onEditDocument={handleEditDocument}
-          onDeleteDocument={handleDeleteDocument}
-          onReorder={handleReorder}
-        />
-
-        <PilotageActions onAddDocument={handleAddDocument} />
-
-        <ExigenceSummary />
-        <DocumentSummary />
-        <ResponsabilityMatrix />
-
-        <DocumentDialog 
-          isOpen={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          currentDocument={currentDialogDocument}
-          onInputChange={handleInputChange}
-          onSave={handleSaveDocument}
-          isEditing={isEditing}
-        />
+    <div className="container px-4 py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <BarChart3 className="h-8 w-8 text-blue-600" />
+          <h1 className="text-3xl font-bold text-blue-600">Pilotage</h1>
+        </div>
+        <Button className="bg-red-500 hover:bg-red-600">
+          <Download className="h-4 w-4 mr-2" />
+          Générer le rapport
+        </Button>
       </div>
-    </MembresProvider>
+
+      {/* Synthèse de l'atteinte des exigences */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Synthèse de l'atteinte des exigences</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="bg-red-100 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-red-600">1</div>
+              <div className="text-sm text-red-600">Non Conforme</div>
+            </div>
+            <div className="bg-yellow-100 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-yellow-600">0</div>
+              <div className="text-sm text-yellow-600">Part. Conforme</div>
+            </div>
+            <div className="bg-green-100 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-green-600">0</div>
+              <div className="text-sm text-green-600">Conforme</div>
+            </div>
+            <div className="bg-blue-100 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-blue-600">1</div>
+              <div className="text-sm text-blue-600">Total (sans exclusion)</div>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-semibold mb-4">Répartition des exigences</h3>
+              <div className="w-32 h-32 mx-auto bg-red-400 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold">100%</span>
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-4">Statistiques complémentaires</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Exigences exclues :</span>
+                  <span className="font-bold">1</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Taux de conformité :</span>
+                  <span className="font-bold text-green-600">0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Synthèse de la gestion documentaire */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Synthèse de la gestion documentaire</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="bg-gray-100 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-gray-600">0</div>
+              <div className="text-sm text-gray-600">Exclusion</div>
+            </div>
+            <div className="bg-red-100 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-red-600">0</div>
+              <div className="text-sm text-red-600">Non Conforme</div>
+            </div>
+            <div className="bg-yellow-100 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-yellow-600">0</div>
+              <div className="text-sm text-yellow-600">Part. Conforme</div>
+            </div>
+            <div className="bg-green-100 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-green-600">0</div>
+              <div className="text-sm text-green-600">Conforme</div>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-semibold mb-4">Répartition des documents</h3>
+              <div className="w-32 h-32 mx-auto bg-red-400 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold">100%</span>
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-4">Statistiques complémentaires</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Documents exclus :</span>
+                  <span className="font-bold">0</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Taux de conformité :</span>
+                  <span className="font-bold text-green-600">0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Documents de pilotage */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Documents de pilotage</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2">Ordre</th>
+                  <th className="text-left p-2">Nom du document</th>
+                  <th className="text-left p-2">Lien</th>
+                  <th className="text-left p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {documents.map((doc) => (
+                  <tr key={doc.id} className="border-b">
+                    <td className="p-2">{doc.id}</td>
+                    <td className="p-2">{doc.nom}</td>
+                    <td className="p-2">
+                      {doc.lien === "Voir le document" ? (
+                        <Button variant="link" className="text-blue-600 p-0">
+                          {doc.lien}
+                        </Button>
+                      ) : (
+                        <span className="text-gray-500">{doc.lien}</span>
+                      )}
+                    </td>
+                    <td className="p-2">
+                      <div className="flex space-x-2">
+                        <Button variant="ghost" size="sm">
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-red-600">
+                          ×
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter un document
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Matrice des responsabilités */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Matrice des responsabilités</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2">Fonction</th>
+                  <th className="text-center p-2" colSpan={4}>Exigences</th>
+                  <th className="text-center p-2" colSpan={4}>Gestion documentaire</th>
+                </tr>
+                <tr className="border-b text-sm text-gray-600">
+                  <th></th>
+                  <th className="text-center p-1">R</th>
+                  <th className="text-center p-1">A</th>
+                  <th className="text-center p-1">C</th>
+                  <th className="text-center p-1">I</th>
+                  <th className="text-center p-1">R</th>
+                  <th className="text-center p-1">A</th>
+                  <th className="text-center p-1">C</th>
+                  <th className="text-center p-1">I</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b">
+                  <td className="p-2 bg-yellow-100">DXXDXD</td>
+                  <td className="text-center p-2">-</td>
+                  <td className="text-center p-2">-</td>
+                  <td className="text-center p-2">-</td>
+                  <td className="text-center p-2">-</td>
+                  <td className="text-center p-2">-</td>
+                  <td className="text-center p-2">-</td>
+                  <td className="text-center p-2">-</td>
+                  <td className="text-center p-2">-</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

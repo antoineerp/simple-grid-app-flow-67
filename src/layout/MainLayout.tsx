@@ -9,7 +9,10 @@ import {
   BookOpen,
   LayoutDashboard,
   ListChecks,
-  Building2
+  Building2,
+  BarChart3,
+  Users,
+  Handshake
 } from 'lucide-react';
 import { authService } from '@/services/auth/authService';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
@@ -37,7 +40,7 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {/* Sidebar */}
       <aside className={`bg-gray-800 text-white transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-16'}`}>
         <div className="p-4 flex justify-between items-center">
-          <h1 className={`font-bold text-lg ${!isSidebarOpen && 'hidden'}`}>FormaCert</h1>
+          <h1 className={`font-bold text-lg ${!isSidebarOpen && 'hidden'}`}>Qualité.cloud</h1>
           <Button variant="ghost" size="sm" onClick={toggleSidebar}>
             {isSidebarOpen ? '←' : '→'}
           </Button>
@@ -45,18 +48,11 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         
         <nav className="mt-6">
           <div className="px-4 space-y-2">
-            <NavLink to="/dashboard" className={({isActive}) => 
+            <NavLink to="/pilotage" className={({isActive}) => 
               `flex items-center p-2 rounded hover:bg-gray-700 ${isActive ? 'bg-gray-700' : ''}`
             }>
-              <LayoutDashboard className="h-4 w-4 mr-2" />
-              {isSidebarOpen && <span>Tableau de bord</span>}
-            </NavLink>
-            
-            <NavLink to="/documents" className={({isActive}) => 
-              `flex items-center p-2 rounded hover:bg-gray-700 ${isActive ? 'bg-gray-700' : ''}`
-            }>
-              <FileText className="h-4 w-4 mr-2" />
-              {isSidebarOpen && <span>Documents</span>}
+              <BarChart3 className="h-4 w-4 mr-2" />
+              {isSidebarOpen && <span>Pilotage</span>}
             </NavLink>
             
             <NavLink to="/exigences" className={({isActive}) => 
@@ -66,11 +62,25 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               {isSidebarOpen && <span>Exigences</span>}
             </NavLink>
             
+            <NavLink to="/gestion-documentaire" className={({isActive}) => 
+              `flex items-center p-2 rounded hover:bg-gray-700 ${isActive ? 'bg-gray-700' : ''}`
+            }>
+              <FileText className="h-4 w-4 mr-2" />
+              {isSidebarOpen && <span>Gestion Documentaire</span>}
+            </NavLink>
+            
             <NavLink to="/ressources-humaines" className={({isActive}) => 
               `flex items-center p-2 rounded hover:bg-gray-700 ${isActive ? 'bg-gray-700' : ''}`
             }>
-              <Building2 className="h-4 w-4 mr-2" />
+              <Users className="h-4 w-4 mr-2" />
               {isSidebarOpen && <span>Ressources Humaines</span>}
+            </NavLink>
+            
+            <NavLink to="/collaboration" className={({isActive}) => 
+              `flex items-center p-2 rounded hover:bg-gray-700 ${isActive ? 'bg-gray-700' : ''}`
+            }>
+              <Handshake className="h-4 w-4 mr-2" />
+              {isSidebarOpen && <span>Collaboration</span>}
             </NavLink>
             
             {getCurrentUser() === 'p71x6d_richard' && (
@@ -81,13 +91,6 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {isSidebarOpen && <span>Administration</span>}
               </NavLink>
             )}
-            
-            <NavLink to="/api-docs" className={({isActive}) => 
-              `flex items-center p-2 rounded hover:bg-gray-700 ${isActive ? 'bg-gray-700' : ''}`
-            }>
-              <BookOpen className="h-4 w-4 mr-2" />
-              {isSidebarOpen && <span>Documentation API</span>}
-            </NavLink>
           </div>
         </nav>
         

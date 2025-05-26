@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -81,7 +80,7 @@ export const useLoginForm = () => {
         console.log("Connexion réussie via la base de données, redirection vers /pilotage");
         
         try {
-          // Navigation simplifiée, plus robuste
+          // Navigation vers la page Pilotage
           navigate('/pilotage', { replace: true });
           
           // Fallback si la navigation ne fonctionne pas

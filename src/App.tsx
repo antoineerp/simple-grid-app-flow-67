@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard';
 import Documents from './pages/Documents';
 import Exigences from './pages/Exigences';
 import RessourcesHumaines from './pages/RessourcesHumaines';
+import Collaboration from './pages/Collaboration';
+import Pilotage from './pages/Pilotage';
 import Admin from './pages/Admin';
 import NotFound from './pages/NotFound';
 import MainLayout from './layout/MainLayout';
@@ -50,6 +52,11 @@ function App() {
         
         {/* Routes protégées nécessitant une connexion */}
         <Route element={<LoginGuard isLoggedIn={isLoggedIn} />}>
+          <Route path="/pilotage" element={
+            <MainLayout>
+              <Pilotage />
+            </MainLayout>
+          } />
           <Route path="/dashboard" element={
             <MainLayout>
               <Dashboard />
@@ -78,6 +85,11 @@ function App() {
           <Route path="/membres" element={
             <MainLayout>
               <RessourcesHumaines />
+            </MainLayout>
+          } />
+          <Route path="/collaboration" element={
+            <MainLayout>
+              <Collaboration />
             </MainLayout>
           } />
           

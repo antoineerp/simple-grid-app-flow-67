@@ -1,121 +1,97 @@
 
 import React from 'react';
-import { FileText, Plus, FolderPlus } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { FileText, Plus } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
-import DocumentTable from '@/components/documents/DocumentTable';
-import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
-import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
 
 const Documents = () => {
-  const {
-    documents,
-    groups,
-    editingDocument,
-    editingGroup,
-    dialogOpen,
-    groupDialogOpen,
-    setDialogOpen,
-    setGroupDialogOpen,
-    handleResponsabiliteChange,
-    handleAtteinteChange,
-    handleExclusionChange,
-    handleEdit,
-    handleSaveDocument,
-    handleDelete,
-    handleAddDocument,
-    handleReorder,
-    handleGroupReorder,
-    handleToggleGroup,
-    handleEditGroup,
-    handleSaveGroup,
-    handleDeleteGroup,
-    handleAddGroup
-  } = useDocuments();
+  const { documents, isLoading } = useDocuments();
 
-  const { toast } = useToast();
+  const collaborationDocuments = [
+    { id: 1, nom: "Documents organisationnels", type: "group" },
+    { id: 2, nom: "Documents techniques", type: "group" },
+    { id: 3, nom: "Document de référence", lien: "Voir le document" },
+    { id: 4, nom: "Document technique", lien: "Voir le document" },
+    { id: 5, nom: "N.GCV", lien: "Aucun lien" }
+  ];
 
-  const handleExportPdf = () => {
-    if (documents && documents.length > 0) {
-      toast({
-        title: "Export PDF",
-        description: "Fonctionnalité d'export en cours de développement",
-      });
-    } else {
-      toast({
-        title: "Export impossible",
-        description: "Aucun document disponible à exporter",
-      });
-    }
-  };
+  if (isLoading) {
+    return <div className="p-6">Chargement...</div>;
+  }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-blue-600">Gestion documentaire</h1>
-        </div>
-        <div className="flex space-x-2">
-          <button 
-            onClick={handleExportPdf}
-            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
-            title="Exporter en PDF"
-          >
-            <FileText className="h-6 w-6 stroke-[1.5]" />
-          </button>
+    <div className="container px-4 py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <FileText className="h-8 w-8 text-blue-600" />
+          <h1 className="text-3xl font-bold text-blue-600">Collaboration</h1>
         </div>
       </div>
 
-      <DocumentTable 
-        documents={documents}
-        groups={groups}
-        onResponsabiliteChange={handleResponsabiliteChange}
-        onAtteinteChange={handleAtteinteChange}
-        onExclusionChange={handleExclusionChange}
-        onEdit={(id) => handleEdit(documents.find(d => d.id === id)!)}
-        onDelete={handleDelete}
-        onReorder={handleReorder}
-        onGroupReorder={handleGroupReorder}
-        onToggleGroup={handleToggleGroup}
-        onEditGroup={handleEditGroup}
-        onDeleteGroup={handleDeleteGroup}
-        onAddDocument={handleAddDocument}
-      />
-      
-      <div className="flex justify-end mt-4 space-x-2">
-        <Button 
-          variant="outline"
-          onClick={handleAddGroup}
-          className="hover:bg-gray-100 transition-colors mr-2"
-          title="Nouveau groupe"
-        >
-          <FolderPlus className="h-5 w-5 mr-2" />
-          Nouveau groupe
-        </Button>
-        <Button 
-          variant="default"
-          onClick={handleAddDocument}
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Nouveau document
-        </Button>
-      </div>
-
-      <DocumentForm 
-        document={editingDocument}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onSave={handleSaveDocument}
-      />
-
-      <DocumentGroupDialog
-        group={editingGroup}
-        open={groupDialogOpen}
-        onOpenChange={setGroupDialogOpen}
-        onSave={handleSaveGroup}
-        isEditing={!!editingGroup}
-      />
+      <Card>
+        <CardContent className="pt-6">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-3">Nom du document</th>
+                  <th className="text-left p-3">Lien</th>
+                  <th className="text-left p-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {collaborationDocuments.map((doc) => (
+                  <tr key={doc.id} className="border-b hover:bg-gray-50">
+                    <td className="p-3">
+                      <div className="flex items-center">
+                        {doc.type === 'group' && (
+                          <span className="mr-2 text-gray-400">▷</span>
+                        )}
+                        {doc.nom}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      {'lien' in doc ? (
+                        doc.lien === "Voir le document" ? (
+                          <Button variant="link" className="text-blue-600 p-0">
+                            {doc.lien}
+                          </Button>
+                        ) : (
+                          <span className="text-gray-500">{doc.lien}</span>
+                        )
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <div className="flex space-x-2">
+                        <Button variant="ghost" size="sm">
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-red-600">
+                          ×
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          <div className="mt-6 flex justify-end space-x-2">
+            <Button variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau groupe
+            </Button>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau document
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
