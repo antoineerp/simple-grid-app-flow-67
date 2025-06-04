@@ -21,7 +21,7 @@ interface DocumentGroupDialogProps {
   isEditing: boolean;
 }
 
-export const DocumentGroupDialog = ({
+const DocumentGroupDialog = ({
   group,
   open,
   onOpenChange,
@@ -89,3 +89,5 @@ export const DocumentGroupDialog = ({
     </Dialog>
   );
 };
+
+export default DocumentGroupDialog;

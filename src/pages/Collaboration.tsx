@@ -1,12 +1,12 @@
 
 import React, { useState } from 'react';
-import { Plus, FolderPlus, Sync, Wifi, WifiOff, Clock } from 'lucide-react';
+import { Plus, FolderPlus, RotateCw, Wifi, WifiOff, Clock } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCollaboration } from '@/hooks/useCollaboration';
 import DocumentDialog from '@/components/pilotage/DocumentDialog';
-import DocumentGroupDialog from '@/components/gestion-documentaire/DocumentGroupDialog';
+import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
 import FileLink from '@/components/gestion-documentaire/table/FileLink';
 import { Document, DocumentGroup } from '@/types/collaboration';
 
@@ -81,6 +81,10 @@ const Collaboration = () => {
     }).format(date);
   };
 
+  const onToggleGroup = (groupId: string) => {
+    handleToggleGroup(groupId);
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -110,7 +114,7 @@ const Collaboration = () => {
             size="sm"
             className={syncFailed ? 'border-red-300 text-red-600' : ''}
           >
-            <Sync className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+            <RotateCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
             {isSyncing ? 'Synchronisation...' : syncFailed ? 'Réessayer' : 'Synchroniser'}
           </Button>
         </div>
@@ -159,7 +163,7 @@ const Collaboration = () => {
                   <React.Fragment key={group.id}>
                     <TableRow 
                       className="bg-gray-50 font-medium cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleToggleGroup(group.id)}
+                      onClick={() => onToggleGroup(group.id)}
                     >
                       <TableCell colSpan={2} className="py-3">
                         <div className="flex items-center justify-between">
