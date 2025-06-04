@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, FolderPlus, RotateCw, Wifi, WifiOff, Clock } from 'lucide-react';
+import { Plus, FolderPlus, RotateCcw, Wifi, WifiOff, Clock } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -85,6 +85,42 @@ const Collaboration = () => {
     handleToggleGroup(groupId);
   };
 
+  // Convert bibliotheque DocumentGroup to documents DocumentGroup for the dialog
+  const convertGroupForDialog = (group: DocumentGroup) => {
+    return {
+      id: group.id,
+      name: group.name,
+      expanded: group.expanded,
+      items: group.items.map(item => ({
+        id: item.id,
+        nom: item.name || '',
+        name: item.name,
+        fichier_path: item.link || null,
+        responsabilites: { r: [], a: [], c: [], i: [] },
+        etat: null as any,
+        date_creation: new Date(),
+        date_modification: new Date(),
+        groupId: item.groupId
+      }))
+    };
+  };
+
+  // Handle group save with proper type conversion
+  const handleGroupSave = (group: any, isEditing: boolean) => {
+    const collaborationGroup: DocumentGroup = {
+      id: group.id,
+      name: group.name,
+      expanded: group.expanded,
+      items: currentGroup?.items || []
+    };
+    
+    if (isEditing) {
+      handleUpdateGroup(collaborationGroup);
+    } else {
+      handleAddGroup(collaborationGroup);
+    }
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -114,7 +150,7 @@ const Collaboration = () => {
             size="sm"
             className={syncFailed ? 'border-red-300 text-red-600' : ''}
           >
-            <RotateCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+            <RotateCcw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
             {isSyncing ? 'Synchronisation...' : syncFailed ? 'Réessayer' : 'Synchroniser'}
           </Button>
         </div>
@@ -283,8 +319,8 @@ const Collaboration = () => {
       <DocumentGroupDialog
         open={isGroupDialogOpen}
         onOpenChange={setIsGroupDialogOpen}
-        group={currentGroup}
-        onSave={isEditing ? handleUpdateGroup : handleAddGroup}
+        group={currentGroup ? convertGroupForDialog(currentGroup) : null}
+        onSave={handleGroupSave}
         isEditing={isEditing}
       />
     </div>
