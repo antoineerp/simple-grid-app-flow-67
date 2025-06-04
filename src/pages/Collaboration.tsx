@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCollaboration } from '@/hooks/useCollaboration';
 import DocumentDialog from '@/components/pilotage/DocumentDialog';
-import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
+import DocumentGroupDialog from '@/components/gestion-documentaire/DocumentGroupDialog';
 import FileLink from '@/components/gestion-documentaire/table/FileLink';
 import { Document, DocumentGroup } from '@/types/collaboration';
 
