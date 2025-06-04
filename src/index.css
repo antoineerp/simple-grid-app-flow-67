@@ -56,7 +56,7 @@
   }
 
   .active-sidebar-item {
-    @apply bg-app-light-blue border-l-4 border-app-blue text-app-blue font-semibold;
+    @apply bg-gray-100 border-l-4 border-app-blue text-app-blue font-semibold;
   }
 
   .table-container {
@@ -64,7 +64,7 @@
   }
 
   .table-header {
-    @apply bg-app-light-blue text-app-blue py-3 px-4;
+    @apply bg-gray-100 text-app-blue py-3 px-4;
   }
 
   .table-row {
@@ -85,5 +85,14 @@
 
   .badge {
     @apply text-xs font-medium px-3 py-1 rounded-full;
+  }
+
+  /* Supprimer les effets de survol sur les en-têtes de tableaux */
+  th {
+    @apply hover:bg-transparent;
+  }
+  
+  thead tr {
+    @apply hover:bg-transparent;
   }
 }

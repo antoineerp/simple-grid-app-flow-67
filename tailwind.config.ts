@@ -65,7 +65,7 @@ export default {
 				},
 				app: {
 					'blue': '#0056b3',
-					'light-blue': '#e6f0fa',
+					'light-blue': '#f8f9fa',
 					'gray': '#f8f9fa',
 					'red': '#dc3545',
 					'green': '#28a745',
